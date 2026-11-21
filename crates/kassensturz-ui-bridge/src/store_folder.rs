@@ -38,6 +38,15 @@ const COPIED: &str = "CopiedFromPackage";
 /// The book the user chose to keep in the earlier folder: no more offers
 /// for it.
 const KEEP: &str = "KeepBookInPackage";
+/// The book the user chose to keep in a OneDrive folder (D-968): no more
+/// offers for it.
+const KEEP_SYNCED: &str = "KeepBookInSyncFolder";
+/// Whether the user answered the offer to move the bank connection's folder
+/// out of `Documents\KassenSturz` (D-967): `true` once answered.
+const BANK_ANSWERED: &str = "BankFolderAnswered";
+/// `true` while the user's agreed move of the bank connection's folder
+/// waits for the next start, `done` after it.
+const MOVE_BANK: &str = "MoveBankFolder";
 
 /// The folders in the earlier folder that are not copied: the logs are
 /// kept by `kassensturz_core` in the data folder as before, and a copy of
@@ -46,12 +55,21 @@ const KEEP: &str = "KeepBookInPackage";
 /// the user's Documents (B-429).
 const NOT_COPIED: &[&str] = &["debug-log", "bank-log", "mcp-requests"];
 
-/// In a snap the bank connection's folder stays in the snap's data folder
-/// (B-429): Documents is often a sync folder, and the threat model keeps
-/// that folder out of one (T-07). Losing it with the snap only means
-/// setting the bank connection up again. The Store app copies it (D-856).
-fn stays_in_snap_data(name: &str) -> bool {
-    name == "aqbanking" && crate::platform::in_snap_sandbox()
+/// The bank connection's folder stays in the app's own data folder in a
+/// snap (B-429) and in the Store app (B-437, #1348): Documents is often a
+/// sync folder, and the threat model keeps that folder out of one (T-07).
+/// Losing it with the app only means setting the bank connection up again.
+fn stays_in_private_data(name: &str) -> bool {
+    stays_in_private_data_of(
+        name,
+        crate::platform::in_snap_sandbox() || crate::platform::in_app_package(),
+    )
+}
+
+/// [`stays_in_private_data`], with whether the app runs in a snap or in the
+/// Store's package given as `packaged`.
+fn stays_in_private_data_of(name: &str, packaged: bool) -> bool {
+    packaged && name == crate::platform::BANK_FOLDER
 }
 
 /// What the start's copy did, for the tests.
@@ -80,6 +98,31 @@ pub fn copy_at_start() {
     if let Err(error) = copy_once(&settings, &from, &to) {
         // Tried again at the next start; the earlier folder is unchanged.
         eprintln!("kassensturz: couldn't copy the files of the earlier folder: {error}");
+    }
+    move_bank_folder_at_start(&settings);
+}
+
+/// The bank connection's folder the user agreed to move out of
+/// `Documents\KassenSturz` (D-967): moved at the start, before anything
+/// uses it. A move that fails leaves it where it was, and it is tried again
+/// at the next start.
+fn move_bank_folder_at_start(settings: &Settings) {
+    if !crate::platform::in_app_package() || settings.text(GROUP, MOVE_BANK) != "true" {
+        return;
+    }
+    let (Some(documents), Some(private)) = (
+        crate::platform::store_documents_folder(),
+        crate::platform::qt_app_folder(),
+    ) else {
+        return;
+    };
+    match move_bank_folder(&documents, &private) {
+        Ok(()) => {
+            let _ = settings.set_text(GROUP, MOVE_BANK, "done");
+        }
+        Err(error) => {
+            eprintln!("kassensturz: couldn't move the bank connection's folder: {error}");
+        }
     }
 }
 
@@ -114,7 +157,7 @@ fn copy_missing(from: &Path, to: &Path, top: bool) -> io::Result<Copied> {
         let kind = entry.file_type()?;
         let target = to.join(&name);
         if kind.is_dir() {
-            if top && (NOT_COPIED.contains(&text) || stays_in_snap_data(text)) {
+            if top && (NOT_COPIED.contains(&text) || stays_in_private_data(text)) {
                 continue;
             }
             let inner = copy_missing(&entry.path(), &target, false)?;
@@ -188,6 +231,135 @@ pub fn earlier_folder() -> Option<PathBuf> {
 /// Notes that the user keeps `book` where it is: no more offers for it.
 pub fn keep_where_it_is(settings: &Settings, book: &Path) -> bool {
     settings.set_path(GROUP, KEEP, book)
+}
+
+/// Whether the start offers to move `book` out of a OneDrive folder
+/// (D-968): it is inside one of `roots` and the user hasn't chosen to keep
+/// it there.
+pub fn offer_sync_move(settings: &Settings, book: &Path, roots: &[PathBuf]) -> bool {
+    crate::platform::in_sync_folder(book, roots)
+        && settings.path(GROUP, KEEP_SYNCED).as_deref() != Some(book)
+}
+
+/// Notes that the user keeps `book` in its OneDrive folder.
+pub fn keep_in_sync_folder(settings: &Settings, book: &Path) -> bool {
+    settings.set_path(GROUP, KEEP_SYNCED, book)
+}
+
+/// Makes the local own folder `local` ready for a book that moves out of
+/// OneDrive (D-968): everything of `documents` but the books, the logs and
+/// the bank connection is copied into it, without replacing a file. From
+/// then on `local` is the app's own folder, so the backups and plugins are
+/// found there. `documents` stays as it was.
+pub fn prepare_local_folder(documents: &Path, local: &Path) -> io::Result<Copied> {
+    if documents.is_dir() {
+        copy_missing(documents, local, true)
+    } else {
+        fs::create_dir_all(local)?;
+        Ok(Copied::default())
+    }
+}
+
+/// Whether the start offers to move the bank connection's folder out of
+/// `documents` (D-967): it is there and the user hasn't answered yet.
+pub fn offer_bank_move(settings: &Settings, documents: &Path) -> bool {
+    documents.join(crate::platform::BANK_FOLDER).is_dir()
+        && settings.text(GROUP, BANK_ANSWERED) != "true"
+}
+
+/// Notes the user's answer to the bank folder offer: `move` at the next
+/// start, or keep it where it is.
+pub fn answer_bank_move(settings: &Settings, move_it: bool) -> bool {
+    let noted = !move_it || settings.set_text(GROUP, MOVE_BANK, "true");
+    noted && settings.set_text(GROUP, BANK_ANSWERED, "true")
+}
+
+/// Moves the bank connection's folder from `from_parent` into
+/// `to_parent` (D-967): copied to `aqbanking.part`, checked file by file,
+/// a folder of that name already in `to_parent` kept under a new name,
+/// then switched; only then is the folder in `from_parent` taken out of use
+/// (renamed) and removed. Nothing is replaced, and until the switch the
+/// earlier folder is the one in use.
+pub fn move_bank_folder(from_parent: &Path, to_parent: &Path) -> io::Result<()> {
+    let name = crate::platform::BANK_FOLDER;
+    let from = from_parent.join(name);
+    if !from.is_dir() {
+        return Ok(());
+    }
+    fs::create_dir_all(to_parent)?;
+    let part = to_parent.join(format!("{name}.part"));
+    if part.exists() {
+        // An unfinished copy of an earlier start; it was never used.
+        fs::remove_dir_all(&part)?;
+    }
+    let checked = copy_missing(&from, &part, false).and_then(|_| {
+        if same_files(&from, &part)? {
+            Ok(())
+        } else {
+            Err(io::Error::other("the copy differs"))
+        }
+    });
+    if let Err(error) = checked {
+        let _ = fs::remove_dir_all(&part);
+        return Err(error);
+    }
+    let target = to_parent.join(name);
+    if target.exists() {
+        fs::rename(
+            &target,
+            free_name(to_parent, &format!("{name}.before-move")),
+        )?;
+    }
+    fs::rename(&part, &target)?;
+    let retired = free_name(from_parent, &format!("{name}.moved"));
+    fs::rename(&from, &retired)?;
+    if let Err(error) = fs::remove_dir_all(&retired) {
+        // Out of use already; only its removal failed.
+        eprintln!("kassensturz: couldn't remove the moved bank folder: {error}");
+    }
+    Ok(())
+}
+
+/// `base` in `folder`, or `base 2`, `base 3` and so on: the first name
+/// that isn't there.
+fn free_name(folder: &Path, base: &str) -> PathBuf {
+    let mut candidate = folder.join(base);
+    let mut number = 2;
+    while candidate.exists() {
+        candidate = folder.join(format!("{base} {number}"));
+        number += 1;
+    }
+    candidate
+}
+
+/// Whether `a` and `b` hold the same files with the same bytes, folder by
+/// folder.
+fn same_files(a: &Path, b: &Path) -> io::Result<bool> {
+    let names = |folder: &Path| -> io::Result<Vec<(std::ffi::OsString, bool)>> {
+        let mut names = fs::read_dir(folder)?
+            .map(|entry| {
+                let entry = entry?;
+                Ok((entry.file_name(), entry.file_type()?.is_dir()))
+            })
+            .collect::<io::Result<Vec<_>>>()?;
+        names.sort();
+        Ok(names)
+    };
+    let (left, right) = (names(a)?, names(b)?);
+    if left != right {
+        return Ok(false);
+    }
+    for (name, is_dir) in left {
+        let same = if is_dir {
+            same_files(&a.join(&name), &b.join(&name))?
+        } else {
+            fs::read(a.join(&name))? == fs::read(b.join(&name))?
+        };
+        if !same {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 /// Whether `book` is in `folder` or one of its folders. Windows compares
@@ -274,6 +446,122 @@ mod tests {
             read(&from.join("backups/Household 2026-11-18.ksz")),
             "backup 2"
         );
+    }
+
+    #[test]
+    fn the_bank_folder_is_never_copied_in_a_package() {
+        assert!(stays_in_private_data_of("aqbanking", true));
+        assert!(!stays_in_private_data_of("aqbanking", false));
+        assert!(!stays_in_private_data_of("plugins", true));
+    }
+
+    /// D-967: the move of an earlier build's bank folder out of Documents.
+    #[test]
+    fn the_bank_folder_moves_checked_and_keeps_what_was_there() {
+        let folder = TestFolder::new();
+        let documents = folder.join("Documents/KassenSturz");
+        let private = folder.join("package/io.github.vondor.KassenSturz");
+        write(&documents.join("aqbanking/settings.conf"), "bank now");
+        write(
+            &documents.join("aqbanking/backends/aqhbci/users.conf"),
+            "user",
+        );
+        write(
+            &private.join("aqbanking/settings.conf"),
+            "bank before D-856",
+        );
+
+        move_bank_folder(&documents, &private).expect("moved");
+
+        assert_eq!(read(&private.join("aqbanking/settings.conf")), "bank now");
+        assert_eq!(
+            read(&private.join("aqbanking/backends/aqhbci/users.conf")),
+            "user"
+        );
+        // The package's older folder is kept, not replaced.
+        assert_eq!(
+            read(&private.join("aqbanking.before-move/settings.conf")),
+            "bank before D-856"
+        );
+        assert!(!documents.join("aqbanking").exists());
+        assert!(!documents.join("aqbanking.moved").exists());
+        assert!(!private.join("aqbanking.part").exists());
+        // Nothing to do the second time.
+        move_bank_folder(&documents, &private).expect("nothing to move");
+        assert_eq!(read(&private.join("aqbanking/settings.conf")), "bank now");
+    }
+
+    #[test]
+    fn a_later_bank_move_keeps_every_earlier_folder() {
+        let folder = TestFolder::new();
+        let documents = folder.join("Documents/KassenSturz");
+        let private = folder.join("private");
+        write(&private.join("aqbanking/a"), "1");
+        write(&private.join("aqbanking.before-move/a"), "0");
+        write(&private.join("aqbanking.part/half"), "left over");
+        write(&documents.join("aqbanking/a"), "2");
+
+        move_bank_folder(&documents, &private).expect("moved");
+
+        assert_eq!(read(&private.join("aqbanking/a")), "2");
+        assert_eq!(read(&private.join("aqbanking.before-move/a")), "0");
+        assert_eq!(read(&private.join("aqbanking.before-move 2/a")), "1");
+        assert!(!private.join("aqbanking/half").exists());
+    }
+
+    #[test]
+    fn the_bank_offer_is_answered_once() {
+        let folder = TestFolder::new();
+        let documents = folder.join("Documents/KassenSturz");
+        let settings = Settings::at(&folder.join("kassensturzrc"));
+        assert!(!offer_bank_move(&settings, &documents));
+        write(&documents.join("aqbanking/settings.conf"), "bank");
+        assert!(offer_bank_move(&settings, &documents));
+        assert!(answer_bank_move(&settings, false));
+        assert!(!offer_bank_move(&settings, &documents));
+        assert_ne!(settings.text(GROUP, MOVE_BANK), "true");
+
+        let settings = Settings::at(&folder.join("other-rc"));
+        assert!(answer_bank_move(&settings, true));
+        assert!(!offer_bank_move(&settings, &documents));
+        assert_eq!(settings.text(GROUP, MOVE_BANK), "true");
+    }
+
+    /// D-968: a book in OneDrive is offered a move until the user keeps it.
+    #[test]
+    fn a_book_in_onedrive_is_offered_a_move_until_kept() {
+        let folder = TestFolder::new();
+        let settings = Settings::at(&folder.join("kassensturzrc"));
+        let roots = [PathBuf::from(r"C:\Users\Sam\OneDrive")];
+        let book = Path::new(r"C:\Users\Sam\OneDrive\Documents\KassenSturz\Household.ksz");
+        let local_book = Path::new(r"C:\Users\Sam\KassenSturz\Household.ksz");
+        assert!(offer_sync_move(&settings, book, &roots));
+        assert!(!offer_sync_move(&settings, local_book, &roots));
+        assert!(!offer_sync_move(&settings, book, &[]));
+        assert!(keep_in_sync_folder(&settings, book));
+        assert!(!offer_sync_move(&settings, book, &roots));
+    }
+
+    /// D-968: the local folder gets the backups and plugins, never a book.
+    #[test]
+    fn the_local_folder_gets_everything_but_the_books() {
+        let folder = TestFolder::new();
+        let documents = earlier(&folder);
+        let local = folder.join("Sam/KassenSturz");
+        let copied = prepare_local_folder(&documents, &local).expect("ready");
+        assert!(copied.files >= 3);
+        assert_eq!(
+            read(&local.join("backups/Household 2026-11-18.ksz")),
+            "backup 2"
+        );
+        assert_eq!(read(&local.join("plugins/green.wasm")), "plugin");
+        assert!(!local.join("Household.ksz").exists());
+        assert!(!local.join("debug-log").exists());
+        assert_eq!(read(&documents.join("Household.ksz")), "book");
+        // Without a Documents folder, only the local one is made.
+        let empty = folder.join("Nobody/KassenSturz");
+        prepare_local_folder(&folder.join("missing"), &empty).expect("made");
+        assert!(empty.is_dir());
     }
 
     #[test]

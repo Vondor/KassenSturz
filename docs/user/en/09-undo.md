@@ -4,7 +4,7 @@
 
 ## Undo and Redo
 
-- **Undo** and **Redo** are in the menu and on **Ctrl+Z** and **Ctrl+Shift+Z**.
+- **Undo** and **Redo** are in the menu and on **Ctrl+Z** and **Ctrl+Shift+Z**. That means: hold down the key marked Ctrl (bottom left on the keyboard) and press Z; for Redo, hold down Ctrl and the Shift key (the one for capital letters) and press Z.
 - They say what they do, for example "Undo: Removed a transaction". For a change of one transaction they also name it and its amount, for example "Undone: Added a transaction (Example Grocer, -23,80 €)".
 - After you add, change, undo or redo a transaction, its row lights up for a moment in the account's list and in the transaction lists on your dashboards, so you can see which one it was.
 - Undo always takes back **the newest change**, even after you closed the book and opened it again.
@@ -13,7 +13,7 @@
 
 ## The history
 
-In **Settings**, **Show history** shows the last 100 changes with day and time. KassenSturz keeps the history for 30 days unless you choose otherwise. You set how long in Settings.
+In **Settings › Backups and undo**, **Show history** shows the last 100 changes with day and time. KassenSturz keeps the history for 30 days unless you choose otherwise. You set how long right there.
 
 ## Cleaning up the history
 
@@ -21,6 +21,6 @@ In **Settings**, **Show history** shows the last 100 changes with day and time. 
 
 ## Backups
 
-Before it adapts a book to a new version, KassenSturz makes a **backup** of the whole book by itself (**Settings › Backups**) and keeps the last ten.
+Before it adapts a book to a new version, KassenSturz makes a **backup** of the whole book by itself (**Settings › Backups and undo**) and keeps the last ten.
 
 **If something looks different:** after a message such as "Undo can only bring the transaction back until you close this book", your Settings keep no history. You can switch it on there.

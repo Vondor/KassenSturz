@@ -6,11 +6,11 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 
 ## Try it
 
-KassenSturz is in testing. If you would like to try it, you need no GitHub account and no programming knowledge:
+KassenSturz has a stable release and is still in its Beta stage. To use or try it, you need no GitHub account and no programming knowledge:
 
 1. On Linux, install it from the Snap Store: `sudo snap install kassensturz` (stable; add `--beta` for the newest beta build). On Windows, install it from the [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). Otherwise download it from the project's [releases page](https://github.com/Vondor/KassenSturz/releases): the entry marked *Latest* is the stable release, entries marked *Pre-release* are beta builds. All ways to install it: [`docs/INSTALL.md`](docs/INSTALL.md) (German: [`docs/INSTALL.de.md`](docs/INSTALL.de.md)).
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
-3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the handbook explains how to use KassenSturz, in [English](docs/user/en/README.md) and [German](docs/user/de/README.md) (also in the [Wiki](https://github.com/Vondor/KassenSturz/wiki), as a copy). [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
+3. The stable release is meant for your own household book; keep a copy of your own from time to time. In a beta build or a test session, use an example book or a copy (D-954). The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the handbook explains how to use KassenSturz, in [English](docs/user/en/README.md) and [German](docs/user/de/README.md) (also in the [Wiki](https://github.com/Vondor/KassenSturz/wiki), as a copy). [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
 
 **News and plans:** see [Discussions](https://github.com/Vondor/KassenSturz/discussions) for announcements and ideas, and the German [Roadmap page](docs/user/de/22-fahrplan.md) (also in the [Wiki](https://github.com/Vondor/KassenSturz/wiki/de-22-fahrplan)) for what comes next.
 

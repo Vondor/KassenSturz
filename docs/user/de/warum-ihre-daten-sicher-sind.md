@@ -33,6 +33,6 @@
 - **Ihr Buch ist nicht verschlüsselt.** Es enthält keine PIN, aber Ihre Buchungen. Wer eine Kopie der Datei bekommt, kann sie lesen. Schützen Sie Ihren Computer deshalb mit einem Passwort, und denken Sie auch an Sicherungskopien und Ordner, die mit dem Internet abgeglichen werden.
 - Halten Sie Ihr System auf dem neuesten Stand. Gegen Schadprogramme auf Ihrem Computer kann KassenSturz Sie nicht schützen.
 - Niemand von KassenSturz fragt Sie jemals nach Ihrer PIN oder einer TAN.
-- KassenSturz ist noch in der Testphase (Beta). Zum Ausprobieren nehmen Sie am besten eines der Beispielbücher.
+- Nehmen Sie für Ihr eigenes Haushaltsbuch die stabile Ausgabe, und legen Sie von Zeit zu Zeit eine eigene Kopie an. Beta-Ausgaben sind zum Ausprobieren da; nehmen Sie dort ein Beispielbuch oder eine Kopie.
 
 Mehr Einzelheiten, auch was wir selbst angegriffen und behoben haben, stehen auf der Seite [Wie sicher ist KassenSturz?](../../SECURITY_OVERVIEW.de.md)

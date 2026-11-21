@@ -1,5 +1,7 @@
 # The transactions tile (US4.7)
 
+> **Status (21 Nov 2026):** Built in US4 (design #729, build #742). Th
+
 Design of User Sprint 4 item 7 (US3 backlog 1), written by thread A in Phase 2 before its build (D-716, D-717). The wish: a tile for the Overview and every dashboard that lists single transactions like an account's list does, for the accounts, categories and days the user chooses, including a rolling "last N days". Today no tile lists single transactions: `table.rows` shows a dataset's totals, and the Overview's "newest transactions" list is fixed to the five newest of all open accounts.
 
 Release stage: **Alpha** (D-274). There is no book layout change and no document version change: the tile is a new component type, and an older build shows it as a placeholder and opens the rest of the dashboard (D-278, D-504). The new period word is a new word of an existing property, which an older build refuses like any unknown word. So this is not a **[format]** item.

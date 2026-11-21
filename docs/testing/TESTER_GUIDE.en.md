@@ -59,7 +59,7 @@ Write every step into the [install step log](INSTALL_LOG.en.md). If you get stuc
 
 In short: on **Windows** you install from the **Microsoft Store** like any other program there. On **Ubuntu** you install with one command from the Snap Store.
 
-You don't need to read the [user guide](../user/USER_GUIDE.de.md) beforehand.
+You don't need to read the [handbook](../user/en/README.md) beforehand.
 
 ## 6. The session, step by step
 

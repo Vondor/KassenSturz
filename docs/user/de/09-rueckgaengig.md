@@ -4,7 +4,7 @@
 
 ## Rückgängig und Wiederholen
 
-- **Rückgängig** und **Wiederholen** stehen im Menü und auf **Strg+Z** und **Strg+Umschalt+Z**.
+- **Rückgängig** und **Wiederholen** stehen im Menü und auf **Strg+Z** und **Strg+Umschalt+Z**. Das heißt: Halten Sie die Taste mit der Aufschrift Strg gedrückt (unten links auf der Tastatur) und drücken Sie Z; für Wiederholen halten Sie Strg und die Umschalttaste (die für Großbuchstaben) gedrückt und drücken Z.
 - Sie sagen, was sie tun, zum Beispiel „Rückgängig: Eine Buchung entfernt“. Bei einer Änderung an einer einzelnen Buchung nennen sie auch diese Buchung und ihren Betrag, zum Beispiel „Rückgängig gemacht: Eine Buchung hinzugefügt (Beispiel-Laden, -23,80 €)“.
 - Nachdem Sie eine Buchung hinzugefügt, geändert, rückgängig gemacht oder wiederholt haben, leuchtet ihre Zeile kurz auf, in der Liste des Kontos und in den Buchungslisten Ihrer Übersichten, damit Sie sehen, welche es war.
 - Rückgängig nimmt **immer die neueste Änderung** zurück, auch nachdem Sie das Buch geschlossen und wieder geöffnet haben.
@@ -13,7 +13,7 @@
 
 ## Der Verlauf
 
-Unter **Einstellungen** zeigt **Verlauf anzeigen** die letzten 100 Änderungen mit Tag und Uhrzeit. KassenSturz hebt den Verlauf 30 Tage auf, wenn Sie nichts anderes wählen. Wie lange, stellen Sie in den Einstellungen ein.
+Unter **Einstellungen › Sicherungen und Rückgängig** zeigt **Verlauf anzeigen** die letzten 100 Änderungen mit Tag und Uhrzeit. KassenSturz hebt den Verlauf 30 Tage auf, wenn Sie nichts anderes wählen. Wie lange, stellen Sie gleich dort ein.
 
 ## Verlauf bereinigen
 
@@ -21,6 +21,6 @@ Unter **Einstellungen** zeigt **Verlauf anzeigen** die letzten 100 Änderungen m
 
 ## Sicherungen
 
-Vor dem Anpassen eines Buches an eine neue Version legt KassenSturz selbst eine **Sicherung** des ganzen Buches an (**Einstellungen › Sicherungen**) und behält die letzten zehn.
+Vor dem Anpassen eines Buches an eine neue Version legt KassenSturz selbst eine **Sicherung** des ganzen Buches an (**Einstellungen › Sicherungen und Rückgängig**) und behält die letzten zehn.
 
 **Wenn etwas anders aussieht:** Nach einer Meldung wie „Rückgängig kann die Buchung nur zurückbringen, bis Sie dieses Buch schließen“ ist in Ihren Einstellungen kein Verlauf vorgesehen. Dort stellen Sie ihn ein.

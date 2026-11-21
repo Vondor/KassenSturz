@@ -74,7 +74,7 @@ Tragen Sie dabei jeden Schritt ins [Installationsprotokoll](INSTALL_LOG.de.md) e
 
 In Kürze: Unter **Windows** installieren Sie KassenSturz aus dem **Microsoft Store**, wie jedes andere Programm dort. Unter **Ubuntu** installieren Sie es mit einem Befehl aus dem Snap Store. Das Blatt für Ihr System zeigt jeden Schritt.
 
-Das [Benutzerhandbuch](../user/USER_GUIDE.de.md) brauchen Sie für den Test nicht vorher zu lesen.
+Das [Handbuch](../user/de/README.md) brauchen Sie für den Test nicht vorher zu lesen.
 
 ## 6. Der Termin, Schritt für Schritt
 

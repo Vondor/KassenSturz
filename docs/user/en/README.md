@@ -4,6 +4,8 @@
 
 There is also a [German version of this handbook](../de/README.md).
 
+**New to computers?** Words such as file, folder, download and double-click are explained at the end of [Words in the app, explained](20-words.md#computer-words-in-this-handbook).
+
 ## Contents
 
 **Getting started**
@@ -41,6 +43,18 @@ There is also a [German version of this handbook](../de/README.md).
 **Planning ahead**
 
 21. [Planned payments](21-planned-payments.md)
+
+**Looking ahead**
+
+22. [What comes next](22-roadmap.md)
+
+**Extending KassenSturz**
+
+23. [Plugins](23-plugins.md)
+
+**Optional**
+
+- [Using an AI with KassenSturz](ai.md), step by step, for people who have never set one up
 
 In plain words, on one page: [Why your data is safe](why-your-data-is-safe.md).
 

@@ -1,5 +1,7 @@
 # The money-flow chart (US7, #821, D-758)
 
+> **Status (21 Nov 2026):** Built in US7 (#916, #924, #928, #949, #951; a click on an account node in #1023). Th
+
 Design of User Sprint 7 item #821, written by thread C in Phase 2 before its build. It fixes the nodes, the rules that keep both sides equal, the balance node, the Builder type and the order of the build steps, so the code steps don't have to guess.
 
 This is our own chart, built from the general idea of a flow diagram. It copies no other app's look, names or wording.

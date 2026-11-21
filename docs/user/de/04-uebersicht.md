@@ -36,7 +36,7 @@ Ein **Dashboard** ist eine Seite, die Sie selbst zusammenstellen: Diagramme, Tab
 
 ## Der Filter einer Seite
 
-Über den Elementen sitzt die **Filterleiste**: Zeitraum, Konten und Kategorien gelten für alle Elemente, die der Seite folgen. Sobald Ihr Buch ein Schlagwort hat, bietet die Leiste auch **Schlagwörter** an: Haken Sie eines an, zählen die Elemente nur Geld, das dieses Schlagwort trägt. Elemente, die ganze Konten oder Budgets zählen, können das nicht und sagen *Nicht nach Schlagwort gefiltert*. Mit **Filter zurücksetzen** zählt wieder alles. Ein Element kann in seinen **Eigenschaften** auch einen eigenen Filter haben; ein grauer Filterhinweis sagt dann, was es zählt. Unter **Einstellungen** blenden Sie die grauen Hinweise aus (**Graue Filterhinweise ausblenden**).
+Über den Elementen sitzt die **Filterleiste**: Zeitraum, Konten und Kategorien gelten für alle Elemente, die der Seite folgen. Sobald Ihr Buch ein Schlagwort hat, bietet die Leiste auch **Schlagwörter** an: Haken Sie eines an, zählen die Elemente nur Geld, das dieses Schlagwort trägt. Elemente, die ganze Konten oder Budgets zählen, können das nicht und sagen *Nicht nach Schlagwort gefiltert*. Mit **Filter zurücksetzen** zählt wieder alles. Ein Element kann in seinen **Eigenschaften** auch einen eigenen Filter haben; ein grauer Filterhinweis sagt dann, was es zählt. In den **Eigenschaften** eines Elements blenden Sie seinen grauen Hinweis auch aus (**Graue Filterhinweise ausblenden**).
 
 Ein Zeitraum kann auch mit dem heutigen Tag wandern, etwa **Die letzten Monate …** oder **Ein Gehaltsmonat …** (Seite 14), damit ein Diagramm nie veraltet.
 

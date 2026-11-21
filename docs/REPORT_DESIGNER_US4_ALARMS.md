@@ -1,5 +1,7 @@
 # The warnings tile and a reserve target for an account (US4.9)
 
+> **Status (21 Nov 2026):** Built in US4 (design #733, build #741). Th
+
 Design of User Sprint 4 item US4.9, written by thread C in Phase 2 before its build. It answers two wishes with one tile:
 
 - **#726:** a tile on the Overview that tells the user when a limit is crossed: a budget over (or under) a share of its amount, an account balance under an amount, and later other figures.

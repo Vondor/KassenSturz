@@ -1,5 +1,7 @@
 # The report designer: design for M6
 
+> **Status (21 Nov 2026):** Built in Sprint M6a and the M6 Sprints after it. Th
+
 Written in M6.0 (Sprint M6a, Phase 0). It holds what the M6 steps build on: the chart library check, the reporting layer, the dashboard document and its table, the Vega-Lite subset for custom charts, and the risks. Decisions are D-275 to D-284 in `docs/DECISIONS.md`; they are **Proposed** until the maintainer approves them. Release stage: Alpha (no migrations, the book format may change; the dashboard document still has a version field from day one).
 
 Nothing here changes how money is stored or computed. Charts show numbers that Rust computed exactly (D-065); the only floating-point numbers are the drawing coordinates a chart needs, made from exact values and never read back (AGENTS.md §5).

@@ -71,10 +71,10 @@ Beispiele:
 
 ## Formeln und eigene Listen
 
-Die Listen „Geld rein: nur diese …“ gelten für Formeln **nicht**: Ein Name in einer Formel zählt die Konten und Kategorien des ganzen Diagramms. Die Hilfe in den Eigenschaften sagt das auch.
+Die Listen „Einnahmen: nur diese …“ gelten für Formeln **nicht**: Ein Name in einer Formel zählt die Konten und Kategorien des ganzen Diagramms. Die Hilfe in den Eigenschaften sagt das auch.
 
 ## Muster in Regeln
 
-In einer Bedingung einer Regel (Seite 12) können Sie **Muster (fortgeschritten)** wählen. Sie finden dann Texte, die einer Form entsprechen, statt nur ein Wort. Das ist nie nötig. Wie Sie Muster und Formeln schreiben, erklärt die Hilfeseite **Hilfe: Muster, Formeln und Diagramme** in der App, mit ausgedachten Beispielen. Sie öffnet sich unter **Einstellungen** (Karte „Über KassenSturz“) und über **Mehr über Muster** unter einer Muster-Bedingung in einer Regel.
+In einer Bedingung einer Regel (Seite 12) können Sie **Ein Muster verwenden (fortgeschritten)** wählen. Sie finden dann Texte, die einer Form entsprechen, statt nur ein Wort. Das ist nie nötig. Wie Sie Muster und Formeln schreiben, erklärt die Hilfeseite **Hilfe: Muster, Formeln und Diagramme** in der App, mit ausgedachten Beispielen. Sie öffnet sich unter **Einstellungen** (Karte „Über KassenSturz“) und über **Mehr zu Mustern** unter einer Muster-Bedingung in einer Regel.
 
 **Wenn etwas anders aussieht:** Die Funktionen auf dieser Seite sind die der aktuellen Version. Kommt eine Meldung mit „unbekannte Funktion“, steht sie hier nicht und gibt es noch nicht.

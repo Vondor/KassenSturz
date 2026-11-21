@@ -2,19 +2,19 @@
 
 *KassenSturz can fetch new transactions by itself from many German banks. This page shows how to set up a bank login and get new transactions. KassenSturz only reads; it can never send money.*
 
-> **State of the test version:** the bank connection is still being checked. Depending on the version, it may be missing from the setup assistant; it is always in **Settings › Bank connections**. If you'd rather be on the safe side, read in files (page 10).
+> **Where it works:** the bank connection is in the Linux versions (from the Snap Store and as a Flatpak). The Windows version and the experimental Mac download don't have it yet; there you read in files (page 10).
 
 ## What works and what doesn't
 
 - KassenSturz fetches the balance and the booked transactions of checking accounts, savings accounts and credit cards. Securities accounts are listed as "not supported yet".
 - It uses **FinTS**, the standard of the German banks. For accounts abroad, read in files.
 - There is **no** function that starts transfers, standing orders or direct debits.
-- The connection runs through **AqBanking**, a free program. The Flatpak and the Windows version bring it with them.
+- The connection runs through **AqBanking**, a free program. The snap and the Flatpak bring it with them.
 
 ## Setting up a bank login
 
-1. **Settings › Bank connections › Connect a bank…**
-2. Type the **IBAN** of one of your accounts at this bank. KassenSturz finds the bank and asks only for what it needs: usually your **Login name**, where the bank has one a **Customer ID**, and your **PIN**.
+1. **Settings › Bank › Connect a bank…**
+2. Type the **IBAN** of one of your accounts at this bank. The IBAN is the long account number on your bank card and your statements; it starts with two letters, in Germany with DE. KassenSturz finds the bank and asks only for what it needs: usually your **Login name**, where the bank has one a **Customer ID**, and your **PIN**.
 3. Under **Remember the PIN**, choose how long KassenSturz keeps it (below).
 4. If the bank asks for a **TAN** or for your **approval in its app**, KassenSturz shows the bank's question with the bank's buttons in a window of its own. A TAN goes to the bank once and is never saved. If you close the window, you cancel, and nothing half-finished is left behind.
 5. At the end, KassenSturz lists the accounts your bank shows and suggests which account in your book each one fills. You confirm or change each choice.
@@ -31,7 +31,7 @@ Under **Remember the PIN** you have three choices:
 - **Until I close KassenSturz**,
 - **Save it in my keychain**: in your computer's own password store, the one your desktop or Windows provides.
 
-In **Settings › Password storage** you set where remembered PINs are kept; the default (**System keychain**) is right for almost everyone. KassenSturz writes a PIN **nowhere else**, not into the book and not into any file. If your bank says the PIN is wrong, KassenSturz **forgets** it at once and asks once more; after a second wrong PIN it stops, so your login isn't locked. With **Forget the PIN** and **Remove bank login and saved PIN…** you tidy up later. Your accounts and transactions are kept.
+In **Settings › Advanced › Password storage** you set where remembered PINs are kept; the default (**System keychain**) is right for almost everyone. In the version from the Snap Store, saving in the keychain has to be allowed once; [the project's install page](../../INSTALL.md) has the command. KassenSturz writes a PIN **nowhere else**, not into the book and not into any file. If your bank says the PIN is wrong, KassenSturz **forgets** it at once and asks once more; after a second wrong PIN it stops, so your login isn't locked. With **Forget the PIN** and **Remove bank login and saved PIN…** you tidy up later. Your accounts and transactions are kept.
 
 ## Getting new transactions
 
@@ -44,7 +44,7 @@ A fetch starts five days before the last one, because banks sometimes book a day
 
 ## The reminder
 
-If a linked account hasn't been fetched for a while, the overview warns you with the account's name, the day and the number of days. Banks only show their most recent transactions, so a long wait can leave gaps. In **Settings › Reminder to get new transactions** you choose 30, 60 (the default), 90 or 180 days, or **Never remind me**. KassenSturz never contacts your bank by itself.
+If a linked account hasn't been fetched for a while, the overview warns you with the account's name, the day and the number of days. Banks only show their most recent transactions, so a long wait can leave gaps. In **Settings › Bank › Reminder to get new transactions** you choose 30, 60 (the default), 90 or 180 days, or **Never remind me**. KassenSturz never contacts your bank by itself.
 
 ## What is saved
 

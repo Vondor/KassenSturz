@@ -6,7 +6,7 @@ Beim allerersten Start öffnet sich der Assistent. Sie können in jedem Schritt 
 
 ## Schritt 1: Willkommen
 
-Sie wählen Ihre **Sprache** (die Ihres Systems ist schon eingestellt) und die **Währung**, die Sie verwenden. Meist bestätigen Sie nur mit **Weiter**. Ändern Sie die Sprache, startet KassenSturz einmal neu in dieser Sprache; es geht nichts verloren.
+Sie wählen Ihre **Sprache** (die Ihres Systems ist schon eingestellt; es gibt Deutsch, Englisch und Polnisch) und die **Währung**, die Sie verwenden. Meist bestätigen Sie nur mit **Weiter**. Ändern Sie die Sprache, startet KassenSturz einmal neu in dieser Sprache; es geht nichts verloren.
 
 ## Schritt 2: Wie möchten Sie anfangen?
 
@@ -32,7 +32,7 @@ Die geführte Einrichtung führt Sie mit Ihrem eigenen Haushaltsbuch durch das W
 5. **Ihr erstes Diagramm** mit dem Statistik-Baukasten (Seite 14).
 6. **Ein Budget und eine geplante Zahlung** (Seiten 13 und 21).
 7. **Ihre Startseite gestalten:** Kacheln verschieben, in der Größe ändern, hinzufügen und entfernen (Seite 4).
-8. **Haben Sie eine KI auf diesem Computer?** Nur eine Frage. „Nein, oder ich weiß es nicht“ ist schon gewählt, und dann bleiben die KI-Funktionen ausgeschaltet und nichts über KI wird angezeigt. „Ja“ schaltet sie ein und öffnet die Seite, auf der Sie die Adresse Ihrer KI eintragen (Seite 18). Versionen von KassenSturz, die ohne KI gebaut sind, haben diesen Schritt nicht.
+8. **Haben Sie eine KI auf diesem Computer?** Nur eine Frage. „Nein, oder ich weiß es nicht“ ist schon gewählt, und dann bleiben die KI-Funktionen ausgeschaltet und nichts über KI wird angezeigt. „Ja“ schaltet sie ein und öffnet die Seite, auf der Sie die Adresse Ihrer KI eintragen ([Eine KI mit KassenSturz benutzen](ki.md) führt Schritt für Schritt hindurch). Versionen von KassenSturz, die ohne KI gebaut sind, haben diesen Schritt nicht.
 
 Jeden Schritt finden Sie später wieder, auch die übersprungenen: **Einstellungen → Hilfe: Geführte Einrichtung**. Die letzte Seite verlinkt außerdem dieses Handbuch im Wiki.
 
@@ -56,7 +56,7 @@ Zur Auswahl stehen:
 - *Weltraumkolonie*: fünf Jahre in einer Marskolonie.
 - *UdSSR-Agent*: ein ausgedachter Agent der 1980er Jahre mit mehreren Währungen.
 
-Es entsteht eine **eigene Kopie**; das mitgelieferte Beispiel bleibt unverändert. Sie können darin nach Herzenslust ändern und löschen. Später öffnen Sie ein Beispielbuch erneut über **Einstellungen › Anderes Haushaltsbuch öffnen…**.
+Es entsteht eine **eigene Kopie**; das mitgelieferte Beispiel bleibt unverändert. Sie können darin nach Herzenslust ändern und löschen. Später öffnen Sie ein Beispielbuch erneut über **Einstellungen › Mein Buch › Anderes Haushaltsbuch öffnen…**.
 
 ## Der Weg „Daten aus einem anderen Programm“
 
@@ -64,7 +64,7 @@ KassenSturz liest Bücher von **KMyMoney** (Dateien auf `.kmy` oder SQLite) und 
 
 ## Wo liegt mein Haushaltsbuch?
 
-KassenSturz legt es selbst in einem eigenen Ordner an und öffnet es bei jedem Start wieder; Sie müssen keine Datei auswählen. Unter **Einstellungen** öffnen Sie ein anderes Buch (**Anderes Haushaltsbuch öffnen…**) oder legen ein neues an (**Neues Haushaltsbuch anlegen…**), zum Beispiel zum Üben.
+KassenSturz legt es selbst in einem eigenen Ordner an und öffnet es bei jedem Start wieder; Sie müssen keine Datei auswählen. Die Version aus dem Microsoft Store und die aus dem Snap Store nehmen den Ordner `KassenSturz` in Ihrem Dokumente-Ordner; **Einstellungen › Erweitert › Wo Ihr Buch liegt** zeigt die genaue Stelle auf Ihrem Computer. Unter **Einstellungen › Mein Buch** öffnen Sie ein anderes Buch (**Anderes Haushaltsbuch öffnen…**) oder legen ein neues an (**Neues Haushaltsbuch anlegen…**), zum Beispiel zum Üben.
 
 Ein Buch ist immer nur an **einem** Ort geöffnet. Liegt es auf einem Netzlaufwerk, warnt KassenSturz. Meldet es „Dieses Buch ist auf … geöffnet“, schließen Sie es dort und wählen **Erneut versuchen**.
 

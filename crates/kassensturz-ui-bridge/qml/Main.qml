@@ -129,6 +129,14 @@ Kirigami.ApplicationWindow {
             if ((bookMover.place?.offerMove ?? false) && !bookInPackage.asked) {
                 bookInPackage.asked = true;
                 Qt.callLater(bookInPackage.ask);
+            } else if ((bookMover.place?.offerSyncMove ?? false) && !bookInSyncFolder.asked) {
+                // A book in OneDrive in the Store app: offered once (D-968).
+                bookInSyncFolder.asked = true;
+                Qt.callLater(bookInSyncFolder.ask);
+            } else if ((bookMover.place?.offerBankMove ?? false) && !bankFolder.asked) {
+                // An earlier version's bank folder in Documents (D-967).
+                bankFolder.asked = true;
+                Qt.callLater(bankFolder.ask);
             }
             root.tellSettledBills(changeHistory.settleBills());
         }
@@ -195,6 +203,33 @@ Kirigami.ApplicationWindow {
 
         bookMove: bookMover
         onMoveChosen: root.pushPage(bookMovePage, { startOwn: true })
+    }
+
+    // A book in a OneDrive folder in the Store app (D-968, B-438).
+    BookInSyncFolderDialog {
+        id: bookInSyncFolder
+
+        // Asked once a start; "Keep it there" stops it for good.
+        property bool asked: false
+
+        bookMove: bookMover
+        onMoveChosen: root.pushPage(bookMovePage, { startOwn: true })
+        onClosed: {
+            if ((bookMover.place?.offerBankMove ?? false) && !bankFolder.asked) {
+                bankFolder.asked = true;
+                Qt.callLater(bankFolder.ask);
+            }
+        }
+    }
+
+    // An earlier version's bank folder in Documents in the Store app
+    // (D-967, B-437).
+    BankFolderDialog {
+        id: bankFolder
+
+        property bool asked: false
+
+        bookMove: bookMover
     }
 
     // The first start (M3.4).

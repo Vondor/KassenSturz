@@ -11,6 +11,10 @@ Laden Sie in Ihrem Online-Banking einen Kontoauszug herunter, als:
 - **OFX** (`.ofx`) oder
 - **CSV** (`.csv`, `.txt`).
 
+Das sind vier Arten, wie eine Bank einen Kontoauszug in eine Datei schreibt; die Buchstaben in Klammern sind die Dateiendung. Bietet Ihre Bank mehrere an, nehmen Sie die erste aus dieser Liste, die sie hat: Die ersten drei werden ohne weitere Fragen gelesen, und CSV ist für Banken da, die nichts anderes anbieten. Ein Kontoauszug als PDF, also der zum Ausdrucken, lässt sich nicht einlesen.
+
+**Wo Sie die Datei finden:** Melden Sie sich auf der Webseite Ihrer Bank an und öffnen Sie das Konto. Suchen Sie einen Knopf, der etwa **Export**, **Herunterladen** oder **Umsätze speichern** heißt, wählen Sie den Zeitraum und eine der Arten oben. Ihr Browser legt die Datei in Ihren Ordner **Downloads**, wenn Sie keinen anderen Ort wählen. Jede Bank nennt das etwas anders; finden Sie es nicht, kennen die Hilfeseiten oder die Hotline der Bank es als „Umsätze exportieren“.
+
 ## Der Weg
 
 1. Öffnen Sie in KassenSturz das passende Konto.

@@ -33,6 +33,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LANGUAGES = {
+    "en": {
+        "folder": "docs/user/en",
+        "index": "Handbook",
+        "title": "Handbook (English)",
+        "notice": (
+            "> **This page is a copy.** It is made automatically from "
+            "[`{path}`]({source}) in the repository. Edits made here in the "
+            "Wiki are overwritten the next time it is updated. To improve the "
+            "page, please change the file in the repository and open a pull "
+            "request; [CONTRIBUTING.md]({contributing}) explains how."
+        ),
+    },
     "de": {
         "folder": "docs/user/de",
         "index": "Handbuch",
@@ -44,18 +56,6 @@ LANGUAGES = {
             "verbessern, ändern Sie bitte die Datei im Repository und öffnen "
             "Sie einen Pull Request; wie das geht, steht in "
             "[CONTRIBUTING.md]({contributing})."
-        ),
-    },
-    "en": {
-        "folder": "docs/user/en",
-        "index": "Handbook",
-        "title": "Handbook (English)",
-        "notice": (
-            "> **This page is a copy.** It is made automatically from "
-            "[`{path}`]({source}) in the repository. Edits made here in the "
-            "Wiki are overwritten the next time it is updated. To improve the "
-            "page, please change the file in the repository and open a pull "
-            "request; [CONTRIBUTING.md]({contributing}) explains how."
         ),
     },
     # Not a language: the pages for the person who publishes KassenSturz,
@@ -152,20 +152,28 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
     home = [
         "# KassenSturz",
         "",
-        "- [Handbuch auf Deutsch](Handbuch)",
-        "- [Handbook in English](Handbook)",
-        "- [Roadmap: Was als Nächstes kommt](de-22-fahrplan)",
-        "- [For maintainers: releasing and platform limits](Maintainer)",
-        f"- [Discussions: Ankündigungen und Ideen / announcements and ideas](https://github.com/{repo}/discussions)",
+        "**English**",
         "",
-        (
-            "> **Dieses Wiki ist eine Kopie** des Handbuchs in "
-            f"[`docs/user`]({blob}/docs/user) und der Seiten in "
-            f"[`docs/maintainer`]({blob}/docs/maintainer) im Repository. Änderungen hier "
-            "werden überschrieben; bitte ändern Sie die Dateien dort, mit einem "
-            f"Pull Request ([CONTRIBUTING.md]({contributing}))."
-        ),
-        ">",
+        "- [Install and update](en-02-install)",
+        "- [Handbook in English](Handbook)",
+        "- [Report a problem](en-19-problems)",
+        "- [Using an AI (optional)](en-ai)",
+        "- [Roadmap: what comes next](en-22-roadmap)",
+        "",
+        "**Deutsch**",
+        "",
+        "- [Installieren und aktualisieren](de-02-installieren)",
+        "- [Handbuch auf Deutsch](Handbuch)",
+        "- [Ein Problem melden](de-19-probleme)",
+        "- [Eine KI benutzen (freiwillig)](de-ki)",
+        "- [Roadmap: Was als Nächstes kommt](de-22-fahrplan)",
+        "",
+        "**For everyone / für alle**",
+        "",
+        f"- [Discussions: announcements and ideas / Ankündigungen und Ideen](https://github.com/{repo}/discussions)",
+        f"- [For testers / für Tester]({blob}/docs/testing/README.md)",
+        "- [For maintainers: releasing and platform limits](Maintainer)",
+        "",
         (
             "> **This wiki is a copy** of the handbook in "
             f"[`docs/user`]({blob}/docs/user) and the pages in "
@@ -173,8 +181,23 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
             "are overwritten; please change the files there with a pull request "
             f"([CONTRIBUTING.md]({contributing}))."
         ),
+        ">",
+        (
+            "> **Dieses Wiki ist eine Kopie** des Handbuchs in "
+            f"[`docs/user`]({blob}/docs/user) und der Seiten in "
+            f"[`docs/maintainer`]({blob}/docs/maintainer) im Repository. Änderungen hier "
+            "werden überschrieben; bitte ändern Sie die Dateien dort, mit einem "
+            f"Pull Request ([CONTRIBUTING.md]({contributing}))."
+        ),
         "",
     ]
+    # The start page names handbook pages directly; a renamed page must not
+    # leave a dead link there.
+    names = {name for _, name in pages.values()}
+    for line in home:
+        for _, _, target in LINK.findall(line):
+            if "/" not in target and target not in names:
+                errors.append(f"Home: link to a missing Wiki page: {target}")
     (out / "Home.md").write_text("\n".join(home), encoding="utf-8")
 
     lines = ["**[Home](Home)**", ""]
@@ -185,10 +208,9 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
     (out / "_Sidebar.md").write_text("\n".join(lines), encoding="utf-8")
 
     footer = (
-        f"Kopie von / copy of [`docs/user`]({blob}/docs/user), "
-        f"[`docs/maintainer`]({blob}/docs/maintainer). Bitte im "
-        "Repository ändern, nicht hier. / Please change it in the repository, "
-        "not here.\n"
+        f"Copy of / Kopie von [`docs/user`]({blob}/docs/user), "
+        f"[`docs/maintainer`]({blob}/docs/maintainer). Please change it in the "
+        "repository, not here. / Bitte im Repository ändern, nicht hier.\n"
     )
     (out / "_Footer.md").write_text(footer, encoding="utf-8")
     return errors

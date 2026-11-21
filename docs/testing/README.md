@@ -10,7 +10,7 @@ Everything a person needs to test KassenSturz without help from the code. German
 | Testers: step log for installing at home  | [INSTALL_LOG.de.md](INSTALL_LOG.de.md) | [INSTALL_LOG.en.md](INSTALL_LOG.en.md) |
 | Testers: report a problem | [REPORT_PAGE.de.md](REPORT_PAGE.de.md) | [REPORT_PAGE.en.md](REPORT_PAGE.en.md) |
 | Facilitator: interview guide, consent step, task cards (print version of the cards: [Aufgabenkarten-Druck.pdf](Aufgabenkarten-Druck.pdf)) | [INTERVIEW_GUIDE.de.md](INTERVIEW_GUIDE.de.md) | [INTERVIEW_GUIDE.en.md](INTERVIEW_GUIDE.en.md) |
-| Everyone: how to use KassenSturz | [USER_GUIDE.de.md](../user/USER_GUIDE.de.md) | not yet written |
+| Everyone: how to use KassenSturz | [the handbook, German](../user/de/README.md) | [the handbook, English](../user/en/README.md) |
 
 ## Answer sheets and bank files
 

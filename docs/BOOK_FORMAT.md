@@ -4,6 +4,8 @@ How a KassenSturz household book is stored, so other programs can read it (D-046
 
 **Status: layout 37** (#1154, D-893): layout 24, the starting layout of the first Beta (M6e.M, D-045, D-536), with one migration after it for each later layout. This line is the one place in the documentation that names the current layout; `tools/check-doc-facts.py` fails CI when it differs from `VERSION` in `crates/kassensturz-store/src/layout.rs`, so it is updated with every migration. The 23 development layouts of the Alpha were merged into it: every table a book has is built in one go, table for table what layouts 1 to 23 built together. A book a development build wrote (layouts 1 to 23) isn't opened by the Beta but turned away with `store.development-layout` and left unchanged; its data moves over through the complete export made with that build (`docs/EXPORT_FORMAT.md`), read into a new book. From the first Beta on, every change to the layout is a migration of its own, run after a backup, with a test that updates a book from every earlier layout since layout 24 (see [Migrations](#migrations), AGENTS.md §3.1 rule 8), and this document is updated with each.
 
+**Frozen since v0.261120.39 (D-892).** From the first stable release on, the book format changes only through a gated fix-up migration, with an automatic backup and an update test from every earlier Beta format (AGENTS.md §3.2). A pull request that wants a new layout asks the maintainer first.
+
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).

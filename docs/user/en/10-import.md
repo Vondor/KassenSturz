@@ -11,6 +11,10 @@ In your online banking, download a statement as:
 - **OFX** (`.ofx`) or
 - **CSV** (`.csv`, `.txt`).
 
+These are four ways a bank can write a statement into a file; the letters in brackets are the file ending. If your bank offers several, take the first one in this list that it has: the first three are read without further questions, and CSV is there for banks that offer nothing else. A statement as a PDF, the kind you print, can't be read in.
+
+**Where to find it:** sign in to your bank's website and open the account. Look for a button named something like **Export**, **Download** or **Save transactions**, choose the period and one of the kinds above. Your browser puts the file into your **Downloads** folder unless you choose another place. Every bank names this a little differently; if you can't find it, the bank's help pages or hotline know it as "exporting transactions".
+
 ## The way
 
 1. In KassenSturz, open the matching account.

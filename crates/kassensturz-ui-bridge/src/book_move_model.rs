@@ -103,6 +103,26 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "keepInPackage"]
         fn keep_in_package(self: Pin<&mut BookMove>) -> bool;
+
+        /// The open book stays in its OneDrive folder, and the start no
+        /// longer offers to move it (D-968). Returns whether that was saved.
+        #[qinvokable]
+        #[cxx_name = "keepInSyncFolder"]
+        fn keep_in_sync_folder(self: Pin<&mut BookMove>) -> bool;
+
+        /// Makes the local own folder ready before a book moves out of
+        /// OneDrive (D-968): from then on it is KassenSturz's own folder.
+        /// Returns whether it is ready.
+        #[qinvokable]
+        #[cxx_name = "prepareLocalFolder"]
+        fn prepare_local_folder(self: Pin<&mut BookMove>) -> bool;
+
+        /// The user's answer to moving the bank connection's folder out of
+        /// Documents (D-967): `move` at the next start, or keep it. Returns
+        /// whether it was saved.
+        #[qinvokable]
+        #[cxx_name = "answerBankMove"]
+        fn answer_bank_move(self: Pin<&mut BookMove>, move_it: bool) -> bool;
     }
 
     impl cxx_qt::Initialize for BookMove {}
@@ -259,6 +279,35 @@ impl qobject::BookMove {
         kept
     }
 
+    fn keep_in_sync_folder(mut self: Pin<&mut Self>) -> bool {
+        let Some(book) = session::path() else {
+            return false;
+        };
+        let kept = store_folder::keep_in_sync_folder(&Settings::user(), &book);
+        self.as_mut().refresh();
+        kept
+    }
+
+    fn prepare_local_folder(mut self: Pin<&mut Self>) -> bool {
+        let Some(local) = platform::local_own_folder().filter(|_| platform::in_app_package())
+        else {
+            return false;
+        };
+        let documents = platform::store_documents_folder().unwrap_or_default();
+        let ready = store_folder::prepare_local_folder(&documents, &local);
+        if let Err(error) = &ready {
+            eprintln!("kassensturz: couldn't make the local folder ready: {error}");
+        }
+        self.as_mut().refresh();
+        ready.is_ok()
+    }
+
+    fn answer_bank_move(mut self: Pin<&mut Self>, move_it: bool) -> bool {
+        let saved = store_folder::answer_bank_move(&Settings::user(), move_it);
+        self.as_mut().refresh();
+        saved
+    }
+
     /// Plans and runs a move, then reads `place` again.
     fn moved(mut self: Pin<&mut Self>, folder: &Path, name: &str) -> QVariant {
         let settings = Settings::user();
@@ -310,6 +359,16 @@ fn place_object(settings: &Settings) -> QVariant {
         .as_deref()
         .is_some_and(|earlier| store_folder::offer_move(settings, &book, earlier));
     let in_snap = earlier.is_some() && platform::in_snap_sandbox();
+    // A book in OneDrive and an earlier build's bank folder in Documents, in
+    // the Store app only (D-968, D-967).
+    let store = earlier.is_some() && platform::in_app_package();
+    let local = platform::local_own_folder().filter(|_| store);
+    let offer_sync = local.is_some()
+        && !offer
+        && store_folder::offer_sync_move(settings, &book, &platform::sync_roots());
+    let offer_bank = store
+        && platform::store_documents_folder()
+            .is_some_and(|documents| store_folder::offer_bank_move(settings, &documents));
     let own = platform::app_folder()
         .map(|folder| platform::shown_path(&folder))
         .unwrap_or_default();
@@ -318,6 +377,17 @@ fn place_object(settings: &Settings) -> QVariant {
         ("inPackage", QVariant::from(&in_package)),
         ("inSnap", QVariant::from(&in_snap)),
         ("offerMove", QVariant::from(&offer)),
+        ("offerSyncMove", QVariant::from(&offer_sync)),
+        ("offerBankMove", QVariant::from(&offer_bank)),
+        (
+            "localFolder",
+            text(
+                &local
+                    .as_deref()
+                    .map(platform::shown_path)
+                    .unwrap_or_default(),
+            ),
+        ),
         ("ownFolder", text(&own)),
         ("showOwnFolder", QVariant::from(&earlier.is_some())),
         ("folder", shown_object(&book_move::shown_folder_of(&book))),
@@ -576,11 +646,14 @@ mod tests {
                 "folder",
                 "inPackage",
                 "inSnap",
+                "localFolder",
                 "moved",
                 "movedFrom",
                 "movedOn",
                 "name",
+                "offerBankMove",
                 "offerMove",
+                "offerSyncMove",
                 "open",
                 "ownFolder",
                 "showOwnFolder"
@@ -593,6 +666,10 @@ mod tests {
         assert!(!flag_of(&object, "inPackage"));
         assert!(!flag_of(&object, "inSnap"));
         assert!(!flag_of(&object, "offerMove"));
+        // Nor a move out of OneDrive or of the bank folder (D-968, D-967).
+        assert!(!flag_of(&object, "offerSyncMove"));
+        assert!(!flag_of(&object, "offerBankMove"));
+        assert_eq!(text_of(&object, "localFolder"), "");
         // Outside both builds the own folder's path isn't shown (D-730).
         assert!(!flag_of(&object, "showOwnFolder"));
         session::close();

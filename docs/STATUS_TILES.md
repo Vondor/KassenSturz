@@ -1,5 +1,7 @@
 # Status tiles: a tile that shrinks to a status icon (US5.4)
 
+> **Status (21 Nov 2026):** Built in US5 (design #763, build #771). Th
+
 Design of User Sprint 5 item US5.4 (#752), written by thread D in Phase 2 before its build. The wish: the warning and notice tiles and the *Update all accounts* tile can be made as small as **1 × 1** cell. At that size there is no room for text, so the tile **turns into a status icon** that tells the state at a glance, the way a desktop widget in a panel shrinks to an icon and still shows its status.
 
 This design defines **one shared state set** that any tile can adopt, how each state looks, sounds to a screen reader and explains itself, when a tile switches to the icon, and what a click on the icon does. The first build applies it to four tiles (§5).

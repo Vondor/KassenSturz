@@ -29,3 +29,25 @@
 | **Undo / Redo** | Taking back the last change, or making it again (page 9). |
 | **Use a pattern (advanced)** | A more exact way of finding text in a Rule. Never needed. |
 | **Value date** | The day from which money counts for interest, as the bank delivers it. Only shown in the details. |
+
+## Computer words in this handbook
+
+*If you are new to computers, these are the words the other pages use without explaining them each time.*
+
+| Word | Meaning |
+|---|---|
+| **Browser** | The program you use to look at websites, for example to reach your bank. |
+| **Click, double-click, right-click** | Click: press the left mouse button once. Double-click: press it twice quickly. Right-click: press the right mouse button once; it usually opens a small menu. |
+| **Download** | Fetching a file from a website onto your computer. Unless you choose otherwise, your browser puts it into the folder **Downloads**. |
+| **Drag** | Press the left mouse button on something, keep it pressed, move the mouse and let go. |
+| **File** | One saved thing on your computer: a letter, a picture, a bank statement or your book. |
+| **File ending** | The letters after the last dot of a file's name, such as `.csv`. They say what kind of file it is. |
+| **Folder** | A place on your computer that holds files, like a folder on a shelf. **Documents** and **Downloads** are folders. |
+| **IBAN** | The long account number on your bank card and your statements. It starts with two letters. |
+| **Key combination** | Two or three keys pressed together. **Ctrl+Z** means: hold down Ctrl and press Z. |
+| **Menu** | A list of things you can choose. In KassenSturz the main one is on the left. |
+| **Online banking** | Your bank's website or app, where you sign in to see your accounts. |
+| **PIN** | The secret number or password you sign in to your online banking with. |
+| **Store** | A program on your computer that installs other programs and keeps them up to date: the Microsoft Store on Windows, the Snap Store on Linux (page 2). |
+| **Terminal** | A window in which you type commands instead of clicking. You only need it on Linux, to install (page 2). |
+| **Version** | Which build of KassenSturz you have. The number is under **About** in **Settings** (page 18). |

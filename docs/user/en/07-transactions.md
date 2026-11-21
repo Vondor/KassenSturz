@@ -24,6 +24,16 @@ Click a transaction to change it. **Delete** takes it out of the list and out of
 
 ![A transaction after it was corrected](../../testing/screenshots/windows/20-card3-corrected.png)
 
+## Tags
+
+A **tag** is a free label next to the category, for example "Holiday" or "Tax". A transaction has one category but can carry several tags. A tag never moves money and never changes a total or a balance.
+
+- In the transaction's form, the field **Tags** is under the note. Type to find a tag or to make a new one, then press Enter. Click a tag in the field to take it away again.
+- In an account's list, each transaction shows its tags, and you can filter the list by a tag.
+- On a dashboard, the filter bar offers **Tags** once your book has one (page 4).
+- A Rule can add tags by itself (page 12). A tag you take off a transaction yourself is not put back.
+- **Settings › My book › Tags** lists all your tags. There you rename a tag, merge two into one or remove one; KassenSturz says first how many transactions that touches, and **Undo** takes it back.
+
 ## Breaking down a transaction
 
 One bill at the supermarket can be partly groceries and partly household goods.

@@ -78,6 +78,12 @@ env:
 jobs:
   changes:
     name: Windows build needed?
+    # A label other than `windows` starts this workflow too, because the
+    # trigger can't name one label. Such a run has nothing to decide, so it
+    # is skipped here, before it takes a runner (D-957): on 20 November this
+    # job started 230 times for 60 pull request runs. The build job below
+    # needs this one and is skipped with it.
+    if: github.event.action != 'labeled' || github.event.label.name == 'windows'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:

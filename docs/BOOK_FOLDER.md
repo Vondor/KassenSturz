@@ -1,6 +1,8 @@
 # Choosing the folder for the book
 
-**Status:** design for US5.3 (#515), with the outside security review's findings of 2026-11-12 worked in, decisions D-730 to D-733 (Proposed) in `docs/DECISIONS.md`; Q-510 (folder portal or a file permission) answered R by the maintainer on 2026-11-12: the folder portal. Nothing here is built yet; the build is slotted before Beta (US6). Stage: Alpha, so no migration is involved (D-274): the book's own layout doesn't change at all.
+> **Status (21 Nov 2026):** Built: steps 1 and 2 in US6, step 3 as #866, and forgetting folders in US7 (#873); section 7 has the build notes, and section 1 also covers the snap and Store app folders (BS2). Th
+
+**Design:** written for US5.3 (#515), with the outside security review's findings of 2026-11-12 worked in, decisions D-730 to D-733 (Proposed) in `docs/DECISIONS.md`; Q-510 (folder portal or a file permission) answered R by the maintainer on 2026-11-12: the folder portal. Written before the build, which was slotted before Beta (US6). The book's own layout doesn't change at all.
 
 ## 1. Today
 

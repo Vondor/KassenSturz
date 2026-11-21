@@ -1,5 +1,7 @@
 # The receipt inbox (US7, #333 design)
 
+> **Status (21 Nov 2026):** Built in US7 (#333). Th
+
 **Status:** built in US7 (#333), as designed here with the build notes of §12; D-751 and D-752 are Decided (rows on the `docs/us7-p2` ledger branch). Stage: Alpha, so no migration (D-274), and nothing here changes the book's layout, so it is not [format].
 
 Human gate: **AI data sharing** (the inbox folder's path and the file names go to the AI the user chose; the AI proposes moves). The gate was given for US5.13 (#333's comment of 2026-11-12); this design does not widen what leaves the machine (see §6).

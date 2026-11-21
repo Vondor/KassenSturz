@@ -384,6 +384,10 @@ fn place_object(settings: &Settings) -> QVariant {
             QVariant::from(&(store && store_folder::bank_move_failed(settings))),
         ),
         (
+            "snapDataFolder",
+            QVariant::from(&platform::snap_keeps_books_in_data_folder()),
+        ),
+        (
             "localFolder",
             text(
                 &local
@@ -661,7 +665,8 @@ mod tests {
                 "offerSyncMove",
                 "open",
                 "ownFolder",
-                "showOwnFolder"
+                "showOwnFolder",
+                "snapDataFolder"
             ]
         );
         assert!(flag_of(&object, "open"));
@@ -678,6 +683,8 @@ mod tests {
         assert_eq!(text_of(&object, "localFolder"), "");
         // Outside both builds the own folder's path isn't shown (D-730).
         assert!(!flag_of(&object, "showOwnFolder"));
+        // Outside a snap there is no data folder to warn about (B-442).
+        assert!(!flag_of(&object, "snapDataFolder"));
         session::close();
     }
 }

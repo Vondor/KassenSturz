@@ -28507,6 +28507,12 @@ msgctxt "@info %1 is a folder"
 msgid "Your book and its backups are in a OneDrive folder, so they are uploaded to the cloud. KassenSturz can move your book to %1, which stays on this computer, and keeps its new backups there. Before moving, it keeps a copy of your book as it is now with the other backups. Older backups stay in OneDrive until you delete them there. This folder is not uploaded anywhere, so from time to time make a backup copy of your book, for example to a USB stick."
 msgstr "Ihr Buch und seine Sicherungen liegen in einem OneDrive-Ordner und werden deshalb in die Cloud hochgeladen. KassenSturz kann Ihr Buch nach %1 verschieben, das auf diesem Computer bleibt, und legt neue Sicherungen dort ab. Vor dem Verschieben bewahrt es eine Kopie Ihres Buchs, wie es jetzt ist, bei den anderen Sicherungen auf. Ältere Sicherungen bleiben in OneDrive, bis Sie sie dort löschen. Dieser Ordner wird nirgendwohin hochgeladen. Machen Sie deshalb ab und zu eine Sicherungskopie Ihres Buchs, zum Beispiel auf einen USB-Stick."
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz could not use your Documents folder, so your books are kept in the program's own folder. Removing KassenSturz (snap remove) deletes that folder with them. Make a backup copy of your book to a safe place, or move your book to another folder."
+msgstr "KassenSturz konnte Ihren Ordner Dokumente nicht nutzen, deshalb liegen Ihre Bücher im eigenen Ordner des Programms. Wenn Sie KassenSturz entfernen (snap remove), wird dieser Ordner mit den Büchern gelöscht. Machen Sie eine Sicherungskopie Ihres Buchs an einem sicheren Ort oder verschieben Sie Ihr Buch in einen anderen Ordner."
+
 #: crates/kassensturz-ui-bridge/qml/BankFolderDialog.qml:1
 #, kde-format
 msgctxt "@title:window"

@@ -82,7 +82,9 @@ This works with Claude Desktop or Claude Code on a Claude subscription, with no 
      }
      ```
    - **Claude Code:** run `claude mcp add kassensturz -- flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz`
+   - **KassenSturz from the Snap Store:** the command is `kassensturz.mcp`, with no arguments. In Claude Desktop use `"command": "kassensturz.mcp"` and no `"args"`; in Claude Code run `claude mcp add kassensturz -- kassensturz.mcp`. The Snap needs access to the folder of your book: it has it for your home folder and for removable drives unless you switched that off.
    - **KassenSturz from your distribution instead of the Flatpak:** the command is `kassensturz-mcp`, with no arguments.
+   - **KassenSturz from the Microsoft Store:** this version has no short command yet (B-440), so connecting your own AI tool is not supported there; the AI chat inside KassenSturz works as usual.
 3. Ask your AI tool about your accounts. It can read accounts, categories, balances, totals per category, transactions and Rules. It never sees PINs, bank logins or account numbers.
 
 It reads the book KassenSturz opened last. KassenSturz may stay open, and when you open another book there, the AI reads that one from its next answer on.

@@ -28573,3 +28573,93 @@ msgstr "Der Ordner auf diesem Computer konnte nicht vorbereitet werden, zum Beis
 msgctxt "@info"
 msgid "Your bank connection's settings were copied to the private folder, but the old folder could not be removed, probably because OneDrive was using it. Your bank connection still works. KassenSturz finishes the move at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."
 msgstr "Die Einstellungen Ihrer Bankverbindung wurden in den privaten Ordner kopiert, aber der alte Ordner konnte nicht entfernt werden, wahrscheinlich weil OneDrive ihn benutzt hat. Ihre Bankverbindung funktioniert weiter. KassenSturz schließt das Verschieben beim nächsten Start ab; wenn diese Meldung bleibt, beenden Sie OneDrive kurz und starten Sie KassenSturz neu."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@label heads the list saying what each figure in the answer is in the user's book"
+msgid "What the figures in this answer are in your book"
+msgstr "Was die Zahlen in dieser Antwort in Ihrem Buch sind"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a number, %2 says what the figure is in the book"
+msgid "%1: %2"
+msgstr "%1: %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a number, %2 lists what the figure could be in the book, separated by semicolons"
+msgid "%1 is one of these: %2"
+msgstr "%1 ist eines davon: %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is an account name, %2 a date"
+msgid "balance of the account %1 on %2"
+msgstr "Kontostand des Kontos %1 am %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is an account name"
+msgid "what the entries of the account %1 dated after today add"
+msgstr "was die Buchungen des Kontos %1 mit einem Datum nach heute zusammen ergeben"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "all your accounts in this currency added up on %1"
+msgstr "alle Ihre Konten in dieser Währung zusammengerechnet am %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "all money that came in from %1 to %2"
+msgstr "alles Geld, das vom %1 bis zum %2 hereingekommen ist"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "all money that went out from %1 to %2"
+msgstr "alles Geld, das vom %1 bis zum %2 hinausgegangen ist"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "money in minus money out from %1 to %2"
+msgstr "Geld rein minus Geld raus vom %1 bis zum %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a category name, %2 and %3 are dates"
+msgid "the category %1, with everything inside it, from %2 to %3"
+msgstr "die Kategorie %1 samt allem darin vom %2 bis zum %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "entries with no other party from %1 to %2"
+msgstr "Buchungen ohne Zahlungspartner vom %1 bis zum %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is the name of the other party, %2 and %3 are dates"
+msgid "the other party %1 from %2 to %3"
+msgstr "der Zahlungspartner %1 vom %2 bis zum %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a budget name, %2 and %3 are dates"
+msgid "what the budget %1 has available from %2 to %3"
+msgstr "was das Budget %1 vom %2 bis zum %3 zur Verfügung hat"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a budget name, %2 and %3 are dates"
+msgid "what the budget %1 has spent from %2 to %3"
+msgstr "was das Budget %1 vom %2 bis zum %3 ausgegeben hat"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a budget name, %2 and %3 are dates"
+msgid "what the budget %1 has left from %2 to %3"
+msgstr "was vom Budget %1 vom %2 bis zum %3 übrig ist"

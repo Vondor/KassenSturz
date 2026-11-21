@@ -74,9 +74,94 @@ impl Exact {
     }
 }
 
+/// What a figure is in the book (D-952): the kind of figure, the account,
+/// category, payee or budget it belongs to, and the days it covers. The
+/// figure itself is never changed; this only says what it is, worked out
+/// from the same result the figure came from.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FigureLabel {
+    /// What kind of figure it is.
+    pub kind: LabelKind,
+    /// The account, category, payee or budget, empty when the figure is
+    /// about everything (all accounts, all categories).
+    pub name: String,
+    /// The first day it covers, `YYYY-MM-DD` (ISO 8601); empty if it has
+    /// no period.
+    pub from: String,
+    /// The last day it covers, the same as `from` for one day.
+    pub to: String,
+}
+
+/// The kinds of figure a label names (D-952). The app turns each into a
+/// translated phrase; the names here are fixed codes, never text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum LabelKind {
+    /// What an account holds on a day.
+    AccountBalance,
+    /// What an account's entries dated after today add.
+    AccountAfterToday,
+    /// All accounts of one currency added up.
+    AccountsTogether,
+    /// All money that came in during a period.
+    MoneyIn,
+    /// All money that went out during a period.
+    MoneyOut,
+    /// What is left (money in minus money out) in a period.
+    MoneyLeft,
+    /// What a category holds in a period, with everything inside it.
+    CategoryTotal,
+    /// What booked to a category itself holds in a period.
+    CategoryOwn,
+    /// What was paid to or received from a payee in a period.
+    PayeeTotal,
+    /// What a budget has available in its current period.
+    BudgetAvailable,
+    /// What a budget spent in its current period.
+    BudgetSpent,
+    /// What a budget has left in its current period.
+    BudgetLeft,
+}
+
+impl LabelKind {
+    /// The fixed code QML reads.
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::AccountBalance => "account-balance",
+            Self::AccountAfterToday => "account-after-today",
+            Self::AccountsTogether => "accounts-together",
+            Self::MoneyIn => "money-in",
+            Self::MoneyOut => "money-out",
+            Self::MoneyLeft => "money-left",
+            Self::CategoryTotal => "category-total",
+            Self::CategoryOwn => "category-own",
+            Self::PayeeTotal => "payee-total",
+            Self::BudgetAvailable => "budget-available",
+            Self::BudgetSpent => "budget-spent",
+            Self::BudgetLeft => "budget-left",
+        }
+    }
+}
+
+/// The most labels kept for one value: the same number can be two things.
+const MAX_LABELS_PER_VALUE: usize = 3;
+/// The longest name a label keeps, in characters.
+const MAX_LABEL_NAME: usize = 60;
+
+/// A number in an answer that came from code, with what it is (D-952).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Labelled {
+    /// The number as the answer wrote it, without its sign.
+    pub text: String,
+    /// What it can be in the book, at most three.
+    pub labels: Vec<FigureLabel>,
+}
+
 /// The figures that functions produced, which an answer may name.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Figures {
+    /// What a value is in the book (D-952), by value without its sign.
+    /// It never decides what passes.
+    labels: HashMap<Exact, Vec<FigureLabel>>,
     /// Their values, without the sign.
     values: HashSet<Exact>,
     /// Their values with whether they are below zero. Zero, counts and
@@ -99,6 +184,25 @@ impl Figures {
     /// Whether there are none.
     pub fn is_empty(&self) -> bool {
         self.values.is_empty() && self.written.is_empty() && self.parts.is_empty()
+    }
+
+    /// Notes what the money added with the same `amount` and `minor_digits`
+    /// is in the book (D-952). The figure itself is unchanged.
+    pub fn label_money(&mut self, amount: Money, minor_digits: u8, label: FigureLabel) {
+        // Zero is every empty thing at once: a label would say nothing.
+        if amount.minor_units() == 0 {
+            return;
+        }
+        let value = Exact::new(
+            u128::from(amount.minor_units().unsigned_abs()),
+            minor_digits,
+        );
+        let mut label = label;
+        label.name = label.name.chars().take(MAX_LABEL_NAME).collect();
+        let labels = self.labels.entry(value).or_default();
+        if labels.len() < MAX_LABELS_PER_VALUE && !labels.contains(&label) {
+            labels.push(label);
+        }
     }
 
     /// `amount`, in a currency with `minor_digits` decimal places.
@@ -171,6 +275,14 @@ impl Figures {
         self.values.extend(other.values.iter().copied());
         self.signed.extend(other.signed.iter().copied());
         self.written.extend(other.written.iter().cloned());
+        for (value, labels) in &other.labels {
+            let mine = self.labels.entry(*value).or_default();
+            for label in labels {
+                if mine.len() < MAX_LABELS_PER_VALUE && !mine.contains(label) {
+                    mine.push(label.clone());
+                }
+            }
+        }
         for (part, totals) in &other.parts {
             self.parts
                 .entry(*part)
@@ -235,6 +347,41 @@ pub fn check_numbers(answer: &str, known: &Figures) -> Vec<Unverified> {
             end: number.end,
         })
         .collect()
+}
+
+/// What each number in `answer` that came from code is in the book, in the
+/// order they appear, each number once (D-952). Numbers that are not among
+/// `known` ([`check_numbers`] names those), counts, dates and numbers with
+/// no label are left out. A label says what the figure is; it never decides
+/// whether a figure passes.
+pub fn label_numbers(answer: &str, known: &Figures) -> Vec<Labelled> {
+    let numbers = numbers(answer);
+    let named: HashSet<Exact> = numbers
+        .iter()
+        .flat_map(|number| number.values.iter().copied())
+        .collect();
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for number in &numbers {
+        if !known.knows(number, &named) || !seen.insert(number.written) {
+            continue;
+        }
+        let mut labels: Vec<FigureLabel> = Vec::new();
+        for value in &number.values {
+            for label in known.labels.get(value).into_iter().flatten() {
+                if labels.len() < MAX_LABELS_PER_VALUE && !labels.contains(label) {
+                    labels.push(label.clone());
+                }
+            }
+        }
+        if !labels.is_empty() {
+            out.push(Labelled {
+                text: number.written.to_owned(),
+                labels,
+            });
+        }
+    }
+    out
 }
 
 /// The sign an answer writes right before a number.

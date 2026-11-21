@@ -10,7 +10,7 @@ use kassensturz_core::{CurrencyCode, Money};
 use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
 
-use crate::figures::Figures;
+use crate::figures::{FigureLabel, Figures, LabelKind};
 use crate::text::for_model;
 
 /// Builds the values of one result from one book.
@@ -48,6 +48,30 @@ impl<'a> Writer<'a> {
         let digits = self.digits(amount.currency())?;
         self.figures.add_money(amount, digits);
         Ok(Value::String(decimal_text(amount.minor_units(), digits)))
+    }
+
+    /// [`Self::amount`], with what the figure is in the book noted for the
+    /// chat to show beside it (D-952). The value written is the same.
+    pub(crate) fn amount_of(
+        &mut self,
+        amount: Money,
+        kind: LabelKind,
+        name: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<Value, StoreError> {
+        let digits = self.digits(amount.currency())?;
+        self.figures.label_money(
+            amount,
+            digits,
+            FigureLabel {
+                kind,
+                name: name.to_owned(),
+                from: from.to_owned(),
+                to: to.to_owned(),
+            },
+        );
+        self.amount(amount)
     }
 
     /// `part` as [`Self::amount`] writes it, noted as a part of `total`

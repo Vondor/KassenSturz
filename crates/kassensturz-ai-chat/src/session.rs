@@ -18,8 +18,8 @@ use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
     NoteSuggestion, OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange,
     SUGGEST_NOTE, ToolError, Unverified, check_numbers, description_titles, draft_issue,
-    open_page_allowed, propose_on, propose_spec, propose_view_spec, propose_view_text,
-    readable_functions, suggest_note, unique_codes, view_choices,
+    label_numbers, open_page_allowed, propose_on, propose_spec, propose_view_spec,
+    propose_view_text, readable_functions, suggest_note, unique_codes, view_choices,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -230,6 +230,9 @@ pub struct Answer {
     /// Every number in it that no function produced, to be marked (D-188,
     /// threat T-26).
     pub unverified: Vec<Unverified>,
+    /// Every number in it that did come from a function, with what it is in
+    /// the book (D-952). The figures are unchanged; this only names them.
+    pub labelled: Vec<kassensturz_ai_tools::Labelled>,
     /// Why the model stopped: [`Finish::Length`] means the answer was cut.
     pub finish: Finish,
     /// How the model got its figures.
@@ -782,6 +785,7 @@ impl ChatSession {
                 let (text, web_addresses) = crate::plain::without_web_addresses(&reply.text);
                 reply.text = text;
                 let unverified = check_numbers(&reply.text, &self.figures);
+                let labelled = label_numbers(&reply.text, &self.figures);
                 #[cfg(feature = "debug-log")]
                 self.debug_log.transcript(
                     "answer",
@@ -833,6 +837,7 @@ impl ChatSession {
                     notes,
                     text: reply.text,
                     unverified,
+                    labelled,
                     finish: reply.finish,
                     mode: self.mode,
                     context_cut,

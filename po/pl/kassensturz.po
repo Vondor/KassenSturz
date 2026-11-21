@@ -26456,3 +26456,93 @@ msgstr "Nie udało się przygotować folderu na tym komputerze, na przykład dla
 msgctxt "@info"
 msgid "Your bank connection's settings were copied to the private folder, but the old folder could not be removed, probably because OneDrive was using it. Your bank connection still works. KassenSturz finishes the move at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."
 msgstr "Ustawienia połączenia z bankiem zostały skopiowane do prywatnego folderu, ale nie udało się usunąć starego folderu, prawdopodobnie dlatego, że używał go OneDrive. Połączenie z bankiem nadal działa. KassenSturz dokończy przenoszenie przy następnym uruchomieniu; jeśli ten komunikat nie znika, zamknij na chwilę OneDrive i uruchom KassenSturz ponownie."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@label heads the list saying what each figure in the answer is in the user's book"
+msgid "What the figures in this answer are in your book"
+msgstr "Czym są liczby w tej odpowiedzi w Twojej księdze"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a number, %2 says what the figure is in the book"
+msgid "%1: %2"
+msgstr "%1: %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a number, %2 lists what the figure could be in the book, separated by semicolons"
+msgid "%1 is one of these: %2"
+msgstr "%1 to jedno z tych: %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is an account name, %2 a date"
+msgid "balance of the account %1 on %2"
+msgstr "saldo konta %1 w dniu %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is an account name"
+msgid "what the entries of the account %1 dated after today add"
+msgstr "suma transakcji konta %1 z datą po dzisiejszym dniu"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "all your accounts in this currency added up on %1"
+msgstr "wszystkie Twoje konta w tej walucie zsumowane w dniu %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "all money that came in from %1 to %2"
+msgstr "wszystkie pieniądze, które wpłynęły od %1 do %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "all money that went out from %1 to %2"
+msgstr "wszystkie pieniądze, które wypłynęły od %1 do %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "money in minus money out from %1 to %2"
+msgstr "pieniądze przychodzące minus wychodzące od %1 do %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a category name, %2 and %3 are dates"
+msgid "the category %1, with everything inside it, from %2 to %3"
+msgstr "kategoria %1 razem ze wszystkim w niej od %2 do %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid "entries with no other party from %1 to %2"
+msgstr "transakcje bez kontrahenta od %1 do %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is the name of the other party, %2 and %3 are dates"
+msgid "the other party %1 from %2 to %3"
+msgstr "kontrahent %1 od %2 do %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a budget name, %2 and %3 are dates"
+msgid "what the budget %1 has available from %2 to %3"
+msgstr "ile budżet %1 ma do dyspozycji od %2 do %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a budget name, %2 and %3 are dates"
+msgid "what the budget %1 has spent from %2 to %3"
+msgstr "ile budżet %1 wydał od %2 do %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:1
+#, kde-format
+msgctxt "@info %1 is a budget name, %2 and %3 are dates"
+msgid "what the budget %1 has left from %2 to %3"
+msgstr "ile budżetu %1 zostało od %2 do %3"

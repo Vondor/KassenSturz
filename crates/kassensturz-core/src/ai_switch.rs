@@ -1148,13 +1148,29 @@ mod tests {
     fn folders_come_from_the_newest_file_and_only_while_every_file_is_on() {
         let dir = std::env::temp_dir().join(format!("ks-b448-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
+        let root = if cfg!(windows) { "C:" } else { "" };
         let (real, copy) = (dir.join("real"), dir.join("copy"));
-        std::fs::write(&real, "[AI]\nEnabled=true\nBillFolder=/old/Bills\n").unwrap();
-        std::fs::write(&copy, "[AI]\nEnabled=true\nBillFolder=/new/Bills\n").unwrap();
+        std::fs::write(
+            &real,
+            format!("[AI]\nEnabled=true\nBillFolder={root}/old/Bills\n"),
+        )
+        .unwrap();
+        std::fs::write(
+            &copy,
+            format!("[AI]\nEnabled=true\nBillFolder={root}/new/Bills\n"),
+        )
+        .unwrap();
         let files = [real.clone(), copy.clone()];
         let text = newest_enabled_text_of(&files).unwrap();
-        assert_eq!(bill_folder_in(&text), Some(PathBuf::from("/new/Bills")));
-        std::fs::write(&copy, "[AI]\nEnabled=false\nBillFolder=/new/Bills\n").unwrap();
+        assert_eq!(
+            bill_folder_in(&text),
+            Some(PathBuf::from(format!("{root}/new/Bills")))
+        );
+        std::fs::write(
+            &copy,
+            format!("[AI]\nEnabled=false\nBillFolder={root}/new/Bills\n"),
+        )
+        .unwrap();
         assert_eq!(newest_enabled_text_of(&files), None);
         std::fs::remove_dir_all(&dir).unwrap();
     }

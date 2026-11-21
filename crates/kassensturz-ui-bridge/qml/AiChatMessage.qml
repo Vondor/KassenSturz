@@ -134,7 +134,7 @@ ColumnLayout {
 
                 Controls.Label {
                     Layout.fillWidth: true
-                    font: Kirigami.Theme.smallFont
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize
                     font.bold: true
                     textFormat: Text.PlainText
                     text: item.i18nContext.i18nc("@label heads the list saying what each figure in the answer is in the user's book", "What the figures in this answer are in your book")

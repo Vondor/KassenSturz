@@ -23,6 +23,7 @@ For a tag, `snap.yml` writes the secret `FINTS_REGISTRATION` of the environment 
 | Need | Interface | Auto-connected? | What the user does |
 |---|---|---|---|
 | Window, GPU, network, portals | `desktop`, `wayland`, `x11`, `opengl`, `network` (from the extension) | yes | nothing |
+| The MCP server `kassensturz.mcp` (stdio only, D-050) | `desktop` (the document portal's mount), `home`, `removable-media`; **no `network`**: the app has no `extensions:`, because an extension's plugs can't be removed (B-445) | `desktop`, `home` yes | nothing |
 | Saved banking PIN in the keychain (Secret Service, KWallet) | `password-manager-service` | **no**: the store's reviewers rarely grant auto-connection, because the interface reads every stored secret | `sudo snap connect kassensturz:password-manager-service`, or use the PIN each time. The app already works without a keychain (D-057) |
 | Chip-card login | `pcscd` | **no** | `sudo snap connect kassensturz:pcscd` |
 | Your home folder (books, bill and backup folders directly, Q-570) | `home` | **yes** on desktops (store snaps) | nothing; to take it away: `sudo snap disconnect kassensturz:home` |

@@ -716,8 +716,8 @@ fn narrowed(kind: Drive, path: &Path, runtime_dir: &Path) -> Drive {
 /// The kind of drive with the file system called `file_system`, as Qt names
 /// it from the system's list of mounted drives. On Windows, Qt names the
 /// file system of the computer the network drive is on, e.g. "NTFS", so
-/// network drives are recognized there once `kassensturz-platform` asks
-/// Windows itself.
+/// network drives are recognized there because `cpp/platform.cpp` asks
+/// Windows itself (B-439).
 fn drive_of(file_system: &str) -> Drive {
     // Linux names, then macOS names. GVfs (GNOME) and KIO FUSE (Plasma)
     // reach network folders the file manager opened, such as smb:// ones.

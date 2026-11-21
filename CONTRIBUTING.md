@@ -9,7 +9,7 @@ Please also read our short [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Before you open a pull request
 
-1. Read `AGENTS.md`, then `docs/DECISIONS.md`, `docs/ROADMAP.md` and `docs/ARCHITECTURE.md`.
+1. Read `AGENTS.md`, then `docs/README.md`, the map of the docs folder, and the parts it points you to; look up decisions in `docs/DECISIONS.md` by their number.
 2. Pick one small, single-purpose piece of work, ideally one roadmap item.
 3. Use [Conventional Commits](https://www.conventionalcommits.org/) and explain **why**, not just what.
 4. **Sign off every commit under the DCO**: `git commit -s` (see [D-040](docs/DECISIONS.md)).

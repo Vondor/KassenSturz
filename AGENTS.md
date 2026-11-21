@@ -1,6 +1,6 @@
 # AGENTS.md — Read this first
 
-This file is the entry point for **every AI agent** working in this repository (Claude Code, Codex, Copilot agent, Cursor, or any other). Read it completely before you plan, write code, or open a pull request. Then read `docs/DECISIONS.md`, `docs/ROADMAP.md` and `docs/ARCHITECTURE.md`.
+This file is the entry point for **every AI agent** working in this repository (Claude Code, Codex, Copilot agent, Cursor, or any other). Read it completely before you plan, write code, or open a pull request. Then read `docs/README.md`, the one-page map of the docs folder, and from there only what your task needs; look up decisions in `docs/DECISIONS.md` by their number (D-960).
 
 - Project name: **KassenSturz** (see D-000 in `docs/DECISIONS.md`)
 - License: **GPL-3.0-or-later** (see D-001)
@@ -39,7 +39,7 @@ This section is orientation. The hard rules in §3 stay as they are, and the pri
 
 ### Release stages (D-274)
 
-Work is placed in a stage, never "before or after 1.0". **Alpha** (up to and including M6 and the User Sprints US1 to US7; ended on 17 Nov 2026, D-824): only the maintainer and the agents test, on synthetic books and a copy of his own; the book format may change freely, with no migrations. An **Alpha retro** follows the last Alpha milestone's retro. **Beta** (now, since 17 Nov 2026, D-824): the feature set is complete and no data-loss bug is known; invited testers join, and from the first Beta on every change to the book or settings format is a migration with an automatic backup and a test. **RC**: fixes only, packaging for all platforms ready, the targeted top-model review of money, keychain, bank and layout code done, and the book format frozen. **Gold** (1.0): only the maintainer declares it. Later items say "from Beta", "at RC" or "after Gold".
+Work is placed in a stage, never "before or after 1.0". **Alpha** (up to and including M6 and the User Sprints US1 to US7; ended on 17 Nov 2026, D-824): only the maintainer and the agents test, on synthetic books and a copy of his own; the book format may change freely, with no migrations. An **Alpha retro** follows the last Alpha milestone's retro. **Beta** (now, since 17 Nov 2026, D-824): the feature set is complete and no data-loss bug is known; invited testers join, and from the first Beta on every change to the book or settings format is a migration with an automatic backup and a test. Inside Beta, **stable 0.x releases** follow the RC rules (D-879, D-892): the first is v0.261120.39, the book format is frozen since its tag (only gated fix-up migrations with a backup and a test), and stable releases are for real use with a copy of the user's own book while beta releases are for trying things out (D-954). **RC**: fixes only, packaging for all platforms ready, the targeted top-model review of money, keychain, bank and layout code done, and the book format frozen. **Gold** (1.0): only the maintainer declares it. Later items say "from Beta", "at RC" or "after Gold".
 
 ## 2. Principles (priority order)
 
@@ -103,7 +103,7 @@ Direct bank connections for reading balances and statements are **in scope for v
 | Build | **CMake** (with KDE's Extra CMake Modules) drives **Cargo**. Development, CI and the Flatpak share one environment: the KDE Flatpak SDK with the Rust extension (D-063) |
 | UI | **Qt 6 + QML + Kirigami**, bound to the core via **cxx-qt** |
 | Storage | **SQLite**, versioned migrations from day one; development migrations are merged into one starting layout at the end of Alpha, before the first Beta (D-045, D-274) |
-| Plugins | **WASM** modules, sandboxed; the plugin host comes after Gold, i.e. 1.0 (D-071). Out-of-process plugins are not part of v1 (D-007) |
+| Plugins | **WASM** modules, sandboxed; the plugin host is part of 1.0 and was built during the Beta (D-753, revising D-071 for the host). Out-of-process plugins are not part of v1 (D-007) |
 | Secrets | Platform keychain via an abstraction (KWallet / libsecret / Windows Credential Manager / macOS Keychain). The banking PIN is saved there only if the user chooses; otherwise it's asked each time or remembered in memory until the app closes (D-057) |
 | Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS with PIN/TAN or chip card (no key files, so no EBICS, D-059), behind an abstraction so other backends can be added later. Used only to read balances and statements, never to send payments (D-053). Distro packages use the system's AqBanking; Flatpak, Windows and macOS bundle it, and the app works without it (D-054). Live FinTS needs KassenSturz's own product registration, never another program's number (D-058). License verified (D-012, `docs/THIRD_PARTY.md`); binding through `kassensturz-aqbanking-sys` and the safe `kassensturz-bank` (D-060) |
 | Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype may be tried on its own branch but isn't part of Gold (D-071); adopting LibreOffice code stays approval-gated (see D-008) |
@@ -154,11 +154,11 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 
 ## 7. Plugins
 
-- Extension points: **Importer, Exporter, Report, Automation** (reacting to events). More only via a documented decision.
+- Extension points: **Importer, Exporter, Report, Automation** (reacting to events), plus **AI provider** (D-754), **Theme** and **UI density** (D-756). More only via a documented decision.
 - The plugin API is **versioned** from day one. Plugins declare the API version they target.
 - Each plugin has a **manifest** with name, version and requested **permissions** (e.g. read transactions, write transactions, network, filesystem).
 - Plugins get a narrow, permission-checked view of the data, **never raw database access**.
-- Built-in importers and exporters use the same interface as third-party plugins: a native Rust trait, defined during M1–M2, which the WASM plugin API mirrors once the plugin host comes after Gold (D-007, D-069, D-071).
+- Built-in importers and exporters use the same interface as third-party plugins: a native Rust trait, defined during M1–M2, which the WASM plugin API mirrors (D-007, D-069, D-753).
 - Plugins are **WASM** modules. Users add a downloaded plugin file in the **Plugins** tab, which shows the permissions it requests; there is no plugin store (D-007).
 
 ## 8. AI features (product feature, not development process)
@@ -179,7 +179,7 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
 
 ## 9. How to work here
 
-1. Read this file, `docs/DECISIONS.md`, `docs/ROADMAP.md` and `docs/ARCHITECTURE.md`.
+1. Read this file and `docs/README.md` (the map of the docs folder). Then read only the parts of `docs/ROADMAP.md`, `docs/ARCHITECTURE.md` and the other docs your task needs, and look up each decision your task names in `docs/DECISIONS.md` by its number, including later rows that revise it (D-960).
 2. Pick one item from the roadmap. Keep pull requests **small and single-purpose**. Split a step further only when the smaller pieces are cheaper to build and review without losing quality.
 3. Use Conventional Commits. Explain **why**, not just what.
    - **Open the pull request as soon as the code passes locally** (as a draft if docs are still missing), so finished work is never stranded in a session that stops.

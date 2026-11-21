@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: CC0-1.0
 name: Wiki
 
-# Copies the user handbook (docs/user/de and docs/user/en) into the GitHub
-# Wiki after a merge to main (D-880). The handbook itself stays in the
+# Copies the user handbook (docs/user/de and docs/user/en) and the
+# maintainer pages (docs/maintainer) into the GitHub Wiki after a merge to
+# main (D-880). The handbook itself stays in the
 # repository, reviewed in pull requests (#654); the Wiki is only a copy, and
 # every Wiki page says so and points to the file to change instead.
 # tools/wiki-sync.py makes the pages. In a pull request this workflow only
@@ -15,12 +16,14 @@ on:
     paths:
       - "docs/user/de/**"
       - "docs/user/en/**"
+      - "docs/maintainer/**"
       - "tools/wiki-sync.py"
       - ".github/workflows/wiki.yml"
   pull_request:
     paths:
       - "docs/user/de/**"
       - "docs/user/en/**"
+      - "docs/maintainer/**"
       - "tools/wiki-sync.py"
       - ".github/workflows/wiki.yml"
   workflow_dispatch:
@@ -77,13 +80,13 @@ jobs:
             echo "::error::The Wiki has no git repository yet. Open the Wiki tab on GitHub, save any first page once, then run this workflow again (Actions, Wiki, Run workflow)."
             exit 1
           fi
-          # The Wiki is a copy: pages that are no longer in docs/user go.
+          # The Wiki is a copy: pages that are no longer in docs/user or docs/maintainer go.
           find "$wiki" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp "$RUNNER_TEMP"/wiki-pages/*.md "$wiki"/
           cd "$wiki"
           git add --all
           if git diff --cached --quiet; then
-            echo "The Wiki already matches docs/user."
+            echo "The Wiki already matches docs/user and docs/maintainer."
             exit 0
           fi
           git -c user.name="github-actions[bot]" \

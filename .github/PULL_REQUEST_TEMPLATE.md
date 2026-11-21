@@ -17,7 +17,6 @@
 - [ ] A change to the book or settings format is a migration with an automatic backup and a test from every earlier Beta format, or none is made (Beta, D-274, D-824)
 - [ ] SPDX header on every new source file, checked by `reuse lint`
 - [ ] Every commit is signed off under the DCO (`git commit -s`, see D-040)
-- [ ] Independent review (D-786, from RC until Gold): `tools/needs-independent-review.sh` exits 1, or the recorded review is linked here (docs/INDEPENDENT_REVIEW.md)
 - [ ] Labels set: a milestone, the areas, a kind, and `human-gate` if one is ticked below (AGENTS.md §9.3)
 
 ## Human gates (AGENTS.md §3.2)

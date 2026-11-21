@@ -7,6 +7,7 @@
 use std::process::Command;
 
 fn main() {
+    embed_windows_manifest();
     println!(
         "cargo:rustc-env=KASSENSTURZ_BUILD_VERSION={}",
         build_version()
@@ -110,4 +111,25 @@ fn build_version() -> String {
     .map(|text| text.trim().to_owned())
     .find(|text| is_version(text))
     .unwrap_or_else(|| std::env::var("CARGO_PKG_VERSION").unwrap_or_default())
+}
+
+/// On Windows (MSVC) the program carries the same application manifest as
+/// `kassensturz.exe` (B-444, B-460, D-979): it says it can use paths longer
+/// than 260 characters, which Windows honours only where its
+/// "LongPathsEnabled" setting is on. The linker embeds it, so no extra crate
+/// is needed.
+fn embed_windows_manifest() {
+    let manifest = "../../packaging/windows/kassensturz.manifest";
+    println!("cargo:rerun-if-changed={manifest}");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc")
+    {
+        let path = std::path::Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default())
+            .join(manifest);
+        println!("cargo:rustc-link-arg-bins=/MANIFEST:EMBED");
+        println!(
+            "cargo:rustc-link-arg-bins=/MANIFESTINPUT:{}",
+            path.display()
+        );
+    }
 }

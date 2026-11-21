@@ -103,8 +103,11 @@ rustls = { version = "=0.23.46", default-features = false, features = ["std", "t
 # tests in kassensturz-mcp fail if one comes in (threats T-13, T-32).
 rmcp = { version = "=3.7.0", default-features = false, features = ["server", "transport-io"] }
 # The async runtime rmcp runs on, only in kassensturz-mcp (D-194): the
-# version rmcp brings anyway, a single-threaded runtime with its timer and
-# without its I/O driver, so it never polls a socket.
+# version rmcp brings anyway. KassenSturz asks only for a single-threaded
+# runtime with its timer. rmcp itself switches on tokio's default features,
+# its macros and its networking code, so that code is compiled in; the MCP
+# server never uses it, and tests/stdio_only.rs in kassensturz-mcp fails if
+# it does (threats T-13, T-32).
 tokio = { version = "=1.54.1", default-features = false, features = ["rt", "time"] }
 # Wipes a banking PIN from memory when it is no longer needed (D-057, threat
 # T-02). Without its default features: `alloc` is enough for a wiped String.
@@ -121,6 +124,14 @@ proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 # Writes the small test plugins of kassensturz-plugin-host from WebAssembly's
 # text format, in tests only.
 wat = { version = "=1.263.0", default-features = false }
+
+# Development and test builds keep debug information for KassenSturz's own
+# crates only, not for the roughly 250 crates it depends on: that shortens
+# the build and shrinks the build folder and CI's cache (#1373). A panic
+# still names the file and line; only stepping through a dependency in a
+# debugger loses its details. Release builds are unchanged.
+[profile.dev.package."*"]
+debug = false
 
 [workspace.lints.rust]
 missing_docs = "warn"

@@ -13,6 +13,24 @@ on:
   # the store; only a tag does that, in release.yml).
   push:
     branches: [main]
+    # Not for a merge that changed only files the snap isn't built from
+    # (D-957): the same list as in windows-app.yml, with the Windows
+    # packaging instead of the snap's. Before, a changed Markdown file built
+    # the snap for 13 minutes.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!LICENSES/**"
+      - "!*.md"
+      - "!REUSE.toml"
+      - "!CODEOWNERS"
+      - "!.github/ISSUE_TEMPLATE/**"
+      - "!.github/PULL_REQUEST_TEMPLATE.md"
+      - "!.github/FUNDING.yml"
+      - "!.github/workflows/**"
+      - "!packaging/windows/**"
+      - "docs/ERROR_CODES.md"
+      - ".github/workflows/snap.yml"
   pull_request:
     paths:
       - "packaging/snap/**"

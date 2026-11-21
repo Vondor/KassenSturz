@@ -1,10 +1,10 @@
 Booking date,Value date,Payee,Payee IBAN,Reference,Amount,Currency
-2026-10-30,2026-10-30,Sunvale Supermarket,AT611904300234573201,Weekly shop,-163.18,EUR
-2026-11-02,2026-11-02,State Pay Office,FR1420041010050500013M02606,Monthly pay,6148.00,EUR
-2026-11-02,2026-11-02,Starfall Health Insurance,NL91ABNA0417164300,"Health insurance, mother and 3 children",-348.60,EUR
-2026-11-03,2026-11-03,Sunmere Town Utilities,NL91ABNA0417164300,Gas instalment,-165.00,EUR
-2026-11-03,2026-11-03,Sunvale Supermarket,GB29NWBK60161331926819,Weekly shop,-142.75,EUR
+2026-10-30,2026-10-30,Woodland Lane Fuel,AT611904300234573201,Fuel,-73.42,EUR
+2026-11-02,2026-11-02,Powerhouse Gym,FR1420041010050500013M02606,Membership fee,-29.90,EUR
+2026-11-02,2026-11-02,Lighthouse Life Assurance,NL91ABNA0417164300,Private pension plan,-100.00,EUR
+2026-11-03,2026-11-03,Woodland Lane Fuel,NL91ABNA0417164300,Fuel,-68.15,EUR
+2026-11-03,2026-11-03,Cornflower Bakery,GB29NWBK60161331926819,Bread rolls,-4.80,EUR
 2026-11-04,2026-11-04,Starfall Insurance,FR1420041010050500013M02606,"Car insurance, 2 cars",-132.60,EUR
-2026-11-05,2026-11-05,Family Benefits Office,NL91ABNA0417164300,"Child benefit, 3 children",777.00,EUR
-2026-11-05,2026-11-05,Northglow Internet,NL91ABNA0417164300,Internet,-44.95,EUR
-2026-11-06,2026-11-06,Sunmere Town Hall,GB29NWBK60161331926819,After-school club fee,-205.00,EUR
+2026-11-05,2026-11-05,Radiostar Mobile,NL91ABNA0417164300,Family mobile contracts,-64.97,EUR
+2026-11-05,2026-11-05,Market Square Pharmacy,NL91ABNA0417164300,Pharmacy,-12.95,EUR
+2026-11-06,2026-11-06,Northland Transit,GB29NWBK60161331926819,Monthly travel pass,-58.00,EUR

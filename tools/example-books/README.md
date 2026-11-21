@@ -8,8 +8,8 @@ are named at the top of the script.
 
 | Book | File | What it is |
 |---|---|---|
-| Suburban Family (suggested start) | `suburban-family-v15.sqlite` | A family of five in North Rhine-Westphalia: a nurse at a public hospital (TVöD-P), a teacher at a Gymnasium (civil servant, A 13), both 40, three children, a terraced house with a mortgage and two cars. Girokonto, Sparkonto, Kreditkarte, Bargeld, the default German categories, Umbuchungen (the credit card paid off every month, cash withdrawn, a monthly saving). |
-| Suburban Family, English (suggested start when the app is not in German) | `suburban-family-en-v15.sqlite` | The same household, accounts, amounts and dates as the German book, with every name and memo in English (the Summerfield family in the made-up town of Sunmere; the categories are the app's English default ones). Its statements are an English bank's: a comma-separated CSV with a decimal point and ISO dates. The chooser offers it instead of the German book whenever the app runs in a language other than German (D-843). |
+| Suburban Family (suggested start) | `suburban-family-v15.sqlite`, `suburban-family.json` | A family of five in North Rhine-Westphalia: a nurse at a public hospital (TVöD-P), a teacher at a Gymnasium (civil servant, A 13), both 40, three children, a terraced house with a mortgage and two cars. Her Girokonto, his Girokonto Jonas (the one the statements are for), a shared Haushaltskonto both pay into every month (the house and the weekly shop are paid from it), Sparkonto, Tagesgeld, Kreditkarte, Bargeld, the default German categories plus Altersvorsorge, Anschaffungen and Ratenkredite (a kitchen and an e-bike bought on instalments), Umbuchungen (the contributions, the credit card paid off every month, cash withdrawn, monthly savings). `suburban-family.json` is the complete export with three budgets (groceries, the kitchen's rates, the e-bike's rates from next month) and its dashboards (D-946). |
+| Suburban Family, English (suggested start when the app is not in German) | `suburban-family-en-v15.sqlite`, `suburban-family-en.json` | The same household, accounts, amounts and dates as the German book, with every name and memo in English (the Summerfield family in the made-up town of Sunmere; the categories are the app's English default ones). Its statements are an English bank's: a comma-separated CSV with a decimal point and ISO dates. The chooser offers it instead of the German book whenever the app runs in a language other than German (D-843). |
 | Flower Utopia | `flower-utopia-v15.sqlite`, `flower-utopia.json` | A small garden cooperative with a shared cash box (Gemeinschaftskasse), Transfers from the cash box to the club account after each market, and a food category. The `.json` is the complete export with five monthly budgets and a saved Overview with charts (a KMyMoney file cannot hold them). |
 | UdSSR Government Agent | `udssr-agent-v15.sqlite` | A fictional 1980s agent of the made-up "Hauptverwaltung für Windstille": rubles, dollars, pounds and francs with agency rates, and a monthly Transfer to the savings book. Only current currency codes are used (D-077). The dates are recent. |
 | Space Colony | `../space-colony-5y-v15.sqlite` | The older five-year book. It is read, never changed; only its bank files are made here. Its amounts were compared with the few public analogue figures found and left as they are (D-563). |
@@ -19,7 +19,8 @@ All files are in `crates/kassensturz-import/tests/books/examples/`:
 ```
 suburban-family-v15.sqlite  suburban-family-en-v15.sqlite
 flower-utopia-v15.sqlite    udssr-agent-v15.sqlite
-flower-utopia.json          reference-month.txt
+flower-utopia.json          suburban-family.json   suburban-family-en.json
+reference-month.txt
 statements/<book>.csv  <book>.csv.settings  <book>.camt053.xml   (all five books)
 answers/<book>.md                                                   (all five books)
 ```
@@ -34,8 +35,9 @@ KASSENSTURZ_BLESS=1 cargo test -p kassensturz-pipeline --test example_books
 ```
 
 The books hold the 24 months before the reference month, so "last month" and
-the last twelve months are never empty, and some cash and card spending in the
-reference month itself; the statements hold the reference month's first days of
+the last twelve months are never empty, and some spending in the
+reference month itself (Suburban Family has the whole month on every account
+but the one its statements are for, D-946); the statements hold the reference month's first days of
 the account they are for, which has no other line in that month. When the app
 makes a book from an example, it moves every date by whole months so that the
 reference month is the running month and leaves out what lies after today
@@ -43,7 +45,7 @@ reference month is the running month and leaves out what lies after today
 round in a later month runs the generator with that month. The
 generator saves the reference month in `reference-month.txt`; the test reads
 it. Run the generator first, then the test with `KASSENSTURZ_BLESS=1` writes the
-answer sheets and `flower-utopia.json` again. Python 3.9 or newer, standard
+answer sheets and the three `.json` exports again. Python 3.9 or newer, standard
 library only; the same call always writes the same files.
 
 ## The statements

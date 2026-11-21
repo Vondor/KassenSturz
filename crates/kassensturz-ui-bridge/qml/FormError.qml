@@ -778,6 +778,8 @@ Kirigami.InlineMessage {
         case "store.already-exists":
             return i18nContext.i18nc("@info %1 is a file name", "There is a book called \"%1\" already. Nothing was made.", result.file);
         case "bank.not-installed":
+            if (Qt.platform.os === "windows")
+                return i18nContext.i18nc("@info", "Bank connections are not available in this version of KassenSturz for Windows. Import a file from your bank instead.");
             return i18nContext.i18nc("@info", "Bank connections need AqBanking, a free program KassenSturz uses to talk to banks, and it isn't installed on this computer. Install it from your distribution, or import a file from your bank instead.");
         case "bank.too-old":
             return i18nContext.i18nc("@info %1 is a program's name, %2 and %3 version numbers", "The installed %1 is version %2; KassenSturz needs %3 or newer. Update it, or import a file from your bank instead.", result.library === "gwenhywfar" ? "Gwenhywfar" : "AqBanking", result.found, result.minimum);

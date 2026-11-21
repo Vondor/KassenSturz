@@ -251,13 +251,31 @@ pub fn keep_in_sync_folder(settings: &Settings, book: &Path) -> bool {
 /// the bank connection is copied into it, without replacing a file. From
 /// then on `local` is the app's own folder, so the backups and plugins are
 /// found there. `documents` stays as it was.
+///
+/// The app picks `local` as its folder as soon as it exists, so a
+/// preparation that fails half-way (a backup that exists only online, no
+/// network) must not leave a half-filled folder behind: one this call made
+/// is removed again and the error returned (B-451, #1366). The user's own
+/// earlier `local` folder is never removed.
 pub fn prepare_local_folder(documents: &Path, local: &Path) -> io::Result<Copied> {
-    if documents.is_dir() {
-        copy_missing(documents, local, true)
+    prepare_local_folder_with(documents, local, |from, to| copy_missing(from, to, true))
+}
+
+fn prepare_local_folder_with(
+    documents: &Path,
+    local: &Path,
+    copy: impl FnOnce(&Path, &Path) -> io::Result<Copied>,
+) -> io::Result<Copied> {
+    let existed = local.exists();
+    let made = if documents.is_dir() {
+        copy(documents, local)
     } else {
-        fs::create_dir_all(local)?;
-        Ok(Copied::default())
+        fs::create_dir_all(local).map(|()| Copied::default())
+    };
+    if made.is_err() && !existed {
+        let _ = fs::remove_dir_all(local);
     }
+    made
 }
 
 /// Whether the start offers to move the bank connection's folder out of
@@ -562,6 +580,29 @@ mod tests {
         let empty = folder.join("Nobody/KassenSturz");
         prepare_local_folder(&folder.join("missing"), &empty).expect("made");
         assert!(empty.is_dir());
+    }
+
+    /// B-451: a preparation that fails part-way leaves no new folder, so
+    /// the app's folder does not switch; an existing one is kept.
+    #[test]
+    fn a_preparation_that_fails_part_way_leaves_no_folder() {
+        let folder = TestFolder::new();
+        let documents = earlier(&folder);
+        let fail = |from: &Path, to: &Path| {
+            copy_missing(from, to, true)?;
+            Err(io::Error::other("a backup could not be read"))
+        };
+        let local = folder.join("Sam/KassenSturz");
+        assert!(prepare_local_folder_with(&documents, &local, fail).is_err());
+        assert!(!local.exists());
+        assert_eq!(
+            read(&documents.join("backups/Household 2026-11-18.ksz")),
+            "backup 2"
+        );
+        let own = folder.join("Kim/KassenSturz");
+        write(&own.join("mine.txt"), "mine");
+        assert!(prepare_local_folder_with(&documents, &own, fail).is_err());
+        assert_eq!(read(&own.join("mine.txt")), "mine");
     }
 
     #[test]

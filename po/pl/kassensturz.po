@@ -26388,8 +26388,8 @@ msgstr "Zachowaj księgę na tym komputerze"
 #: crates/kassensturz-ui-bridge/qml/BookInSyncFolderDialog.qml:1
 #, kde-format
 msgctxt "@info %1 is a folder"
-msgid "Your book and its backups are in a OneDrive folder, so they are uploaded to the cloud. KassenSturz can move your book to %1, which stays on this computer, and keeps its new backups there. Before moving, it keeps a copy of your book as it is now with the other backups. Older backups stay in OneDrive until you delete them there."
-msgstr "Twoja księga i jej kopie zapasowe są w folderze OneDrive, więc są wysyłane do chmury. KassenSturz może przenieść księgę do %1, który pozostaje na tym komputerze, i tam zapisywać nowe kopie zapasowe. Przed przeniesieniem zachowuje kopię księgi w obecnym stanie razem z innymi kopiami zapasowymi. Starsze kopie zapasowe zostają w OneDrive, dopóki ich tam nie usuniesz."
+msgid "Your book and its backups are in a OneDrive folder, so they are uploaded to the cloud. KassenSturz can move your book to %1, which stays on this computer, and keeps its new backups there. Before moving, it keeps a copy of your book as it is now with the other backups. Older backups stay in OneDrive until you delete them there. This folder is not uploaded anywhere, so from time to time make a backup copy of your book, for example to a USB stick."
+msgstr "Twoja księga i jej kopie zapasowe są w folderze OneDrive, więc są wysyłane do chmury. KassenSturz może przenieść księgę do %1, który pozostaje na tym komputerze, i tam zapisywać nowe kopie zapasowe. Przed przeniesieniem zachowuje kopię księgi w obecnym stanie razem z innymi kopiami zapasowymi. Starsze kopie zapasowe zostają w OneDrive, dopóki ich tam nie usuniesz. Ten folder nie jest nigdzie wysyłany, więc od czasu do czasu zrób kopię zapasową swojej księgi, na przykład na pamięć USB."
 
 #: crates/kassensturz-ui-bridge/qml/BankFolderDialog.qml:1
 #, kde-format
@@ -26400,8 +26400,8 @@ msgstr "Zachowaj połączenie z bankiem w prywatności"
 #: crates/kassensturz-ui-bridge/qml/BankFolderDialog.qml:1
 #, kde-format
 msgctxt "@info"
-msgid "The settings of your bank connection (which bank, your accounts and your login name, never your PIN) are in your Documents folder, which is often uploaded to a cloud such as OneDrive. KassenSturz can move them to a private folder on this computer the next time it starts. That folder is removed when you uninstall KassenSturz; you would then set up the bank connection again. Your book is not affected."
-msgstr "Ustawienia połączenia z bankiem (który bank, Twoje konta i login, nigdy PIN) są w folderze Dokumenty, który często jest wysyłany do chmury, np. OneDrive. KassenSturz może przenieść je do prywatnego folderu na tym komputerze przy następnym uruchomieniu. Ten folder zostanie usunięty, gdy odinstalujesz KassenSturz; wtedy trzeba będzie ponownie skonfigurować połączenie z bankiem. Nie dotyczy to Twojej księgi."
+msgid "The settings of your bank connection (which bank, your accounts and your login name, never your PIN) are in your Documents folder, which is often uploaded to a cloud such as OneDrive. KassenSturz can move them to a private folder on this computer the next time it starts. That folder is removed when you uninstall KassenSturz; you would then set up the bank connection again. Your book is not affected. The cloud service may keep the old copy in its recycle bin and version history for a while; delete it there if you want it gone."
+msgstr "Ustawienia połączenia z bankiem (który bank, Twoje konta i login, nigdy PIN) są w folderze Dokumenty, który często jest wysyłany do chmury, np. OneDrive. KassenSturz może przenieść je do prywatnego folderu na tym komputerze przy następnym uruchomieniu. Ten folder zostanie usunięty, gdy odinstalujesz KassenSturz; wtedy trzeba będzie ponownie skonfigurować połączenie z bankiem. Nie dotyczy to Twojej księgi. Usługa chmurowa może jeszcze przez jakiś czas trzymać starą kopię w swoim koszu i w historii wersji; usuń ją tam, jeśli nie chcesz jej już mieć."
 
 #: crates/kassensturz-ui-bridge/qml/BankFolderDialog.qml:1
 #, kde-format
@@ -26414,3 +26414,15 @@ msgstr "Przenieś przy następnym uruchomieniu"
 msgctxt "@action:button keep the bank settings in their folder"
 msgid "Keep it there"
 msgstr "Zostaw je tam"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:781
+#, kde-format
+msgctxt "@info"
+msgid "Bank connections are not available in this version of KassenSturz for Windows. Import a file from your bank instead."
+msgstr "Połączenia z bankiem nie są dostępne w tej wersji KassenSturz dla systemu Windows. Zaimportuj zamiast tego plik z banku."
+
+#: crates/kassensturz-ui-bridge/qml/BookInSyncFolderDialog.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "The folder on this computer could not be made ready, for example because a backup in OneDrive could not be read. Nothing was changed. Check your internet connection and the free space, then try again."
+msgstr "Nie udało się przygotować folderu na tym komputerze, na przykład dlatego, że nie można było odczytać kopii zapasowej w OneDrive. Nic nie zostało zmienione. Sprawdź połączenie z internetem i wolne miejsce, a potem spróbuj ponownie."

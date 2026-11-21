@@ -87,7 +87,7 @@ class Package(CMakePackageBase):
         if number.is_file():
             self.defines["version"] = number.read_text(encoding="utf-8").strip()
         self.defines["appname"] = "kassensturz"
-        self.defines["company"] = "KassenSturz contributors"
+        self.defines["company"] = "SerpentSoftware"
         self.defines["executable"] = r"bin\kassensturz.exe"
         self.defines["icon"] = self.blueprintDir().parent.parent / "kassensturz.ico"
         self.defines["website"] = "https://github.com/Vondor/KassenSturz"

@@ -30,7 +30,7 @@ Kirigami.PromptDialog {
     }
 
     title: i18nContext.i18nc("@title:window", "Keep your bank connection private")
-    subtitle: i18nContext.i18nc("@info", "The settings of your bank connection (which bank, your accounts and your login name, never your PIN) are in your Documents folder, which is often uploaded to a cloud such as OneDrive. KassenSturz can move them to a private folder on this computer the next time it starts. That folder is removed when you uninstall KassenSturz; you would then set up the bank connection again. Your book is not affected.")
+    subtitle: i18nContext.i18nc("@info", "The settings of your bank connection (which bank, your accounts and your login name, never your PIN) are in your Documents folder, which is often uploaded to a cloud such as OneDrive. KassenSturz can move them to a private folder on this computer the next time it starts. That folder is removed when you uninstall KassenSturz; you would then set up the bank connection again. Your book is not affected. The cloud service may keep the old copy in its recycle bin and version history for a while; delete it there if you want it gone.")
     standardButtons: Kirigami.Dialog.NoButton
     closePolicy: Kirigami.Dialog.NoAutoClose
     showCloseButton: false

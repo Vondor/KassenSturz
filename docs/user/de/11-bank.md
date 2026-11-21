@@ -14,7 +14,7 @@
 ## Einen Bankzugang einrichten
 
 1. **Einstellungen › Bank › Eine Bank verbinden…**
-2. Tippen Sie die **IBAN** eines Ihrer Konten bei dieser Bank. KassenSturz findet die Bank und fragt nur, was sie braucht: meist Ihren **Anmeldenamen**, wo es das gibt eine **Kunden-ID**, und Ihre **PIN**.
+2. Tippen Sie die **IBAN** eines Ihrer Konten bei dieser Bank. Die IBAN ist die lange Kontonummer auf Ihrer Bankkarte und Ihren Kontoauszügen; sie beginnt mit zwei Buchstaben, in Deutschland mit DE. KassenSturz findet die Bank und fragt nur, was sie braucht: meist Ihren **Anmeldenamen**, wo es das gibt eine **Kunden-ID**, und Ihre **PIN**.
 3. Wählen Sie bei **PIN merken**, wie lange KassenSturz sie behält (unten).
 4. Fragt die Bank nach einer **TAN** oder nach Ihrer **Freigabe in der App**, zeigt KassenSturz die Frage der Bank mit deren Knöpfen in einem eigenen Fenster. Eine TAN geht einmal an die Bank und wird nie gespeichert. Schließen Sie das Fenster, brechen Sie ab, und nichts Halbfertiges bleibt zurück.
 5. Zum Schluss listet KassenSturz die Konten, die Ihre Bank zeigt, und schlägt vor, welches Konto in Ihrem Buch jeweils gefüllt wird. Sie bestätigen oder ändern jede Wahl.

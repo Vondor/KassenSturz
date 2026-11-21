@@ -4,6 +4,8 @@
 
 Dieses Handbuch gibt es auch [auf Englisch](../en/README.md).
 
+**Neu am Computer?** Wörter wie Datei, Ordner, Herunterladen und Doppelklick stehen am Ende von [Wörter in der App, erklärt](20-woerter.md#computerwörter-in-diesem-handbuch).
+
 ## Inhalt
 
 **Ankommen**

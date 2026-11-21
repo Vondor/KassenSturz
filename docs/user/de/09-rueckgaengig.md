@@ -4,7 +4,7 @@
 
 ## Rückgängig und Wiederholen
 
-- **Rückgängig** und **Wiederholen** stehen im Menü und auf **Strg+Z** und **Strg+Umschalt+Z**.
+- **Rückgängig** und **Wiederholen** stehen im Menü und auf **Strg+Z** und **Strg+Umschalt+Z**. Das heißt: Halten Sie die Taste mit der Aufschrift Strg gedrückt (unten links auf der Tastatur) und drücken Sie Z; für Wiederholen halten Sie Strg und die Umschalttaste (die für Großbuchstaben) gedrückt und drücken Z.
 - Sie sagen, was sie tun, zum Beispiel „Rückgängig: Eine Buchung entfernt“. Bei einer Änderung an einer einzelnen Buchung nennen sie auch diese Buchung und ihren Betrag, zum Beispiel „Rückgängig gemacht: Eine Buchung hinzugefügt (Beispiel-Laden, -23,80 €)“.
 - Nachdem Sie eine Buchung hinzugefügt, geändert, rückgängig gemacht oder wiederholt haben, leuchtet ihre Zeile kurz auf, in der Liste des Kontos und in den Buchungslisten Ihrer Übersichten, damit Sie sehen, welche es war.
 - Rückgängig nimmt **immer die neueste Änderung** zurück, auch nachdem Sie das Buch geschlossen und wieder geöffnet haben.

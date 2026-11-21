@@ -4,6 +4,8 @@
 
 There is also a [German version of this handbook](../de/README.md).
 
+**New to computers?** Words such as file, folder, download and double-click are explained at the end of [Words in the app, explained](20-words.md#computer-words-in-this-handbook).
+
 ## Contents
 
 **Getting started**

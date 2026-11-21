@@ -13,36 +13,36 @@
       </Acct>
       <Bal>
         <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
-        <Amt Ccy="EUR">21314.98</Amt>
+        <Amt Ccy="EUR">18350.72</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
         <Dt><Dt>2026-10-30</Dt></Dt>
       </Bal>
       <Bal>
         <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
-        <Amt Ccy="EUR">27037.90</Amt>
+        <Amt Ccy="EUR">17805.93</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
         <Dt><Dt>2026-11-06</Dt></Dt>
       </Bal>
       <Ntry>
-        <Amt Ccy="EUR">163.18</Amt>
+        <Amt Ccy="EUR">73.42</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-10-30</Dt></BookgDt>
         <ValDt><Dt>2026-10-30</Dt></ValDt>
-        <AcctSvcrRef>SU2610-0761</AcctSvcrRef>
+        <AcctSvcrRef>SU2610-0250</AcctSvcrRef>
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Cdtr><Nm>Supermarkt Sonnental</Nm></Cdtr>
+              <Cdtr><Nm>Tankstelle Waldweg</Nm></Cdtr>
               <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>Wocheneinkauf</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Tanken</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>
       <Ntry>
-        <Amt Ccy="EUR">6148.00</Amt>
-        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Amt Ccy="EUR">29.90</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-11-02</Dt></BookgDt>
         <ValDt><Dt>2026-11-02</Dt></ValDt>
@@ -50,15 +50,15 @@
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Dbtr><Nm>Besoldungsstelle des Landes</Nm></Dbtr>
-              <DbtrAcct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></DbtrAcct>
+              <Cdtr><Nm>Fitnessstudio Kraftwerk</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>Bezüge</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Mitgliedsbeitrag</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>
       <Ntry>
-        <Amt Ccy="EUR">348.60</Amt>
+        <Amt Ccy="EUR">100.00</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-11-02</Dt></BookgDt>
@@ -67,15 +67,15 @@
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Cdtr><Nm>Sternschnuppe Krankenversicherung</Nm></Cdtr>
+              <Cdtr><Nm>Leuchtturm Lebensversicherung</Nm></Cdtr>
               <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>Beitrag Krankenversicherung Mutter und 3 Kinder</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Private Rentenversicherung</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>
       <Ntry>
-        <Amt Ccy="EUR">165.00</Amt>
+        <Amt Ccy="EUR">68.15</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-11-03</Dt></BookgDt>
@@ -84,15 +84,15 @@
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Cdtr><Nm>Stadtwerke Sonnenau</Nm></Cdtr>
+              <Cdtr><Nm>Tankstelle Waldweg</Nm></Cdtr>
               <CdtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>Abschlag Gas</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Tanken</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>
       <Ntry>
-        <Amt Ccy="EUR">142.75</Amt>
+        <Amt Ccy="EUR">4.80</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-11-03</Dt></BookgDt>
@@ -101,10 +101,10 @@
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Cdtr><Nm>Supermarkt Sonnental</Nm></Cdtr>
+              <Cdtr><Nm>Bäckerei Kornblume</Nm></Cdtr>
               <CdtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>Wocheneinkauf</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Brötchen</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>
@@ -126,8 +126,8 @@
         </NtryDtls>
       </Ntry>
       <Ntry>
-        <Amt Ccy="EUR">777.00</Amt>
-        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Amt Ccy="EUR">64.97</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-11-05</Dt></BookgDt>
         <ValDt><Dt>2026-11-05</Dt></ValDt>
@@ -135,15 +135,15 @@
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Dbtr><Nm>Familienkasse</Nm></Dbtr>
-              <DbtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></DbtrAcct>
+              <Cdtr><Nm>Funkstern Mobilfunk</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>Kindergeld 3 Kinder</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Handyverträge Familie</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>
       <Ntry>
-        <Amt Ccy="EUR">44.95</Amt>
+        <Amt Ccy="EUR">12.95</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-11-05</Dt></BookgDt>
@@ -152,15 +152,15 @@
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Cdtr><Nm>Nordlicht Internet</Nm></Cdtr>
+              <Cdtr><Nm>Apotheke am Markt</Nm></Cdtr>
               <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>Internet</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Apotheke</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>
       <Ntry>
-        <Amt Ccy="EUR">205.00</Amt>
+        <Amt Ccy="EUR">58.00</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-11-06</Dt></BookgDt>
@@ -169,10 +169,10 @@
         <NtryDtls>
           <TxDtls>
             <RltdPties>
-              <Cdtr><Nm>Stadtkasse Sonnenau</Nm></Cdtr>
+              <Cdtr><Nm>Verkehrsverbund Nordland</Nm></Cdtr>
               <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
             </RltdPties>
-            <RmtInf><Ustrd>OGS-Elternbeitrag</Ustrd></RmtInf>
+            <RmtInf><Ustrd>Monatsticket</Ustrd></RmtInf>
           </TxDtls>
         </NtryDtls>
       </Ntry>

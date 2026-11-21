@@ -3246,8 +3246,8 @@ mod tests {
             .accounts(false)
             .expect("accounts")
             .into_iter()
-            .find(|account| account.name == "Girokonto")
-            .expect("Girokonto")
+            .find(|account| account.name == "Girokonto Jonas")
+            .expect("Girokonto Jonas")
             .id;
         let input = std::fs::read(examples.join("statements/suburban-family.camt053.xml"))
             .expect("the statement is in the repository");
@@ -3268,18 +3268,18 @@ mod tests {
             assert_eq!(opening.date, "2026-10-30");
             assert_eq!(
                 (opening.bank.exact.as_str(), opening.book.exact.as_str()),
-                ("21314,98 €", "21314,98 €")
+                ("18350,72 €", "18350,72 €")
             );
             assert!(opening.matches, "{opening:?}");
             // "Check against my bank" compares at the end of the day, so it
-            // gets the bank's figure after that day's entry of 163,18 €.
-            assert_eq!(opening.check_amount, "21151,80 €");
+            // gets the bank's figure after that day's entry of 73,42 €.
+            assert_eq!(opening.check_amount, "18277,30 €");
             assert_eq!(opening.check_date, "2026-10-30");
             let closing = &shown.balances[1];
             assert_eq!(closing.which, "closing");
-            assert_eq!(closing.book.exact, "27037,90 €");
+            assert_eq!(closing.book.exact, "17805,93 €");
             assert!(closing.matches);
-            assert_eq!(closing.check_amount, "27037,90 €");
+            assert_eq!(closing.check_amount, "17805,93 €");
         }
     }
 }

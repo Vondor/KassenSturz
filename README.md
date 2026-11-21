@@ -192,6 +192,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 ## Documents
 
 - [`AGENTS.md`](AGENTS.md): rules for AI agents (read first)
+- [`docs/README.md`](docs/README.md): a map of every document in `docs/`, with what each is for (start here)
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): decisions and open questions
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): repository and module layout
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones

@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Update Snap Store page
+
+# Makes the Snap Store page show what snapcraft.yaml says again (D-947): the
+# summary, title, description, license and icon of a released snap replace
+# what was edited on snapcraft.io. The category, the links and the
+# screenshots stay as they are on the web; snapcraft sends nothing else.
+# Nothing is built and no channel changes.
+#
+# Started by hand (Actions tab -> "Update Snap Store page" -> Run workflow).
+# It runs in the environment `snap-stable`, so it waits for the maintainer's
+# approval, and its store login needs the `package_metadata` permission
+# (docs/RELEASING.md, "Updating the Snap Store page"). The texts come from the
+# snap file of a GitHub release, so they are the snapcraft.yaml of that
+# release's commit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release whose snapcraft.yaml texts to use, e.g. 0.261121.4 or v0.261121.4. Empty: the newest release."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  # Only to download the release's snap file.
+  contents: read
+
+concurrency:
+  group: snap-store-page
+  cancel-in-progress: false
+
+jobs:
+  page:
+    name: Update the store page from snapcraft.yaml
+    runs-on: ubuntu-24.04
+    environment: snap-stable
+    steps:
+      - name: Upload the texts and icon of the release's snap
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          WANTED: ${{ inputs.version }}
+        run: |
+          set -eu
+          summary() { echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+
+          if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo "::error::The environment 'snap-stable' has no secret SNAPCRAFT_STORE_CREDENTIALS (docs/RELEASING.md)."
+            summary "Nothing was changed: the store login is missing in the environment snap-stable."
+            exit 1
+          fi
+
+          wanted=${WANTED#v}
+          if [ -z "$wanted" ]; then
+            tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+          elif printf '%s' "$wanted" | grep -Eq '^[0-9]+\.[0-9]{6}\.[0-9]+$'; then
+            tag="v$wanted"
+          else
+            echo "::error::'$WANTED' is not a version like 0.261121.4."
+            summary "Nothing was changed: '$WANTED' is not a version like 0.261121.4 or v0.261121.4."
+            exit 1
+          fi
+
+          if ! gh release download "$tag" --pattern kassensturz.snap --dir page; then
+            echo "::error::The release $tag has no file kassensturz.snap."
+            summary "Nothing was changed: the GitHub release $tag has no snap file."
+            exit 1
+          fi
+
+          sudo snap install snapcraft --classic
+          if ! snapcraft upload-metadata --force page/kassensturz.snap; then
+            echo "::error::The store refused the update. The most likely cause is a login without the package_metadata permission (docs/RELEASING.md)."
+            summary "Nothing was changed: the Snap Store refused the update. Most likely the store login in snap-stable lacks the package_metadata permission; docs/RELEASING.md says how to make a new one."
+            exit 1
+          fi
+
+          summary "The Snap Store page now shows the summary, title, description, license and icon from the snapcraft.yaml of release $tag. The category, the links and the screenshots were not touched; they are edited on snapcraft.io."

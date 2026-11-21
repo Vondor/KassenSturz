@@ -52,7 +52,7 @@ The two snap jobs need two environments, which only the maintainer sets up, once
 3. Under *Deployment branches and tags*: choose **Selected branches and tags** → **Add deployment branch or tag rule** → Ref type **Tag**, name pattern `v*` → **Add rule**.
 4. Under *Environment secrets*: **Add environment secret**, name `SNAPCRAFT_STORE_CREDENTIALS`, value the output of the login command for that environment, made on your own computer and pasted there and nowhere else:
    - `snap-beta`: `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -`
-   - `snap-stable`: `snapcraft export-login --snaps kassensturz --channels stable,beta --acls package_access,package_push,package_release -` (the Snap Store terms are accepted, `docs/SNAP.md` section 7). An environment without its secret makes the job upload nothing and only warn.
+   - `snap-stable`: `snapcraft export-login --snaps kassensturz --channels stable,beta --acls package_access,package_push,package_release,package_metadata -` (`package_metadata` lets it update the store page, D-947) (the Snap Store terms are accepted, `docs/SNAP.md` section 7). An environment without its secret makes the job upload nothing and only warn.
 
 Both environments were set up on 20 Nov 2026.
 
@@ -78,6 +78,15 @@ A build that has been on `beta` for a while can go to `stable` without a new tag
 Only the revision on `beta` right now can be promoted. To bring an older one to stable, it has to be on `beta` again first.
 
 **Once, for this workflow:** the environment `snap-stable` only lets `v*` tags in (step 3 of the section above), and this workflow runs from `main`. Settings → Environments → `snap-stable` → *Deployment branches and tags* → **Add deployment branch or tag rule** → Ref type **Branch**, name pattern `main` → **Add rule**. The required review stays, so nothing reaches the store without your approval.
+
+## Updating the Snap Store page (D-947)
+
+The store page follows `packaging/snap/snapcraft.yaml`: its summary, title, description, license and icon replace whatever was edited on snapcraft.io. The category, the links and the screenshots are not sent by snapcraft at all, so they stay as they are on the web and are still edited there.
+
+- **Automatically:** the job *Snap Store, stable and beta channels* of a release run and the workflow *Promote snap to stable* update the page from that version's snap after it reaches `stable`. If that fails, the run only warns, since the snap is already released.
+- **By hand:** Actions tab → **Update Snap Store page** → **Run workflow**, with the version whose texts you want (empty: the newest release), then approve **snap-stable** under *Review deployments*. Nothing is built and no channel changes. The texts are those of that release's commit, so a text changed on `main` reaches the page with the next release.
+
+**Once:** the login in `snap-stable` needs the `package_metadata` permission. A login made before 21 Nov 2026 lacks it: make a new one with the `snap-stable` command in "Once: the snap environments" above, and replace the secret (Settings → Environments → `snap-stable` → `SNAPCRAFT_STORE_CREDENTIALS` → edit, paste the new value there and nowhere else). Without it the store refuses the update and the run says so.
 
 ## If something is wrong
 

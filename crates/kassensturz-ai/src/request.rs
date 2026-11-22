@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use crate::address::{Place, ProviderAddress};
-use crate::chat::{FunctionSpec, Message};
+use crate::chat::{FunctionSpec, Message, Role};
 use crate::error::AiError;
 use crate::openai;
 use crate::translate::Translator;
@@ -38,6 +38,7 @@ pub struct PreparedRequest {
     functions: Vec<FunctionSpec>,
     translator: Option<Arc<dyn Translator>>,
     body: String,
+    redacted: Vec<String>,
 }
 
 impl PartialEq for PreparedRequest {
@@ -66,6 +67,7 @@ impl PreparedRequest {
             functions,
             translator,
             body: String::new(),
+            redacted: Vec::new(),
         };
         request.build()?;
         Ok(request)
@@ -135,25 +137,80 @@ impl PreparedRequest {
         &self.body
     }
 
-    /// Replaces every `phrase` in the messages' text with [`REDACTED`] and
-    /// builds the body again. Answers how many places were replaced; a
-    /// phrase of only spaces replaces nothing.
+    /// Phrases redacted from this request, in the order they were applied.
+    pub fn redacted_phrases(&self) -> &[String] {
+        &self.redacted
+    }
+
+    /// Replaces every `phrase` in the messages' text and tool-call arguments
+    /// with [`REDACTED`] and builds the body again. Answers how many places
+    /// were replaced; a phrase of only spaces replaces nothing.
     pub fn redact(&mut self, phrase: &str) -> Result<usize, AiError> {
         if phrase.trim().is_empty() {
             return Ok(0);
         }
+        if !self.redacted.iter().any(|existing| existing == phrase) {
+            self.redacted.push(phrase.to_owned());
+        }
         let mut count = 0;
         for message in &mut self.messages {
-            let found = message.content.matches(phrase).count();
-            if found > 0 {
-                message.content = message.content.replace(phrase, REDACTED);
-                count += found;
+            if message.role == Role::Tool {
+                count += redact_json_text(&mut message.content, phrase);
+            } else {
+                let found = message.content.matches(phrase).count();
+                if found > 0 {
+                    message.content = message.content.replace(phrase, REDACTED);
+                    count += found;
+                }
+            }
+            for call in &mut message.calls {
+                count += redact_json_text(&mut call.arguments, phrase);
             }
         }
         if count > 0 {
             self.build()?;
         }
         Ok(count)
+    }
+}
+
+/// Replaces `phrase` inside string values of a JSON text while keeping the
+/// JSON valid, falling back to plain string replacement if `text` is not JSON.
+fn redact_json_text(text: &mut String, phrase: &str) -> usize {
+    if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(text) {
+        let count = redact_json_value(&mut value, phrase);
+        if count > 0
+            && let Ok(updated) = serde_json::to_string(&value)
+        {
+            *text = updated;
+        }
+        return count;
+    }
+    let found = text.matches(phrase).count();
+    if found > 0 {
+        *text = text.replace(phrase, REDACTED);
+    }
+    found
+}
+
+fn redact_json_value(value: &mut serde_json::Value, phrase: &str) -> usize {
+    match value {
+        serde_json::Value::String(text) => {
+            let found = text.matches(phrase).count();
+            if found > 0 {
+                *text = text.replace(phrase, REDACTED);
+            }
+            found
+        }
+        serde_json::Value::Array(items) => items
+            .iter_mut()
+            .map(|item| redact_json_value(item, phrase))
+            .sum(),
+        serde_json::Value::Object(entries) => entries
+            .values_mut()
+            .map(|entry| redact_json_value(entry, phrase))
+            .sum(),
+        _ => 0,
     }
 }
 
@@ -217,6 +274,34 @@ mod tests {
         assert_eq!(request.messages()[1].content, "What did [redacted] charge?");
         assert_eq!(request.redact("Space Colony Bank").unwrap(), 0);
         assert_eq!(request.redact("  ").unwrap(), 0);
+    }
+
+    #[test]
+    fn redaction_also_reaches_tool_call_arguments() {
+        use crate::chat::ToolCall;
+
+        let mut request = request(vec![
+            Message::user("Find Clinic \"Nord\""),
+            Message::assistant(
+                "",
+                vec![ToolCall {
+                    id: "c1".into(),
+                    name: "search_transactions".into(),
+                    arguments: r#"{"payee":"Clinic \"Nord\"","note":"Visit at Clinic \"Nord\""}"#
+                        .into(),
+                }],
+            ),
+            Message::tool_result("c1", r#"[{"payee":"Clinic \"Nord\""}]"#),
+        ]);
+        let count = request.redact(r#"Clinic "Nord""#).unwrap();
+        assert_eq!(count, 4);
+        assert!(!request.preview().contains("Nord"), "{}", request.preview());
+        assert_eq!(request.redacted_phrases(), [r#"Clinic "Nord""#]);
+        // The redacted arguments remain valid JSON.
+        let args: serde_json::Value =
+            serde_json::from_str(&request.messages()[1].calls[0].arguments).unwrap();
+        assert_eq!(args["payee"], REDACTED);
+        assert_eq!(args["note"], format!("Visit at {REDACTED}"));
     }
 
     #[test]

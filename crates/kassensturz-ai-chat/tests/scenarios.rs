@@ -958,3 +958,86 @@ fn a_page_that_is_not_on_the_list_or_not_in_the_book_is_not_opened() {
         ]
     );
 }
+
+#[test]
+fn redactions_persist_across_tool_rounds_and_follow_up_questions() {
+    struct RedactOnce {
+        done: bool,
+    }
+
+    impl Hooks for RedactOnce {
+        fn review(&mut self, request: &mut PreparedRequest) -> bool {
+            if !self.done {
+                self.done = true;
+                request.redact("SecretClinic").unwrap();
+            }
+            true
+        }
+    }
+
+    let book = hostile_book();
+    let (provider, seen) = Script::provider(
+        on(),
+        vec![
+            calls(&[("c1", "search_transactions", r#"{"payee":"SecretClinic"}"#)]),
+            says("Checked."),
+            says("Still checked."),
+        ],
+    );
+    let mut chat = session();
+    let mut hooks = RedactOnce { done: false };
+    chat.ask(
+        &book,
+        &provider,
+        None,
+        "Look up SecretClinic",
+        TODAY,
+        &mut hooks,
+    )
+    .unwrap();
+    // Follow-up question: hook does not redact again, yet the session keeps
+    // the phrase out of outgoing requests (including tool-call arguments).
+    chat.ask(
+        &book,
+        &provider,
+        None,
+        "Any other SecretClinic charges?",
+        TODAY,
+        &mut hooks,
+    )
+    .unwrap();
+
+    let seen = seen.seen();
+    assert_eq!(seen.len(), 3);
+    for request in &seen {
+        for message in &request.messages {
+            assert!(
+                !message.content.contains("SecretClinic"),
+                "redacted phrase leaked into message content: {}",
+                message.content
+            );
+            for call in &message.calls {
+                assert!(
+                    !call.arguments.contains("SecretClinic"),
+                    "redacted phrase leaked into tool-call arguments: {}",
+                    call.arguments
+                );
+            }
+        }
+    }
+    let sent_bodies: Vec<&str> = chat
+        .log()
+        .iter()
+        .filter_map(|entry| match entry {
+            LogEntry::Sent { body, .. } => Some(body.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(sent_bodies.len(), 3);
+    for body in sent_bodies {
+        assert!(
+            !body.contains("SecretClinic"),
+            "redacted phrase leaked into outgoing wire body: {body}"
+        );
+    }
+}

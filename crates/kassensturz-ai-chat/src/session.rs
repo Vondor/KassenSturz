@@ -397,6 +397,9 @@ pub struct ChatSession {
     /// The figures of single categories that results of the question under
     /// way gave (B-434).
     category_figures: Figures,
+    /// Phrases the user redacted during request review, re-applied to later
+    /// rounds and questions of this session (#1396, threat T-22).
+    redacted_phrases: Vec<String>,
 }
 
 impl ChatSession {
@@ -432,6 +435,7 @@ impl ChatSession {
             category_question: false,
             whole_totals: Figures::new(),
             category_figures: Figures::new(),
+            redacted_phrases: Vec::new(),
         }
     }
 
@@ -674,8 +678,25 @@ impl ChatSession {
             messages.push(Message::system(system));
             messages.extend(self.history.iter().cloned());
             let mut request = provider.prepare(messages, functions)?;
+            for phrase in &self.redacted_phrases {
+                request.redact(phrase)?;
+            }
             if !hooks.review(&mut request) {
                 return Err(ChatError::Stopped);
+            }
+            for phrase in request.redacted_phrases() {
+                if !self
+                    .redacted_phrases
+                    .iter()
+                    .any(|existing| existing == phrase)
+                {
+                    self.redacted_phrases.push(phrase.clone());
+                }
+            }
+            if !request.redacted_phrases().is_empty()
+                && request.messages().len() == self.history.len() + 1
+            {
+                self.history = request.messages()[1..].to_vec();
             }
             self.note(
                 LogEntry::Sent {

@@ -795,6 +795,18 @@ Kirigami.ScrollablePage {
 
                     Controls.Label {
                         Layout.fillWidth: true
+                        visible: !billRow.modelData.missing
+                            && billRow.modelData.shownLink !== ""
+                            && billRow.modelData.shownLink !== billRow.modelData.name
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        font: Kirigami.Theme.smallFont
+                        opacity: 0.7
+                        text: billRow.modelData.shownLink
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
                         visible: billRow.modelData.missing
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText

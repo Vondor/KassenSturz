@@ -148,6 +148,28 @@ pub struct BillText {
     pub folder_url: String,
 }
 
+/// File extensions allowed for local attachments opened from a book, matching
+/// Threat T-62 (`BILL_TYPES` in `kassensturz-ai-tools`).
+const ALLOWED_BILL_TYPES: [&str; 4] = ["pdf", "png", "jpg", "jpeg"];
+
+/// Whether `link` is a UNC or network share path (`\\server\share`,
+/// `\\?\UNC\...`, `//server/share`). Refused before any filesystem check so
+/// rendering an untrusted book cannot trigger an OS network lookup (#1397).
+fn is_network_path(link: &str) -> bool {
+    link.starts_with("\\\\") || link.starts_with("//")
+}
+
+/// Whether `path` ends in one of [`ALLOWED_BILL_TYPES`], compared without case.
+fn has_allowed_bill_type(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|ending| ending.to_str())
+        .is_some_and(|ending| {
+            ALLOWED_BILL_TYPES
+                .iter()
+                .any(|kind| ending.eq_ignore_ascii_case(kind))
+        })
+}
+
 /// How the page shows each document linked to `transaction`.
 fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
     transaction
@@ -156,11 +178,21 @@ fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
         .map(|attachment| {
             let link = attachment.link.as_str();
             let path = std::path::Path::new(link);
-            let web = link.starts_with("https://") || link.starts_with("http://");
-            let local = !web && path.is_absolute();
+            let web = link.starts_with("https://");
+            let local = !web && !is_network_path(link) && path.is_absolute();
+            let allowed_name = local && has_allowed_bill_type(path);
             let file_name = local
                 .then(|| path.file_name().and_then(|name| name.to_str()))
                 .flatten();
+            let missing = allowed_name && !path.is_file();
+            // If the file exists, verify its resolved target also has an
+            // allowed extension so a symlink named `.pdf` cannot launch a
+            // script or executable (#1397).
+            let openable_local = allowed_name
+                && (missing
+                    || path
+                        .canonicalize()
+                        .is_ok_and(|real| has_allowed_bill_type(&real) && real.is_file()));
             BillText {
                 link: link.to_owned(),
                 name: attachment
@@ -170,15 +202,15 @@ fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
                     .unwrap_or_else(|| link.to_owned()),
                 url: if web {
                     link.to_owned()
-                } else if local {
+                } else if openable_local {
                     file_url(link)
                 } else {
                     String::new()
                 },
-                missing: local && !path.is_file(),
+                missing,
                 folder_url: path
                     .parent()
-                    .filter(|_| local)
+                    .filter(|_| openable_local)
                     .and_then(|folder| folder.to_str())
                     .map(file_url)
                     .unwrap_or_default(),
@@ -187,19 +219,17 @@ fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
         .collect()
 }
 
-/// The `file://` address of the absolute path `path`, each byte but
+/// The `file://` address of the absolute local path `path`, each byte but
 /// letters, digits, `/` and `-._~` percent-encoded, so `#`, `?` and spaces
 /// in a name stay part of it. A Windows path gets forward slashes and keeps
-/// its drive colon (`C:\a\b.pdf` is `file:///C:/a/b.pdf`); a network path
-/// `\\server\share\x` is `file://server/share/x`.
+/// its drive colon (`C:\a\b.pdf` is `file:///C:/a/b.pdf`). Network/UNC paths
+/// are refused and return an empty string (#1397).
 fn file_url(path: &str) -> String {
+    if is_network_path(path) {
+        return String::new();
+    }
     let bytes = path.as_bytes();
-    let (prefix, rest) = if let Some(network) = path
-        .strip_prefix("\\\\")
-        .filter(|rest| !rest.starts_with('?') && !rest.starts_with('.'))
-    {
-        ("file://", network.replace('\\', "/"))
-    } else if bytes.len() >= 3
+    let (prefix, rest) = if bytes.len() >= 3
         && bytes[0].is_ascii_alphabetic()
         && bytes[1] == b':'
         && (bytes[2] == b'\\' || bytes[2] == b'/')
@@ -765,10 +795,8 @@ mod tests {
             "file:///C:/Users/Ann%20Doe/bill%20%231.pdf"
         );
         assert_eq!(file_url("d:/Bills"), "file:///d:/Bills");
-        assert_eq!(
-            file_url("\\\\server\\share\\a b\\x.pdf"),
-            "file://server/share/a%20b/x.pdf"
-        );
+        assert_eq!(file_url("\\\\server\\share\\a b\\x.pdf"), "");
+        assert_eq!(file_url("//server/share/x.pdf"), "");
     }
 
     /// A book after the first start, with the accounts screen's "Checking
@@ -2259,6 +2287,74 @@ mod tests {
             .expect("details")
             .bills;
         assert_eq!(back, bills);
+    }
+
+    #[test]
+    fn untrusted_attachment_links_are_not_opened_or_probed() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        add(
+            &mut book,
+            &paid(&checking, "25", "Corner Grocery", &groceries),
+            &TestLocale,
+        )
+        .expect("added");
+        let id = transaction_at(&book, &checking, true);
+        let folder = crate::test_folder::TestFolder::new();
+        let script = folder.join("run.sh");
+        std::fs::write(&script, b"#!/bin/sh\n").unwrap();
+        let desktop = folder.join("invoice.desktop");
+        std::fs::write(&desktop, b"[Desktop Entry]\n").unwrap();
+
+        let mut attachments = vec![
+            kassensturz_core::Attachment {
+                link: "\\\\server\\share\\bill.pdf".into(),
+                title: Some("Fake UNC Bill.pdf".into()),
+            },
+            kassensturz_core::Attachment {
+                link: "//server/share/bill.pdf".into(),
+                title: None,
+            },
+            kassensturz_core::Attachment {
+                link: "\\\\?\\UNC\\server\\share\\bill.pdf".into(),
+                title: None,
+            },
+            kassensturz_core::Attachment {
+                link: "http://example.org/bill.pdf".into(),
+                title: Some("Plain HTTP Bill".into()),
+            },
+            kassensturz_core::Attachment {
+                link: script.to_str().unwrap().to_owned(),
+                title: Some("Receipt.pdf".into()),
+            },
+            kassensturz_core::Attachment {
+                link: desktop.to_str().unwrap().to_owned(),
+                title: None,
+            },
+        ];
+        #[cfg(unix)]
+        {
+            let disguised = folder.join("disguised.pdf");
+            std::os::unix::fs::symlink(&script, &disguised).unwrap();
+            attachments.push(kassensturz_core::Attachment {
+                link: disguised.to_str().unwrap().to_owned(),
+                title: None,
+            });
+        }
+
+        let stored = find_transaction(&book, find_account(&book, &checking).unwrap().id, &id)
+            .expect("found");
+        book.update_transaction(&stored.with_attachments(attachments))
+            .unwrap();
+
+        let bills = details(&book, &checking, &id, &TestLocale)
+            .expect("details")
+            .bills;
+        for bill in &bills {
+            assert_eq!(bill.url, "", "must not open {:?}", bill.link);
+            assert_eq!(bill.folder_url, "", "must not open folder {:?}", bill.link);
+            assert!(!bill.missing, "must not probe {:?}", bill.link);
+        }
     }
 
     /// A tag a Rule added says which Rule (D-827), and keeps saying so when

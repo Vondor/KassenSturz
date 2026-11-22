@@ -273,3 +273,38 @@ fn a_file_that_is_too_big_is_not_read_whole() {
     );
     assert_eq!(read(&folder.join("missing.wasm")), Err(Refused::Unreadable));
 }
+
+#[cfg(unix)]
+#[test]
+fn a_named_pipe_or_device_is_refused_without_blocking() {
+    use std::path::PathBuf;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    fn read_within_time(path: PathBuf) -> Result<Vec<u8>, Refused> {
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(read(&path));
+        });
+        rx.recv_timeout(Duration::from_secs(2))
+            .expect("plugins::read blocked on a non-regular file")
+    }
+
+    let folder = TestFolder::new();
+    let pipe = folder.join("pipe.wasm");
+    let status = std::process::Command::new("mkfifo")
+        .arg(&pipe)
+        .status()
+        .expect("mkfifo runs");
+    assert!(status.success());
+    assert_eq!(read_within_time(pipe.clone()), Err(Refused::Unreadable));
+
+    let link = folder.join("link.wasm");
+    std::os::unix::fs::symlink(&pipe, &link).expect("symlink");
+    assert_eq!(read_within_time(link), Err(Refused::Unreadable));
+
+    assert_eq!(
+        read_within_time(PathBuf::from("/dev/zero")),
+        Err(Refused::Unreadable)
+    );
+}

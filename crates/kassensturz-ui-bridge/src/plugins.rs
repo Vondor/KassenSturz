@@ -142,9 +142,17 @@ pub enum Refused {
     NotSaved,
 }
 
-/// The file's bytes, at most [`MAX_PLUGIN_BYTES`].
+/// The file's bytes, at most [`MAX_PLUGIN_BYTES`]. Only a regular file is
+/// opened, so a named pipe or device cannot block the window (as M6-B92 and
+/// M6-B93).
 pub fn read(path: &Path) -> Result<Vec<u8>, Refused> {
+    if !fs::metadata(path).is_ok_and(|meta| meta.is_file()) {
+        return Err(Refused::Unreadable);
+    }
     let file = fs::File::open(path).map_err(|_| Refused::Unreadable)?;
+    if !file.metadata().is_ok_and(|meta| meta.is_file()) {
+        return Err(Refused::Unreadable);
+    }
     let limit = u64::try_from(MAX_PLUGIN_BYTES).unwrap_or(u64::MAX);
     let mut bytes = Vec::new();
     file.take(limit + 1)

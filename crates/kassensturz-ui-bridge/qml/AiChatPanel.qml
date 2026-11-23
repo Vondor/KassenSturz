@@ -305,6 +305,7 @@ ColumnLayout {
                 kind: "answer",
                 text: result.text,
                 unverified: result.unverified,
+                labelled: result.labelled ?? [],
                 cut: result.finish === "length",
                 filtered: result.finish === "other",
                 overview: result.overview,

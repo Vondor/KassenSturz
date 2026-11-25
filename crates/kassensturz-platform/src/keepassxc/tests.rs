@@ -389,12 +389,12 @@ fn the_group_list_is_read_one_level_down_and_at_the_top() {
 
 #[test]
 fn handshake_rejects_mismatched_or_missing_nonce() {
-    for (label, mode) in [
-        ("unchanged", HandshakeNonce::Unchanged),
-        ("missing", HandshakeNonce::Missing),
-        ("invalid-b64", HandshakeNonce::InvalidBase64),
+    for (tag, label, mode) in [
+        ("n0", "unchanged", HandshakeNonce::Unchanged),
+        ("n1", "missing", HandshakeNonce::Missing),
+        ("n2", "invalid-b64", HandshakeNonce::InvalidBase64),
     ] {
-        let fake = FakeKeePassXc::start(&format!("bad-nonce-{label}"));
+        let fake = FakeKeePassXc::start(tag);
         fake.state().handshake_nonce = mode;
         assert_eq!(
             Session::open(&fake.socket, Duration::from_secs(5)).err(),

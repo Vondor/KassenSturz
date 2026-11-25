@@ -7,7 +7,7 @@ use std::os::unix::net::UnixStream;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::fake::FakeKeePassXc;
+use super::fake::{FakeKeePassXc, HandshakeNonce};
 use super::*;
 use crate::{KeychainPlace, MemoryKeychain};
 
@@ -384,5 +384,125 @@ fn the_group_list_is_read_one_level_down_and_at_the_top() {
         json!({ "groups": { "list": [] } }),
     ] {
         assert_eq!(group_list(&broken), None, "{broken}");
+    }
+}
+
+#[test]
+fn handshake_rejects_mismatched_or_missing_nonce() {
+    for (label, mode) in [
+        ("unchanged", HandshakeNonce::Unchanged),
+        ("missing", HandshakeNonce::Missing),
+        ("invalid-b64", HandshakeNonce::InvalidBase64),
+    ] {
+        let fake = FakeKeePassXc::start(&format!("bad-nonce-{label}"));
+        fake.state().handshake_nonce = mode;
+        assert_eq!(
+            Session::open(&fake.socket, Duration::from_secs(5)).err(),
+            Some(Problem::Garbled),
+            "{label}"
+        );
+        let keychain = keychain(&fake, &links());
+        assert_eq!(
+            keychain.open(),
+            Err(KeychainError::KeePassXcAnswer),
+            "{label}"
+        );
+        assert_eq!(
+            keychain.read(&key("login-1")).map(|s| s.is_some()),
+            Err(KeychainError::KeePassXcAnswer),
+            "{label}"
+        );
+        assert!(
+            fake.state()
+                .actions
+                .iter()
+                .all(|action| action == "change-public-keys"),
+            "{label}: {:?}",
+            fake.state().actions
+        );
+    }
+}
+
+#[test]
+fn reply_nonce_accepts_only_incremented_nonce() {
+    let sent = [7_u8; 24];
+    let expected = increment(sent);
+    assert_eq!(
+        reply_nonce(&json!({ "nonce": BASE64.encode(expected) }), sent),
+        Ok(expected)
+    );
+    for bad in [
+        json!({}),
+        json!({ "nonce": null }),
+        json!({ "nonce": 42 }),
+        json!({ "nonce": "!!!" }),
+        json!({ "nonce": BASE64.encode(sent) }),
+        json!({ "nonce": BASE64.encode(&expected[..23]) }),
+        json!({ "nonce": BASE64.encode(increment(expected)) }),
+    ] {
+        assert_eq!(reply_nonce(&bad, sent), Err(Problem::Garbled), "{bad}");
+    }
+}
+
+#[test]
+fn scrub_wipes_nested_json_strings_recursively() {
+    let value = json!({
+        "action": "get-logins",
+        "count": "2",
+        "keys": [{ "id": "KassenSturz 1", "key": "synthetic-link-key" }],
+        "entries": [
+            {
+                "uuid": "0001",
+                "login": "bank-pin/login-1",
+                "password": "synthetic-pin-1",
+                "stringFields": [{ "KPH: extra": "synthetic-extra" }]
+            },
+            {
+                "login": "bank-pin/login-2",
+                "password": "synthetic-pin-2"
+            }
+        ],
+        "flag": true,
+        "num": 7,
+        "empty": null
+    });
+    let scrubbed = scrub(value);
+    assert_eq!(scrubbed["action"], "");
+    assert_eq!(scrubbed["count"], "");
+    assert_eq!(scrubbed["keys"][0]["id"], "");
+    assert_eq!(scrubbed["keys"][0]["key"], "");
+    assert_eq!(scrubbed["entries"][0]["uuid"], "");
+    assert_eq!(scrubbed["entries"][0]["login"], "");
+    assert_eq!(scrubbed["entries"][0]["password"], "");
+    assert_eq!(scrubbed["entries"][0]["stringFields"][0]["KPH: extra"], "");
+    assert_eq!(scrubbed["entries"][1]["login"], "");
+    assert_eq!(scrubbed["entries"][1]["password"], "");
+    assert_eq!(scrubbed["flag"], true);
+    assert_eq!(scrubbed["num"], 7);
+    assert!(scrubbed["empty"].is_null());
+}
+
+#[test]
+fn link_round_trips_and_rejects_malformed_text() {
+    let link = Link {
+        id: "KassenSturz 1".to_owned(),
+        key: Zeroizing::new("synthetic-association-key".to_owned()),
+    };
+    let encoded: Zeroizing<String> = link.to_text();
+    let parsed = Link::parse(&encoded).expect("parsed");
+    assert_eq!(parsed.id, link.id);
+    assert_eq!(*parsed.key, *link.key);
+    let cloned = parsed.clone();
+    assert_eq!(*cloned.key, *link.key);
+
+    for broken in [
+        "",
+        "{}",
+        r#"{"id":"KassenSturz 1"}"#,
+        r#"{"key":"synthetic-association-key"}"#,
+        r#"{"id":"KassenSturz 1","key":123}"#,
+        r#"{"id":123,"key":"synthetic-association-key"}"#,
+    ] {
+        assert!(Link::parse(broken).is_none(), "{broken}");
     }
 }

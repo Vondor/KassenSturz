@@ -379,7 +379,7 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
         vec![says_counting("A", 14_000), says_counting("B", 8_000)],
     );
     let mut chat = session();
-    // A request of about 7 KB of question plus the prompt and the functions
+    // A request of about 6 KB of question plus the prompt and the functions
     // (with the budget lists of M6c.11, propose_view's datasets of M6c.8
     // and its formulas and own lists of US1.17, and what each dataset takes
     // and the structured descriptions of M6-B200, the paging and IDs of
@@ -388,11 +388,11 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     // chart description help with its example of D-729, monthly_totals of
     // US7.5, the planned payments and forecast of #920, and the daily
     // balance and the lengths of the trends of #1036, and the plans
-    // propose_changes prepares of B-357, and the same-name hints of
-    // list_categories and the category rows of monthly_totals of B-428) for
-    // 14,000 tokens is
+    // propose_changes prepares of B-357, the same-name hints of
+    // list_categories and the category rows of monthly_totals of B-428, and
+    // the receipt-inbox MCP guidance of #1408) for 14,000 tokens is
     // what an uncut request comes to.
-    let long = "word ".repeat(1_400);
+    let long = "word ".repeat(1_250);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)
         .unwrap();
@@ -1039,5 +1039,108 @@ fn redactions_persist_across_tool_rounds_and_follow_up_questions() {
             !body.contains("SecretClinic"),
             "redacted phrase leaked into outgoing wire body: {body}"
         );
+    }
+}
+
+/// A receipt-inbox request in the built-in chat carries the MCP-only guidance
+/// and no-merchant-guessing rule while keeping `bill_folder`, `inbox`,
+/// `attach_bills` and `file_bills` out of the chat's offered tools (#1408).
+#[test]
+fn receipt_inbox_request_carries_mcp_guidance_and_keeps_bill_tools_excluded() {
+    let book = hostile_book();
+    let (provider, seen) = Script::provider(
+        on(),
+        vec![
+            calls(&[("c1", "inbox", "{}"), ("c2", "bill_folder", "{}")]),
+            says(
+                "This built-in chat cannot read local invoice files or access KassenSturz's \
+                 receipt inbox. Please use an external AI tool with local file access connected \
+                 over MCP under Your own AI tools. Because I cannot read the invoices, I skipped \
+                 the request and prepared no tags.",
+            ),
+        ],
+    );
+    let mut chat = session();
+    let answer = chat
+        .ask(
+            &book,
+            &provider,
+            None,
+            "Read each invoice in the bill entry folder. Match it to a payment at Copper Finch \
+             Goods. Skip the whole invoice if unsure. Suggest the Hardware tag only for confirmed \
+             hardware purchases.",
+            TODAY,
+            &mut NoHooks,
+        )
+        .unwrap();
+
+    assert!(
+        answer.changes.is_empty(),
+        "no broad merchant tagging prepared"
+    );
+    assert!(
+        answer.notes.is_empty(),
+        "unexpected notes: {:?}",
+        answer.notes
+    );
+    assert!(
+        chat.log().contains(&LogEntry::NotOffered { calls: 2 }),
+        "inbox and bill_folder calls must be rejected as not offered"
+    );
+    assert!(
+        called(&chat).is_empty(),
+        "no unoffered bill tool may execute: {:?}",
+        called(&chat)
+    );
+
+    let requests = seen.seen();
+    assert_eq!(requests.len(), 2);
+    let system = requests[0]
+        .messages
+        .iter()
+        .find(|message| message.role == Role::System)
+        .expect("system prompt");
+    assert!(system.content.contains("Inbox and archive for bills"));
+    assert!(system.content.contains("Your own AI tools"));
+    assert!(
+        system
+            .content
+            .contains("external AI tool with local file access connected over MCP")
+    );
+    assert!(
+        system
+            .content
+            .contains("never guess what was bought from a merchant or payee match alone")
+    );
+    assert!(system.content.contains("skip uncertain items"));
+    assert!(
+        requests[1]
+            .messages
+            .iter()
+            .any(|message| message.content == NOT_OFFERED),
+        "model must be notified that unoffered bill tools were not run"
+    );
+    for request in &requests {
+        assert!(
+            request
+                .offered
+                .iter()
+                .all(|name| name != "inbox" && name != "bill_folder"),
+            "bill read tools must stay excluded from built-in chat"
+        );
+        assert!(
+            request
+                .offered
+                .iter()
+                .any(|name| name == PROPOSE_CHANGES.name),
+            "propose_changes offered with Permissions::all()"
+        );
+    }
+    let bodies = sent_bodies(&chat);
+    assert_eq!(bodies.len(), 2);
+    for body in &bodies {
+        assert!(!body.contains("attach_bills"));
+        assert!(!body.contains("file_bills"));
+        assert!(body.contains("tag_transactions"));
     }
 }

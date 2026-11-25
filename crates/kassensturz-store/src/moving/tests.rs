@@ -1056,3 +1056,53 @@ fn a_moved_book_keeps_its_permissions_and_its_backup_is_the_users_alone() {
     assert_eq!(mode(&moved.backup), 0o600, "the backup before the move");
     assert_eq!(mode(&setup.computer.backup_folder), 0o700);
 }
+
+/// #1403, B-245: `open_reader` hardens SQLite (`trusted_schema = OFF`,
+/// `defensive = ON`) both with file locks and via lockless private copies.
+#[test]
+fn open_reader_hardens_sqlite_connections() {
+    use rusqlite::config::DbConfig;
+
+    let setup = Setup::new();
+    let assert_hardened = |conn: &Connection, label: &str| {
+        assert!(
+            !conn
+                .db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA)
+                .expect("db_config"),
+            "{label}: trusted_schema must be off"
+        );
+        assert!(
+            conn.db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("db_config"),
+            "{label}: defensive mode must be on"
+        );
+    };
+
+    let reader = open_reader(&setup.from).expect("opened");
+    assert_hardened(&reader, "open_reader");
+    drop(reader);
+
+    crate::lockless::NO_LOCKS.with(|flag| flag.set(true));
+    let lockless_reader = open_reader(&setup.from);
+    crate::lockless::NO_LOCKS.with(|flag| flag.set(false));
+    let lockless_reader = lockless_reader.expect("opened without locks");
+    assert_hardened(&lockless_reader, "open_reader (no locks)");
+    drop(lockless_reader);
+
+    // A view backed by a virtual table fails on the hardened reader.
+    let hostile = setup.target.join("Hostile.ksz");
+    fs::copy(&setup.from, &hostile).expect("copied");
+    Connection::open(&hostile)
+        .and_then(|conn| {
+            conn.execute_batch("CREATE VIEW leak AS SELECT name FROM pragma_database_list;")
+        })
+        .expect("view planted");
+    let reader = open_reader(&hostile).expect("opened");
+    assert!(
+        reader
+            .query_row("SELECT name FROM leak LIMIT 1", [], |row| row
+                .get::<_, String>(0))
+            .is_err(),
+        "trusted_schema=OFF must refuse virtual tables inside views"
+    );
+}

@@ -262,3 +262,47 @@ fn a_book_opened_through_a_private_copy_says_where_the_cut_short_file_is() {
     assert!(journal_of(kept).exists());
     assert_eq!(kept.parent(), path.parent());
 }
+
+/// #1403, B-245: both recovery open paths harden SQLite (`trusted_schema = OFF`,
+/// `defensive = ON`) and never create missing files.
+#[test]
+fn recovery_open_paths_harden_sqlite_and_never_create_missing_files() {
+    use rusqlite::config::DbConfig;
+
+    let folder = TempFolder::new();
+    let path = book_on_disk(&folder);
+
+    let missing = folder.join("missing.ksz");
+    assert!(open_in_place(&missing).is_err());
+    assert!(!missing.exists(), "open_in_place must not create a file");
+    assert!(open_copy(&missing).is_err());
+    assert!(!missing.exists(), "open_copy must not create a file");
+
+    let assert_hardened = |conn: &Connection, label: &str| {
+        assert!(
+            !conn
+                .db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA)
+                .expect("db_config"),
+            "{label}: trusted_schema must be off"
+        );
+        assert!(
+            conn.db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("db_config"),
+            "{label}: defensive mode must be on"
+        );
+    };
+
+    let in_place = open_in_place(&path).expect("in-place opened");
+    assert_hardened(&in_place, "open_in_place");
+    drop(in_place);
+
+    lockless::NO_LOCKS.with(|flag| flag.set(true));
+    let lockless_in_place = open_in_place(&path);
+    lockless::NO_LOCKS.with(|flag| flag.set(false));
+    let lockless_in_place = lockless_in_place.expect("lockless in-place opened");
+    assert_hardened(&lockless_in_place, "open_in_place (no locks)");
+    drop(lockless_in_place);
+
+    let copy_conn = open_copy(&path).expect("copy opened");
+    assert_hardened(&copy_conn, "open_copy");
+}

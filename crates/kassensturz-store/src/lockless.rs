@@ -95,10 +95,13 @@ fn in_snap() -> bool {
 /// Opens the book at `path` for writing, without OS locks if the folder
 /// refuses them. Returns whether it did.
 pub(crate) fn open_writer(path: &Path, flags: OpenFlags) -> Result<(Connection, bool), StoreError> {
-    if locks_refused(path) {
-        return Ok((open_without_locks(path, flags)?, true));
-    }
-    Ok((Connection::open_with_flags(path, flags)?, false))
+    let (conn, without_locks) = if locks_refused(path) {
+        (open_without_locks(path, flags)?, true)
+    } else {
+        (Connection::open_with_flags(path, flags)?, false)
+    };
+    crate::harden(&conn)?;
+    Ok((conn, without_locks))
 }
 
 /// How long the check below waits for a write lock. Nothing but a second
@@ -282,7 +285,13 @@ fn scratch_fails(folder: &Path, sql: &str) -> bool {
         uuid::Uuid::now_v7().simple()
     ));
     let refused = (|| {
-        let conn = Connection::open(&path)?;
+        let conn = Connection::open_with_flags(
+            &path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+                | OpenFlags::SQLITE_OPEN_CREATE
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        crate::harden(&conn)?;
         conn.busy_timeout(WRITE_LOCK_WAIT)?;
         conn.execute_batch(sql)
     })()
@@ -400,10 +409,9 @@ impl ReadOnly {
 /// after copying, and a clean quick check of the copy.
 pub(crate) fn open_read_only(path: &Path, flags: OpenFlags) -> Result<ReadOnly, StoreError> {
     if !locks_refused(path) {
-        return Ok(ReadOnly {
-            conn: Connection::open_with_flags(path, flags)?,
-            _copy: None,
-        });
+        let conn = Connection::open_with_flags(path, flags)?;
+        crate::harden(&conn)?;
+        return Ok(ReadOnly { conn, _copy: None });
     }
     let mut last = StoreError::Io(std::io::ErrorKind::WouldBlock);
     // Copies that were still whole at both ends but failed the check: the
@@ -475,6 +483,7 @@ fn copy_once(path: &Path, flags: OpenFlags) -> Result<ReadOnly, Retry> {
     }
     let conn =
         Connection::open_with_flags(&copy, flags).map_err(|error| Retry::Never(error.into()))?;
+    crate::harden(&conn).map_err(|error| Retry::Never(error.into()))?;
     let check: String = conn
         .query_row("PRAGMA quick_check(1)", [], |row| row.get(0))
         .map_err(|_| Retry::Damaged)?;

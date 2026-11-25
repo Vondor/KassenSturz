@@ -20,6 +20,7 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "tools/build-version.sh"
+      - "tools/release-beta.py"
 
 permissions:
   contents: read
@@ -349,17 +350,33 @@ jobs:
       release: ${{ github.ref_type == 'tag' }}
     secrets: inherit
 
+  # Self-tests the beta release helper (D-987) on both pull requests and tag
+  # pushes so cumulative changelog and cleanup logic is proven before release.
+  release-helper-test:
+    name: Test release helper
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run release-beta.py self-test
+        run: python3 tools/release-beta.py --self-test
+
   # Only for a tag. Published at once (D-585): the maintainer's tag is the
   # whole gate. It starts as the beta release, "(beta)" and marked
   # pre-release; the job snap-stable turns it into the stable one (D-948).
+  # Release notes list cumulative changes since the latest stable release, and
+  # older superseded "(beta)" GitHub Releases are deleted while keeping their
+  # git tags intact (D-987, T-63).
   release:
     name: Beta release on GitHub
-    needs: [build, install-check, windows-reuse, windows, snap]
+    needs: [build, install-check, release-helper-test, windows-reuse, windows, snap]
     # The Windows job is skipped when main's packages are used (D-957), and a
     # skipped job would skip this one too without the explicit results.
     if: >-
       !cancelled() && github.ref_type == 'tag' &&
       needs.build.result == 'success' && needs.install-check.result == 'success' &&
+      needs.release-helper-test.result == 'success' &&
       needs.snap.result == 'success' && needs.windows-reuse.result == 'success' &&
       (needs.windows.result == 'success' ||
       (needs.windows.result == 'skipped' && needs.windows-reuse.outputs.reused == 'true'))
@@ -385,24 +402,14 @@ jobs:
         run: |
           set -eu
           ls -l assets
-          previous=$(git describe --tags --abbrev=0 --match 'v0.*' "$TAG^" 2>/dev/null || true)
-          {
-            echo "Build $VERSION of KassenSturz. It may still have bugs: use made-up numbers or an example book only, never your own data."
-            echo
-            echo "How to install it: follow the install sheet for your system in [docs/testing](https://github.com/$GH_REPO/tree/$TAG/docs/testing)."
-            echo
-            echo "Windows: the signed version is in the [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). The installer and the zip here are not signed, so Windows shows a SmartScreen warning first. See [the code signing policy](https://github.com/$GH_REPO/blob/$TAG/docs/CODE_SIGNING_POLICY.md)."
-            echo
-            echo "macOS (experimental, untested): a \`.dmg\` for Macs with an Apple chip is added to this release a little later, if its build worked. It is not signed or notarized by Apple, so macOS blocks it first. Nobody on the team has a Mac to test it on. Read [docs/MACOS.md](https://github.com/$GH_REPO/blob/$TAG/docs/MACOS.md) before you open it."
-            echo
-            echo "Commit: \`${SHA}\`"
-            if [ -n "$previous" ]; then
-              echo
-              echo "Changes since $previous:"
-              echo
-              git log --first-parent --format='- %s' "$previous..$TAG"
-            fi
-          } > notes.md
+          gh api --paginate --slurp "repos/$GH_REPO/releases" > releases.json
+          python3 tools/release-beta.py notes \
+            --repo "$GH_REPO" \
+            --tag "$TAG" \
+            --version "$VERSION" \
+            --sha "$SHA" \
+            --releases-json releases.json \
+            --output notes.md
           if gh release view "$TAG" > /dev/null 2>&1; then
             # A re-run of this workflow: replace the files, keep the text.
             gh release upload "$TAG" assets/* --clobber
@@ -413,6 +420,19 @@ jobs:
               --prerelease --verify-tag
           fi
           echo "The beta release for $TAG is published: https://github.com/$GH_REPO/releases/tag/$TAG" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Remove older superseded "(beta)" GitHub Releases (D-987). Never pass
+          # --cleanup-tag: git tags stay untouched for FinTs_Registration / T-63.
+          python3 tools/release-beta.py superseded-betas \
+            --tag "$TAG" \
+            --releases-json releases.json > superseded-betas.txt
+          while IFS= read -r old_tag; do
+            [ -n "$old_tag" ] || continue
+            if gh release delete "$old_tag" --yes < /dev/null; then
+              echo "Removed superseded beta release $old_tag (git tag kept)." | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::Could not remove superseded beta release $old_tag; the beta release $TAG is already published."
+            fi
+          done < superseded-betas.txt
 
   # Adds the experimental macOS .dmg to the release once both exist. A failed
   # or slow Mac build changes nothing about the release (D-875).

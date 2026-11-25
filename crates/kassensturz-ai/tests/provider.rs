@@ -247,29 +247,62 @@ fn another_computer_needs_consent_and_https() {
 
 #[test]
 fn a_consent_to_an_older_statement_asks_again() {
-    // T-22, M5.12: the user agreed to what was sent once; the statement of
-    // what is sent has changed since, so the agreement no longer counts.
+    // T-22, M5.12, D-991: the user agreed to statement v2 once (both in the
+    // settings file and sealed in the keychain); the statement of what is sent
+    // moved to v3, so the older agreement no longer counts.
     let home = "https://192.0.2.10:11434/v1";
     let settings = Settings::new();
     settings.write(true, home, KeyUse::None);
-    let consent = ConsentRecord::give(
-        &ProviderAddress::parse(home).unwrap(),
-        jiff::civil::date(2026, 10, 25),
-    );
+    let older = ConsentRecord {
+        address: ProviderAddress::parse(home).unwrap(),
+        statement: 2,
+        day: jiff::civil::date(2026, 10, 25),
+    };
+    assert_eq!(older.statement, kassensturz_ai::STATEMENT_VERSION - 1);
+    settings.keys.lock().unwrap().seal_consent(&older).unwrap();
     let mut text = std::fs::read_to_string(&settings.path).unwrap();
-    for (key, value) in consent.entries() {
-        let value = if key == kassensturz_ai::CONSENT_STATEMENT_KEY {
-            // The version before the current one.
-            (kassensturz_ai::STATEMENT_VERSION - 1).to_string()
-        } else {
-            value
-        };
+    for (key, value) in older.entries() {
         text.push_str(&format!("{key}={value}\n"));
     }
     std::fs::write(&settings.path, text).unwrap();
     let client = settings.client();
     let request = client.prepare(question(), Vec::new()).unwrap();
     assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
+}
+
+#[test]
+fn multimodal_request_sends_exact_preview_with_intact_images() {
+    let fake = FakeProvider::start(vec![Answer::text("The receipt total is 19.99.")]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::None);
+    let client = settings.client();
+
+    let png = kassensturz_ai::ImageAttachment::png(vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A]);
+    let expected_uri = png.data_uri();
+    let messages = vec![
+        Message::user("Read bill Space Colony Market.pdf"),
+        Message::tool_result_with_images(
+            "call_1",
+            r#"{"file":"Space Colony Market.pdf"}"#,
+            vec![png],
+        ),
+    ];
+    let mut request = client.prepare(messages, Vec::new()).unwrap();
+    assert_eq!(request.redact("Space Colony Market").unwrap(), 2);
+
+    let reply = client.send(&request, None).unwrap();
+    assert_eq!(reply.text, "The receipt total is 19.99.");
+
+    let sent = &fake.received()[0];
+    assert_eq!(sent.body, request.preview().as_bytes());
+    let body: serde_json::Value = serde_json::from_slice(&sent.body).unwrap();
+    assert!(!String::from_utf8_lossy(&sent.body).contains("Space Colony Market"));
+    assert_eq!(body["messages"][1]["role"], "tool");
+    assert_eq!(body["messages"][2]["role"], "user");
+    assert_eq!(
+        body["messages"][2]["content"][1]["image_url"]["url"],
+        expected_uri
+    );
 }
 
 #[test]

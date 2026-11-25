@@ -61,7 +61,10 @@ pub use capability::{
     FunctionCalling, MIN_CONTEXT_TOKENS, PROBE_FUNCTION, PROBE_WORD, probe_functions,
     probe_request_body,
 };
-pub use chat::{Finish, FunctionSpec, Message, ModelInfo, Reply, Role, ToolCall};
+pub use chat::{
+    Finish, FunctionSpec, ImageAttachment, ImageMediaType, Message, ModelInfo, Reply, Role,
+    ToolCall,
+};
 pub use config::{
     ADDRESS_KEY, ALLOW_UNENCRYPTED_KEY, AiConfig, CONSENT_ADDRESS_KEY, CONSENT_DAY_KEY,
     CONSENT_STATEMENT_KEY, ConfigFile, KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings,
@@ -73,8 +76,8 @@ pub use consent::{
 pub use error::AiError;
 pub use http::Limits;
 pub use keys::ProviderKeys;
-pub use openai::{MAX_ANSWER_TOKENS, MAX_CALLS, MAX_DEPTH};
-pub use request::{MAX_REQUEST_BYTES, PreparedRequest, REDACTED};
+pub use openai::{MAX_ANSWER_TOKENS, MAX_CALLS, MAX_DEPTH, TOOL_IMAGE_FRAMING};
+pub use request::{MAX_MULTIMODAL_REQUEST_BYTES, MAX_REQUEST_BYTES, PreparedRequest, REDACTED};
 pub use scripted::{Respond, SCRIPTED_ADDRESS, SCRIPTED_MODEL, ScriptedProvider};
 pub use translate::{MAX_ROUTE_HEADERS, MAX_ROUTE_TEXT, Route, Translator};
 

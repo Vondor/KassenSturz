@@ -26,8 +26,12 @@ use crate::translate::Translator;
 /// What a redacted phrase is replaced with.
 pub const REDACTED: &str = "[redacted]";
 
-/// The largest body KassenSturz sends at once.
+/// The largest text-only body KassenSturz sends at once.
 pub const MAX_REQUEST_BYTES: usize = 2 * 1024 * 1024;
+
+/// The largest body KassenSturz sends at once when image attachments are
+/// included (D-990, D-996). Text content stays within [`MAX_REQUEST_BYTES`].
+pub const MAX_MULTIMODAL_REQUEST_BYTES: usize = 6 * 1024 * 1024;
 
 /// A chat request for one provider and model, with its body built.
 #[derive(Clone, Debug)]
@@ -74,6 +78,35 @@ impl PreparedRequest {
     }
 
     fn build(&mut self) -> Result<(), AiError> {
+        let max_bytes = self.max_request_bytes();
+        // Reject obviously oversized text or image payloads before allocating
+        // base64-encoded JSON strings (D-990, D-996).
+        let text_bytes: usize = self
+            .messages
+            .iter()
+            .map(|message| {
+                message.content.len().saturating_add(
+                    message
+                        .calls
+                        .iter()
+                        .map(|call| call.arguments.len())
+                        .fold(0usize, usize::saturating_add),
+                )
+            })
+            .fold(0usize, usize::saturating_add);
+        if text_bytes > MAX_REQUEST_BYTES {
+            return Err(AiError::RequestTooLarge);
+        }
+        let encoded_image_bytes: usize = self
+            .messages
+            .iter()
+            .filter(|message| message.has_images())
+            .flat_map(|message| message.images.iter())
+            .map(|image| image.data.len().div_ceil(3).saturating_mul(4))
+            .fold(0usize, usize::saturating_add);
+        if text_bytes.saturating_add(encoded_image_bytes) > max_bytes {
+            return Err(AiError::RequestTooLarge);
+        }
         // Only a server on this computer is asked to keep its answer short
         // (D-595).
         let max_tokens =
@@ -85,11 +118,12 @@ impl PreparedRequest {
             Some(translator) => {
                 // Read back, so what the translator built is JSON and the
                 // preview shows it indented like any request.
-                if body.to_string().len() > MAX_REQUEST_BYTES {
+                let compact = body.to_string();
+                if compact.len() > max_bytes {
                     return Err(AiError::RequestTooLarge);
                 }
-                let translated = translator.request(&body.to_string())?;
-                if translated.len() > MAX_REQUEST_BYTES {
+                let translated = translator.request(&compact)?;
+                if translated.len() > max_bytes {
                     return Err(AiError::RequestTooLarge);
                 }
                 match serde_json::from_str::<serde_json::Value>(&translated) {
@@ -100,10 +134,33 @@ impl PreparedRequest {
         };
         // Indented, so the preview is readable; it is still the body sent.
         self.body = serde_json::to_string_pretty(&body).map_err(|_| AiError::BadReply)?;
-        if self.body.len() > MAX_REQUEST_BYTES {
+        if self.body.len() > max_bytes {
             return Err(AiError::RequestTooLarge);
         }
         Ok(())
+    }
+
+    fn max_request_bytes(&self) -> usize {
+        if self.has_images() {
+            MAX_MULTIMODAL_REQUEST_BYTES
+        } else {
+            MAX_REQUEST_BYTES
+        }
+    }
+
+    /// Whether any message in this request carries image attachments that will
+    /// be sent to the provider.
+    pub fn has_images(&self) -> bool {
+        self.messages.iter().any(Message::has_images)
+    }
+
+    /// How many image attachments will be sent to the provider in this request.
+    pub fn image_count(&self) -> usize {
+        self.messages
+            .iter()
+            .filter(|message| message.has_images())
+            .map(|message| message.images.len())
+            .sum()
     }
 
     /// The provider it is for.
@@ -135,6 +192,24 @@ impl PreparedRequest {
     /// The exact body that is sent.
     pub fn preview(&self) -> &str {
         &self.body
+    }
+
+    /// A readable view of the body for UI display or logs, replacing base64
+    /// `image_url` payloads with `[image: <mime>, <size>]` markers while
+    /// keeping all text and redactions intact.
+    ///
+    /// For text-only requests this matches [`Self::preview`] verbatim.
+    /// [`crate::AiClient::send`] always sends [`Self::preview`], never this
+    /// summary (threat T-22).
+    pub fn display_preview(&self) -> String {
+        if !self.has_images() {
+            return self.body.clone();
+        }
+        let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&self.body) else {
+            return self.body.clone();
+        };
+        summarize_image_urls(&mut value);
+        serde_json::to_string_pretty(&value).unwrap_or_else(|_| self.body.clone())
     }
 
     /// Phrases redacted from this request, in the order they were applied.
@@ -214,9 +289,60 @@ fn redact_json_value(value: &mut serde_json::Value, phrase: &str) -> usize {
     }
 }
 
+/// Replaces `data:image/...;base64,...` strings inside OpenAI `image_url` parts
+/// with compact `[image: <mime>, <size>]` markers for readable display.
+fn summarize_image_urls(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Array(items) => {
+            for item in items {
+                summarize_image_urls(item);
+            }
+        }
+        serde_json::Value::Object(entries) => {
+            if entries.get("type").and_then(serde_json::Value::as_str) == Some("image_url")
+                && let Some(serde_json::Value::Object(image_url)) = entries.get_mut("image_url")
+                && let Some(serde_json::Value::String(url)) = image_url.get_mut("url")
+                && let Some(summary) = summarize_data_uri(url)
+            {
+                *url = summary;
+                return;
+            }
+            for entry in entries.values_mut() {
+                summarize_image_urls(entry);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn summarize_data_uri(text: &str) -> Option<String> {
+    let rest = text.strip_prefix("data:")?;
+    let (mime, payload) = rest.split_once(";base64,")?;
+    if !mime.starts_with("image/") {
+        return None;
+    }
+    let padding = payload
+        .as_bytes()
+        .iter()
+        .rev()
+        .take(2)
+        .filter(|&&b| b == b'=')
+        .count();
+    let decoded_bytes = (payload.len() / 4)
+        .saturating_mul(3)
+        .saturating_sub(padding);
+    let size = if decoded_bytes < 1024 {
+        format!("{decoded_bytes} B")
+    } else {
+        format!("{} KB", decoded_bytes.div_ceil(1024))
+    };
+    Some(format!("[image: {mime}, {size}]"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chat::ImageAttachment;
 
     fn request(messages: Vec<Message>) -> PreparedRequest {
         PreparedRequest::new(
@@ -244,6 +370,7 @@ mod tests {
             "the preview is the body KassenSturz builds"
         );
         assert_eq!(parsed["max_tokens"], 8192, "a server on this computer");
+        assert_eq!(request.display_preview(), request.preview());
     }
 
     #[test]
@@ -305,6 +432,68 @@ mod tests {
     }
 
     #[test]
+    fn redaction_updates_multimodal_text_parts_without_corrupting_images() {
+        // Choose image bytes whose base64 encoding contains "AAAA" so we verify
+        // redacting a substring that also appears in the base64 data URI leaves
+        // the image untouched.
+        let png = ImageAttachment::png(vec![0, 0, 0, 1, 2, 3]);
+        let expected_uri = png.data_uri();
+        assert!(expected_uri.contains("AAAA"));
+        let jpeg = ImageAttachment::jpeg(vec![0xFF, 0xD8, 0xFF, 0xD9]);
+        let expected_jpeg_uri = jpeg.data_uri();
+
+        let mut req = request(vec![
+            Message::user_with_images("Check invoice AAAA from Space Colony Shop", vec![png]),
+            Message::tool_result_with_images(
+                "c1",
+                r#"{"file":"Space Colony Shop AAAA.pdf","pages":1}"#,
+                vec![jpeg],
+            ),
+        ]);
+        assert!(req.has_images());
+        assert_eq!(req.image_count(), 2);
+
+        assert_eq!(req.redact("Space Colony Shop").unwrap(), 2);
+        assert_eq!(req.redact("AAAA").unwrap(), 2);
+
+        let parsed: serde_json::Value = serde_json::from_str(req.preview()).unwrap();
+        // Multimodal user message: text part redacted, image_url intact.
+        assert_eq!(
+            parsed["messages"][0]["content"][0]["text"],
+            "Check invoice [redacted] from [redacted]"
+        );
+        assert_eq!(
+            parsed["messages"][0]["content"][1]["image_url"]["url"],
+            expected_uri
+        );
+        // Tool result: JSON text redacted, follow-up user message image_url intact.
+        assert_eq!(
+            parsed["messages"][1]["content"],
+            r#"{"file":"[redacted] [redacted].pdf","pages":1}"#
+        );
+        assert_eq!(parsed["messages"][2]["role"], "user");
+        assert_eq!(
+            parsed["messages"][2]["content"][1]["image_url"]["url"],
+            expected_jpeg_uri
+        );
+
+        // Readable display preview keeps redactions and summarizes image payloads.
+        let display: serde_json::Value = serde_json::from_str(&req.display_preview()).unwrap();
+        assert_eq!(
+            display["messages"][0]["content"][0]["text"],
+            "Check invoice [redacted] from [redacted]"
+        );
+        assert_eq!(
+            display["messages"][0]["content"][1]["image_url"]["url"],
+            "[image: image/png, 6 B]"
+        );
+        assert_eq!(
+            display["messages"][2]["content"][1]["image_url"]["url"],
+            "[image: image/jpeg, 4 B]"
+        );
+    }
+
+    #[test]
     fn a_huge_request_is_refused() {
         let result = PreparedRequest::new(
             ProviderAddress::parse("http://localhost:11434/v1").unwrap(),
@@ -314,5 +503,51 @@ mod tests {
             None,
         );
         assert_eq!(result, Err(AiError::RequestTooLarge));
+    }
+
+    #[test]
+    fn multimodal_request_size_limit_allows_bounded_images_and_rejects_oversized() {
+        // 2 MiB raw PNG expands to ~2.67 MiB base64: exceeds text-only
+        // MAX_REQUEST_BYTES (2 MiB) but fits within MAX_MULTIMODAL_REQUEST_BYTES (6 MiB).
+        let bounded = ImageAttachment::png(vec![0xAB; 2 * 1024 * 1024]);
+        let ok = PreparedRequest::new(
+            ProviderAddress::parse("http://localhost:11434/v1").unwrap(),
+            "m".into(),
+            vec![Message::user_with_images(
+                "Read this receipt",
+                vec![bounded],
+            )],
+            Vec::new(),
+            None,
+        )
+        .expect("bounded multimodal request fits");
+        assert!(ok.preview().len() > MAX_REQUEST_BYTES);
+        assert!(ok.preview().len() <= MAX_MULTIMODAL_REQUEST_BYTES);
+        assert!(ok.display_preview().contains("[image: image/png, 2048 KB]"));
+        assert!(ok.display_preview().len() < 1024);
+
+        // 5 MiB raw PNG expands to ~6.67 MiB base64: refused.
+        let huge_image = ImageAttachment::png(vec![0xAB; 5 * 1024 * 1024]);
+        let too_large = PreparedRequest::new(
+            ProviderAddress::parse("http://localhost:11434/v1").unwrap(),
+            "m".into(),
+            vec![Message::user_with_images("Read this", vec![huge_image])],
+            Vec::new(),
+            None,
+        );
+        assert_eq!(too_large, Err(AiError::RequestTooLarge));
+
+        // Attaching a tiny image does not raise the text budget past MAX_REQUEST_BYTES.
+        let huge_text_with_image = PreparedRequest::new(
+            ProviderAddress::parse("http://localhost:11434/v1").unwrap(),
+            "m".into(),
+            vec![Message::user_with_images(
+                "x".repeat(MAX_REQUEST_BYTES + 1),
+                vec![ImageAttachment::png(vec![1, 2, 3])],
+            )],
+            Vec::new(),
+            None,
+        );
+        assert_eq!(huge_text_with_image, Err(AiError::RequestTooLarge));
     }
 }

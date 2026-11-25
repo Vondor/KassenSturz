@@ -2766,6 +2766,18 @@ msgid ""
 "Rules. Only as much as your question needs, never the whole book."
 msgstr "Informacje z Twojej otwartej księgi, o które AI prosi, aby Ci odpowiedzieć: nazwy kont i kategorii, salda i sumy, transakcje z nazwami tych, którym zapłacono lub którzy Tobie zapłacili, oraz Twoje notatki, a także Twoje reguły. Tylko tyle, ile potrzebuje Twoje pytanie, nigdy cała księga."
 
+#: crates/kassensturz-ui-bridge/qml/AiConsentStatement.qml:41
+#, kde-format
+msgctxt "@info what is sent"
+msgid ""
+"The names and contents (text or page images) of bills from your bill folder "
+"or receipt inbox that the AI asks to read, if you chose a folder and "
+"switched those permissions on."
+msgstr ""
+"Nazwy i treść (tekst lub obrazy stron) rachunków z Twojego folderu rachunków "
+"lub skrzynki odbiorczej paragonów, o których odczytanie prosi AI, jeśli "
+"wybrano folder i włączono te uprawnienia."
+
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:76
 #, kde-format
 msgctxt "@info what is sent"

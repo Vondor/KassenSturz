@@ -14,15 +14,31 @@ publish.workspace = true
 [features]
 default = ["ai", "debug-log"]
 # Without it the crate is empty and has no dependencies (D-039).
-ai = ["dep:kassensturz-core", "kassensturz-core/ai", "dep:kassensturz-store", "dep:kassensturz-report", "dep:regex", "dep:serde_json", "dep:uuid"]
+ai = [
+    "dep:base64",
+    "dep:hayro",
+    "dep:image",
+    "dep:kassensturz-core",
+    "kassensturz-core/ai",
+    "dep:kassensturz-report",
+    "dep:kassensturz-store",
+    "dep:pdf-extract",
+    "dep:regex",
+    "dep:serde_json",
+    "dep:uuid",
+]
 # The function that reads the developer mode's debug log (D-173, D-227).
 # Weak, so it brings in nothing without `ai`.
 debug-log = ["kassensturz-core?/debug-log"]
 
 [dependencies]
+base64 = { workspace = true, optional = true }
+hayro = { workspace = true, optional = true }
+image = { workspace = true, optional = true }
 kassensturz-core = { workspace = true, optional = true }
 kassensturz-store = { workspace = true, optional = true }
 kassensturz-report = { workspace = true, optional = true }
+pdf-extract = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }

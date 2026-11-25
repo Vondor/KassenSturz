@@ -64,9 +64,9 @@ libloading = "=0.9.0"
 # stores the API needs, nothing from its command-line sample. Approved by
 # the maintainer in M4 Phase 0.
 keyring = { version = "=4.2.0", default-features = false, features = ["v1"] }
-# KeePassXC's browser interface for saved banking PINs (D-164): base64 for
-# its keys and messages. Standard alphabet only, no default features beyond
-# `std`.
+# KeePassXC's browser interface for saved banking PINs (D-164) and AI
+# multimodal bill encoding (D-989): base64 for keys, messages and images.
+# Standard alphabet only, no default features beyond `std`.
 base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
 # KeePassXC's browser interface encrypts every message with NaCl's
 # crypto_box (X25519, XSalsa20-Poly1305), libsodium's format (D-164).
@@ -112,6 +112,15 @@ tokio = { version = "=1.54.1", default-features = false, features = ["rt", "time
 # Wipes a banking PIN from memory when it is no longer needed (D-057, threat
 # T-02). Without its default features: `alloc` is enough for a wiped String.
 zeroize = { version = "=1.9.1", default-features = false, features = ["alloc"] }
+# Pure-Rust AI bill reading (D-989, #1412), gated behind `ai` (D-039):
+# already-embedded PDF text layers only, zero OCR.
+pdf-extract = "=0.12.1"
+# Pure-Rust PDF page rasterization to PNG for scanned/image-only bills (D-989,
+# #1412), gated behind `ai` (D-039); zero OCR.
+hayro = "=0.9.0"
+# Pure-Rust image decoding (TIFF) and downscaling oversized bill photos (D-989,
+# #1412), gated behind `ai` (D-039); default features off.
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "tiff"] }
 
 # The WASM runtime of the plugin host (#791, D-007, D-753; Q-633 = A): an
 # interpreter written in Rust, so no compiler comes into the app (D-071's worry).

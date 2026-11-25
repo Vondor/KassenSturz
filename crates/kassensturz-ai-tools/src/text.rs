@@ -250,7 +250,7 @@ fn iban_end(text: &str, start: usize) -> Option<usize> {
 }
 
 /// `text` with every IBAN in it replaced with [`IBAN_LEFT_OUT`] (D-677).
-fn mask_ibans(text: &str) -> String {
+pub(crate) fn mask_ibans(text: &str) -> String {
     let mut masked = String::with_capacity(text.len());
     let mut copied = 0;
     let mut index = 0;

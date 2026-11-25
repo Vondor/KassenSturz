@@ -1464,6 +1464,14 @@ fn a_file_is_written_and_read_back() {
     fs::create_dir_all(&folder).expect("test folder");
     let path = folder.join("Household.json");
     export_file(&BookExport, &ExportData::Book(sample()), &path).expect("written");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(&path).expect("metadata").permissions().mode() & 0o777,
+            0o600
+        );
+    }
     assert_eq!(read_book_file(&path), Ok(sample()));
     assert_eq!(
         export_file(&BookExport, &ExportData::Book(sample()), &path),

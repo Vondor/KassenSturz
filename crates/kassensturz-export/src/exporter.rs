@@ -3,12 +3,27 @@
 
 //! The Exporter interface every format implements (D-007, D-069).
 
-use std::fs::{self, OpenOptions};
-use std::io::{BufWriter, ErrorKind, Write};
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, BufWriter, ErrorKind, Write};
 use std::path::Path;
 
 use crate::data::ExportData;
 use crate::error::ExportError;
+
+/// Permissions of a new export file on Unix: readable and writable only by
+/// its owner, matching books and backups (B-414, T-71).
+#[cfg(unix)]
+const EXPORT_FILE_MODE: u32 = 0o600;
+
+/// Creates the file at `path` for writing, failing if anything is there,
+/// readable only by the user on Unix (B-414, T-71).
+fn create_new(path: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, EXPORT_FILE_MODE);
+    options.open(path)
+}
 
 /// Writes one file format, e.g. CSV.
 ///
@@ -70,21 +85,23 @@ pub fn export(exporter: &dyn Exporter, data: &ExportData) -> Result<Vec<u8>, Exp
 
 /// Writes `data` with `exporter` to a new file at `path`.
 ///
-/// Never overwrites: if something is at `path`, it fails with
-/// [`ExportError::AlreadyExists`], naming the file, and leaves it alone. The
-/// one exception is an empty file, which holds nothing to lose: a sandbox's
-/// file chooser (xdg-desktop-portal, in the Flatpak) makes the file the user
-/// named before the app can write to it, and it is written to in place,
-/// since the app may not be allowed to remove it (D-125). If writing fails,
-/// the file this call began is removed again, or emptied again if it was
-/// there already, so there is either a complete file or none.
+/// On Unix, a newly created file is readable and writable only by its owner
+/// (`0o600`, aligning with B-414 / T-71). Never overwrites: if something is
+/// at `path`, it fails with [`ExportError::AlreadyExists`], naming the file,
+/// and leaves it alone. The one exception is an empty file, which holds
+/// nothing to lose: a sandbox's file chooser (xdg-desktop-portal, in the
+/// Flatpak) makes the file the user named before the app can write to it,
+/// and it is written to in place, since the app may not be allowed to remove
+/// it (D-125). If writing fails, the file this call began is removed again,
+/// or emptied again if it was there already, so there is either a complete
+/// file or none.
 pub fn export_file(
     exporter: &dyn Exporter,
     data: &ExportData,
     path: &Path,
 ) -> Result<(), ExportError> {
     data.check()?;
-    let (file, was_there) = match OpenOptions::new().write(true).create_new(true).open(path) {
+    let (file, was_there) = match create_new(path) {
         Ok(file) => (file, false),
         // Windows says "permission denied", not "already exists", when the
         // name is a folder.
@@ -121,4 +138,93 @@ pub fn export_file(
         }
     }
     written
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::PathBuf;
+
+    use kassensturz_core::RoundingMode;
+
+    use super::*;
+    use crate::{BookData, BookExport, CsvExport};
+
+    struct TempDir(PathBuf);
+
+    impl TempDir {
+        fn new(name: &str) -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "kassensturz-export-mode-{name}-{}",
+                std::process::id()
+            ));
+            let _ = fs::remove_dir_all(&path);
+            fs::create_dir_all(&path).expect("test folder");
+            Self(path)
+        }
+
+        fn join(&self, name: &str) -> PathBuf {
+            self.0.join(name)
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn mode(path: &Path) -> u32 {
+        fs::metadata(path)
+            .expect("metadata read")
+            .permissions()
+            .mode()
+            & 0o777
+    }
+
+    fn empty_book() -> BookData {
+        BookData {
+            rounding_mode: RoundingMode::HalfAwayFromZero,
+            history_keep_days: None,
+            currencies: Vec::new(),
+            accounts: Vec::new(),
+            rates: Vec::new(),
+            rules: Vec::new(),
+            transactions: Vec::new(),
+            rule_marks: Vec::new(),
+            tags_by_rule: Vec::new(),
+            tags_taken_off: Vec::new(),
+            institutions: Vec::new(),
+            payees: Vec::new(),
+            tags: Vec::new(),
+            bank_links: Vec::new(),
+            views: Vec::new(),
+            groups: Vec::new(),
+            hidden_categories: Vec::new(),
+            budgets: Vec::new(),
+            schedules: Vec::new(),
+            recurring_moves: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn exported_csv_file_has_owner_only_permissions() {
+        let dir = TempDir::new("csv");
+        let path = dir.join("transactions.csv");
+        export_file(
+            &CsvExport::default(),
+            &ExportData::Transactions(Vec::new()),
+            &path,
+        )
+        .expect("csv exported");
+        assert_eq!(mode(&path), 0o600);
+    }
+
+    #[test]
+    fn exported_book_json_file_has_owner_only_permissions() {
+        let dir = TempDir::new("book");
+        let path = dir.join("book.json");
+        export_file(&BookExport, &ExportData::Book(empty_book()), &path).expect("book exported");
+        assert_eq!(mode(&path), 0o600);
+    }
 }

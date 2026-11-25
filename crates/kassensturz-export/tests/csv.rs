@@ -193,6 +193,14 @@ fn folder(name: &str) -> PathBuf {
 fn a_file_is_written_once_and_never_overwritten() {
     let path = folder("once").join("transactions.csv");
     export_file(&CsvExport::default(), &sample(), &path).expect("exported");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(&path).expect("metadata").permissions().mode() & 0o777,
+            0o600
+        );
+    }
     assert_eq!(fs::read(&path).expect("written"), golden("default.csv"));
     fs::write(&path, b"mine").expect("changed");
     assert_eq!(

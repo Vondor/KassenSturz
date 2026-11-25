@@ -3060,6 +3060,18 @@ msgstr ""
 "Ihren Notizen sowie Ihre Regeln. Nur so viel, wie Ihre Frage braucht, nie "
 "das ganze Buch."
 
+#: crates/kassensturz-ui-bridge/qml/AiConsentStatement.qml:41
+#, kde-format
+msgctxt "@info what is sent"
+msgid ""
+"The names and contents (text or page images) of bills from your bill folder "
+"or receipt inbox that the AI asks to read, if you chose a folder and "
+"switched those permissions on."
+msgstr ""
+"Die Namen und Inhalte (Text oder Seitenbilder) von Belegen aus Ihrem "
+"Belegordner oder Belegeingang, die die KI zum Lesen anfordert, sofern Sie "
+"einen Ordner gewählt und diese Berechtigungen eingeschaltet haben."
+
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:76
 #, kde-format
 msgctxt "@info what is sent"

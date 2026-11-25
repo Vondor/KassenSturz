@@ -37,6 +37,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info what is sent", "What you type into the chat.");
         case "book-data":
             return i18nContext.i18nc("@info what is sent", "Information from your open book that the AI asks for to answer you: the names of accounts and categories, balances and totals, transactions with the names of whoever was paid or paid you and the notes you wrote, and your Rules. Only as much as your question needs, never the whole book.");
+        case "bills":
+            return i18nContext.i18nc("@info what is sent", "The names and contents (text or page images) of bills from your bill folder or receipt inbox that the AI asks to read, if you chose a folder and switched those permissions on.");
         case "notes":
             return i18nContext.i18nc("@info what is sent", "The notes you wrote for the AI in these settings, if you wrote any. They go with every question.");
         case "instructions":

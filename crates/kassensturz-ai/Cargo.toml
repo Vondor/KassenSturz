@@ -15,6 +15,7 @@ publish.workspace = true
 default = ["ai"]
 # Without it the crate is empty and has no dependencies (D-039, D-176).
 ai = [
+    "dep:base64",
     "dep:jiff",
     "dep:kassensturz-core",
     "kassensturz-core/ai",
@@ -26,6 +27,7 @@ ai = [
 ]
 
 [dependencies]
+base64 = { workspace = true, optional = true }
 jiff = { workspace = true, optional = true }
 kassensturz-core = { workspace = true, optional = true }
 kassensturz-platform = { workspace = true, optional = true }

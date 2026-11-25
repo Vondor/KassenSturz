@@ -44,6 +44,8 @@
 #![forbid(unsafe_code)]
 
 #[cfg(feature = "ai")]
+mod bill_reader;
+#[cfg(feature = "ai")]
 mod changes;
 #[cfg(feature = "ai")]
 mod daily;
@@ -77,6 +79,13 @@ mod text;
 mod writer;
 
 #[cfg(feature = "ai")]
+pub use bill_reader::{
+    BILL_DATA_NOTE, BillImage, BillSource, MAX_BILL_DECODE_ALLOC_BYTES, MAX_BILL_DECODE_DIMENSION,
+    MAX_BILL_IMAGE_BYTES, MAX_BILL_IMAGE_DIMENSION, MAX_BILL_OUTPUT_IMAGE_BYTES, MAX_BILL_PAGE,
+    MAX_BILL_PAGES_PER_CALL, MAX_BILL_TEXT_CHARS, READ_BILL, ReadBillMode, ReadBillResult,
+    read_bill, read_bill_allowed, read_bill_request,
+};
+#[cfg(feature = "ai")]
 pub use changes::{
     AmountBasis, AttachBill, BILL_FOLDER, BILL_TYPES, CHECK_ONLY, CHECK_ONLY_SCHEMA, Categorize,
     ChangeError, ChangeSet, Confirmed, DESCRIPTION_DATA, Danger, DeleteCategory, DeleteTransaction,
@@ -86,10 +95,11 @@ pub use changes::{
     MAX_VIEWS_PER_ANSWER, NewAccount, NewBudget, NewCategory, NewCounts, NewPlan, NewRule, NewTag,
     NewTransaction, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, Proposal, ProposeSpec, ProposedChange,
     SHOW_AS_CUSTOM, Slot, SortWithRules, SplitPart, SplitTransaction, TagTransaction, TotalCheck,
-    adds_allowed, bill_folder_answer, bill_path, check_only_answer, description_titles,
-    edits_allowed, every_word, inbox_answer, prepare_named, prepare_named_with_bills,
-    prepare_named_with_folders, propose, propose_on, propose_spec, propose_view, propose_view_spec,
-    propose_view_text, take_check_only, view_choices,
+    adds_allowed, bill_folder_answer, bill_folder_answer_allowed, bill_path, check_only_answer,
+    description_titles, edits_allowed, every_word, inbox_answer, inbox_answer_allowed,
+    prepare_named, prepare_named_with_bills, prepare_named_with_folders, propose, propose_on,
+    propose_spec, propose_view, propose_view_spec, propose_view_text, take_check_only,
+    view_choices,
 };
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};

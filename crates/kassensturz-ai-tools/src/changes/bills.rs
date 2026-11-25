@@ -18,16 +18,19 @@
 
 use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
+use kassensturz_core::ai_switch::{Permission, Permissions};
 use kassensturz_core::{Attachment, Date, Transaction, TransactionId};
 use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
 
 use super::transactions::free_text;
-use super::{ChangeError, Known, Object};
+use super::{ChangeError, Folders, Known, Object};
 use crate::error::ToolError;
 use crate::figures::Figures;
 use crate::functions::{Function, Output};
+use crate::text::for_model;
 
 /// The list of `propose_changes` that holds the bills.
 pub(super) const LIST: &str = "attach_bills";
@@ -35,40 +38,134 @@ pub(super) const LIST: &str = "attach_bills";
 /// The most bills one set may attach, so the user can still review them.
 pub(super) const MAX_BILLS: usize = 100;
 
-/// The file types a bill may have, by the end of its name, compared
-/// without case.
-pub const BILL_TYPES: [&str; 4] = ["pdf", "png", "jpg", "jpeg"];
+/// The most files [`BILL_FOLDER`] or [`crate::INBOX`] lists in one call.
+pub(crate) const MAX_LISTED_BILLS: usize = 200;
 
-/// The function that names the bill folder (D-739). Only the MCP server
-/// offers it, and only while a bill folder is chosen and Transactions ›
-/// Attach bills is on, so a path never goes to a model the user didn't
-/// allow.
+/// The file types a bill may have, by the end of its name, compared
+/// without case (D-739, D-990).
+pub const BILL_TYPES: [&str; 6] = ["pdf", "png", "jpg", "jpeg", "tif", "tiff"];
+
+/// The function that lists the bill folder (D-739, D-990). Offered only
+/// while a bill folder is chosen and *Transactions › Attach bills* is on,
+/// so a path never goes to a model the user didn't allow.
 pub const BILL_FOLDER: Function = Function {
     name: "bill_folder",
-    description: "Names the folder the user chose for their bills, and the file types a bill \
-        may have there. Read a bill there yourself, find the transaction it was paid with by \
-        its invoice or order number (search_transactions with reference), and link it with \
-        attach_bills in propose_changes. KassenSturz never reads the bills.",
+    description: "Lists the bills waiting in the user's bill folder: the folder's path, the \
+        allowed file types (PDF, PNG, JPEG, TIFF), and each regular bill file's name, size and \
+        date directly inside that folder. Use read_bill to inspect a bill, find the transaction \
+        it was paid with by its invoice or order number (search_transactions with reference), \
+        and link it with attach_bills in propose_changes.",
     parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
 };
 
-/// What [`BILL_FOLDER`] answers for `folder`: its path, as the user chose
-/// it, and the [`BILL_TYPES`].
+/// What [`BILL_FOLDER`] answers for `folder`: its path as the user chose it,
+/// [`BILL_TYPES`], and a bounded non-recursive listing of plain bill files
+/// right inside it, sorted deterministically by name (D-990, T-21, T-62,
+/// T-72). Subdirectories, symlinks, special files and other extensions are
+/// skipped; filenames are cleaned as untrusted data.
 pub fn bill_folder_answer(folder: &Path, arguments: &Value) -> Result<Output, ToolError> {
-    match arguments {
-        Value::Null => {}
-        Value::Object(values) if values.is_empty() => {}
-        _ => {
-            return Err(ToolError::BadArgument {
-                argument: "arguments",
-            });
-        }
+    check_empty_arguments(arguments)?;
+    list_bill_dir(folder, || ToolError::NoBillFolder)
+}
+
+/// [`bill_folder_answer`], gated on [`Permission::AttachBills`] and a
+/// configured bill folder in `folders` (D-739, D-990).
+pub fn bill_folder_answer_allowed(
+    folders: &Folders,
+    arguments: &Value,
+    permissions: Permissions,
+) -> Result<Output, ToolError> {
+    if !permissions.allows(Permission::AttachBills) {
+        return Err(ToolError::NotAllowed {
+            argument: BILL_FOLDER.name,
+        });
     }
-    let folder = folder.to_str().ok_or(ToolError::NoBillFolder)?.to_owned();
-    Ok(Output::new(
-        serde_json::json!({"folder": folder, "file_types": BILL_TYPES}),
-        Figures::new(),
-    ))
+    let folder = folders.bills.as_deref().ok_or(ToolError::NoBillFolder)?;
+    bill_folder_answer(folder, arguments)
+}
+
+/// Checks that a zero-argument tool received `null` or `{}`.
+pub(super) fn check_empty_arguments(arguments: &Value) -> Result<(), ToolError> {
+    match arguments {
+        Value::Null => Ok(()),
+        Value::Object(values) if values.is_empty() => Ok(()),
+        _ => Err(ToolError::BadArgument {
+            argument: "arguments",
+        }),
+    }
+}
+
+/// Shared non-recursive, bounded, sorted listing of plain bill files right
+/// inside `folder` (used by [`bill_folder_answer`] and
+/// [`super::filing::inbox_answer`]).
+///
+/// Only regular files directly in `folder` whose extension is in
+/// [`BILL_TYPES`] are listed: subdirectories, symlinks (whether pointing
+/// inside or outside the folder), special files and other extensions are
+/// skipped. Every returned filename is cleaned with [`for_model`] (T-21).
+pub(super) fn list_bill_dir(
+    folder: &Path,
+    missing: impl Fn() -> ToolError,
+) -> Result<Output, ToolError> {
+    let folder_str = folder.to_str().ok_or_else(&missing)?.to_owned();
+    let real_folder = folder.canonicalize().map_err(|_| missing())?;
+    let entries = std::fs::read_dir(&real_folder).map_err(|_| missing())?;
+    let mut files: Vec<(String, String, u64, Option<String>)> = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            // `file_type` and `symlink_metadata` never follow symlinks, so
+            // links (including escaping symlinks), subdirectories and special
+            // files are skipped.
+            let file_type = entry.file_type().ok()?;
+            if !file_type.is_file() {
+                return None;
+            }
+            let raw_name = entry.file_name().to_str()?.to_owned();
+            if !has_bill_type(Path::new(&raw_name)) {
+                return None;
+            }
+            let meta = std::fs::symlink_metadata(entry.path()).ok()?;
+            if !meta.is_file() {
+                return None;
+            }
+            let modified = meta.modified().ok().and_then(|time| {
+                let since = time.duration_since(UNIX_EPOCH).ok()?;
+                let seconds = i64::try_from(since.as_secs()).ok()?;
+                let stamp = kassensturz_core::Timestamp::from_second(seconds).ok()?;
+                Some(stamp.to_string())
+            });
+            let clean_name = for_model(&raw_name);
+            Some((clean_name, raw_name, meta.len(), modified))
+        })
+        .collect();
+    files.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    let total = files.len();
+    let truncated = total > MAX_LISTED_BILLS;
+    files.truncate(MAX_LISTED_BILLS);
+    let listed: Vec<Value> = files
+        .into_iter()
+        .map(|(name, _, size, modified)| {
+            let mut file = serde_json::Map::new();
+            file.insert("name".into(), Value::String(name));
+            file.insert("size_bytes".into(), Value::from(size));
+            if let Some(modified) = modified {
+                file.insert("modified".into(), Value::String(modified));
+            }
+            Value::Object(file)
+        })
+        .collect();
+    let mut figures = Figures::new();
+    figures.add_count(u64::try_from(total).unwrap_or(u64::MAX));
+    let mut answer = serde_json::json!({
+        "folder": folder_str,
+        "file_types": BILL_TYPES,
+        "files": listed,
+        "truncated": truncated,
+    });
+    if truncated {
+        answer["files_left_out"] = Value::from(total - MAX_LISTED_BILLS);
+    }
+    Ok(Output::new(answer, figures))
 }
 
 /// The keys an item of [`LIST`] takes.
@@ -213,8 +310,8 @@ pub fn bill_path(folder: &Path, file: &str) -> Result<PathBuf, ToolError> {
     Ok(real)
 }
 
-/// Whether `path` ends in one of the [`BILL_TYPES`].
-fn has_bill_type(path: &Path) -> bool {
+/// Whether `path` ends in one of the [`BILL_TYPES`], compared without case.
+pub(crate) fn has_bill_type(path: &Path) -> bool {
     path.extension()
         .and_then(|ending| ending.to_str())
         .is_some_and(|ending| {
@@ -286,10 +383,12 @@ mod tests {
 
     #[test]
     fn a_bill_type_is_its_ending_without_case() {
-        for name in ["a.pdf", "a.PDF", "a.Png", "a.jpg", "a.JPEG"] {
+        for name in [
+            "a.pdf", "a.PDF", "a.Png", "a.jpg", "a.JPEG", "a.tif", "a.TIFF",
+        ] {
             assert!(has_bill_type(Path::new(name)), "{name}");
         }
-        for name in ["a", "a.pdf.exe", "a.txt", ".pdf", "a.pd"] {
+        for name in ["a", "a.pdf.exe", "a.txt", ".pdf", "a.pd", "a.tif.sh"] {
             assert!(!has_bill_type(Path::new(name)), "{name}");
         }
     }

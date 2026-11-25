@@ -25,17 +25,17 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
+use kassensturz_core::ai_switch::{Permission, Permissions};
 use kassensturz_core::{
     AccountId, Attachment, CurrencyCode, Date, Money, Transaction, TransactionId,
 };
 use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
 
-use super::bills::{BILL_TYPES, bill_path};
+use super::bills::{bill_path, check_empty_arguments, list_bill_dir};
 use super::transactions::{free_text, parse_amount};
-use super::{ChangeError, ChangeSet, Known, Object, ProposedChange};
+use super::{ChangeError, ChangeSet, Folders, Known, Object, ProposedChange};
 use crate::error::ToolError;
-use crate::figures::Figures;
 use crate::functions::{Function, Output};
 
 /// The list of `propose_changes` that holds the bills to file.
@@ -50,97 +50,69 @@ pub const MAX_BILL_BYTES: u64 = 50 * 1024 * 1024;
 /// The most bytes one set may file, all bills together.
 pub const MAX_FILED_BYTES: u64 = 500 * 1024 * 1024;
 
-/// The most files [`INBOX`] lists.
-const MAX_LISTED: usize = 200;
-
-/// The function that lists the receipt inbox (D-752). Only the MCP server
-/// offers it, and only while both folders are chosen and Transactions ›
-/// File bills from the inbox is on, so no path goes to a model the user
-/// didn't allow.
+/// The function that lists the receipt inbox (D-752, D-990). Offered only
+/// while both folders are chosen and *Transactions › File bills from the
+/// inbox* is on, so no path goes to a model the user didn't allow.
 pub const INBOX: Function = Function {
     name: "inbox",
-    description: "Lists the bills waiting in the user's receipt inbox: the folder's path and \
-        each file's name, size and date. Read a bill yourself, find the transaction it was \
-        paid with (search_transactions, with reference for an invoice or order number), and \
-        file it with file_bills in propose_changes, with the total the bill shows. When the \
-        user confirms, KassenSturz moves the file into the archive by the transaction's \
-        account and category; you don't choose the place. KassenSturz never reads the bills.",
+    description: "Lists the bills waiting in the user's receipt inbox: the folder's path, the \
+        allowed file types (PDF, PNG, JPEG, TIFF), and each file's name, size and date. Use \
+        read_bill to inspect a bill, find the transaction it was paid with (search_transactions, \
+        with reference for an invoice or order number), and file it with file_bills in \
+        propose_changes, with the total the bill shows. When the user confirms, KassenSturz \
+        moves the file into the archive by the transaction's account and category; you don't \
+        choose the place.",
     parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
 };
 
 /// What [`INBOX`] answers for `inbox`: its path as the user chose it and
 /// its files that can be filed: plain files right in it with one of the
-/// [`BILL_TYPES`], at most a few hundred, sorted by name. A subfolder is
-/// not entered and a link is not followed or listed.
+/// [`crate::BILL_TYPES`], at most a few hundred, sorted by name. A subfolder
+/// is not entered and a link is not followed or listed.
 pub fn inbox_answer(inbox: &Path, arguments: &Value) -> Result<Output, ToolError> {
-    match arguments {
-        Value::Null => {}
-        Value::Object(values) if values.is_empty() => {}
-        _ => {
-            return Err(ToolError::BadArgument {
-                argument: "arguments",
-            });
-        }
-    }
-    let folder = inbox.to_str().ok_or(ToolError::NoInbox)?.to_owned();
-    let entries = std::fs::read_dir(inbox).map_err(|_| ToolError::NoInbox)?;
-    let mut files: Vec<(String, u64, Option<String>)> = entries
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let name = entry.file_name().to_str()?.to_owned();
-            // `file_type` and `metadata` of a directory entry don't follow
-            // a link.
-            let meta = entry.metadata().ok()?;
-            if !meta.is_file() || !has_bill_type(&name) {
-                return None;
-            }
-            let modified = meta.modified().ok().and_then(|time| {
-                let since = time.duration_since(UNIX_EPOCH).ok()?;
-                let seconds = i64::try_from(since.as_secs()).ok()?;
-                let stamp = kassensturz_core::Timestamp::from_second(seconds).ok()?;
-                Some(stamp.to_string())
-            });
-            Some((name, meta.len(), modified))
-        })
-        .collect();
-    files.sort_by(|a, b| a.0.cmp(&b.0));
-    let total = files.len();
-    files.truncate(MAX_LISTED);
-    let listed: Vec<Value> = files
-        .into_iter()
-        .map(|(name, size, modified)| {
-            let mut file = serde_json::Map::new();
-            file.insert("name".into(), Value::String(name));
-            file.insert("size_bytes".into(), Value::from(size));
-            if let Some(modified) = modified {
-                file.insert("modified".into(), Value::String(modified));
-            }
-            Value::Object(file)
-        })
-        .collect();
-    let mut figures = Figures::new();
-    figures.add_count(u64::try_from(total).unwrap_or(u64::MAX));
-    let mut answer = serde_json::json!({
-        "folder": folder,
-        "file_types": BILL_TYPES,
-        "files": listed,
-    });
-    if total > MAX_LISTED {
-        answer["files_left_out"] = Value::from(total - MAX_LISTED);
-    }
-    Ok(Output::new(answer, figures))
+    check_empty_arguments(arguments)?;
+    list_bill_dir(inbox, || ToolError::NoInbox)
 }
 
-/// Whether a name ends in one of the [`BILL_TYPES`], without case.
-fn has_bill_type(name: &str) -> bool {
-    Path::new(name)
-        .extension()
-        .and_then(|ending| ending.to_str())
-        .is_some_and(|ending| {
-            BILL_TYPES
-                .iter()
-                .any(|kind| ending.eq_ignore_ascii_case(kind))
-        })
+/// [`inbox_answer`], gated on [`Permission::FileBills`] and configured inbox
+/// and archive folders in `folders` (D-752, D-990).
+pub fn inbox_answer_allowed(
+    folders: &Folders,
+    arguments: &Value,
+    permissions: Permissions,
+) -> Result<Output, ToolError> {
+    if !permissions.allows(Permission::FileBills) {
+        return Err(ToolError::NotAllowed {
+            argument: INBOX.name,
+        });
+    }
+    let inbox = folders.inbox.as_deref().ok_or(ToolError::NoInbox)?;
+    let _archive = folders.archive.as_deref().ok_or(ToolError::NoArchive)?;
+    inbox_answer(inbox, arguments)
+}
+
+/// Resolves `given` as a plain bill file directly inside `inbox`: no
+/// subdirectory, no symlink (even one pointing inside `inbox`), allowed
+/// [`crate::BILL_TYPES`] only, and regular file only (T-66, T-72).
+pub(crate) fn inbox_file_path(inbox: &Path, given: &str) -> Result<PathBuf, ToolError> {
+    let file = bill_path(inbox, given).map_err(|error| match error {
+        ToolError::NoBillFolder => ToolError::NoInbox,
+        other => other,
+    })?;
+    // Right in the inbox: no subfolder, and not through a link.
+    let real_inbox = inbox.canonicalize().map_err(|_| ToolError::NoInbox)?;
+    if file.parent() != Some(real_inbox.as_path()) {
+        return Err(ToolError::BillOutsideFolder);
+    }
+    let named = if Path::new(given).is_absolute() {
+        PathBuf::from(given)
+    } else {
+        inbox.join(given)
+    };
+    if std::fs::symlink_metadata(&named).is_ok_and(|meta| meta.file_type().is_symlink()) {
+        return Err(ToolError::BillOutsideFolder);
+    }
+    Ok(file)
 }
 
 /// The keys an item of [`LIST`] takes. No destination: the place is the
@@ -267,23 +239,7 @@ impl Known {
             other => other?,
         };
         let given = item.required_string("file")?;
-        let file = bill_path(inbox, given).map_err(|error| match error {
-            ToolError::NoBillFolder => ToolError::NoInbox,
-            other => other,
-        })?;
-        // Right in the inbox: no subfolder, and not through a link.
-        let real_inbox = inbox.canonicalize().map_err(|_| ToolError::NoInbox)?;
-        if file.parent() != Some(real_inbox.as_path()) {
-            return Err(ToolError::BillOutsideFolder);
-        }
-        let named = if Path::new(given).is_absolute() {
-            PathBuf::from(given)
-        } else {
-            inbox.join(given)
-        };
-        if std::fs::symlink_metadata(&named).is_ok_and(|meta| meta.file_type().is_symlink()) {
-            return Err(ToolError::BillOutsideFolder);
-        }
+        let file = inbox_file_path(inbox, given)?;
         let meta = std::fs::symlink_metadata(&file).map_err(|_| ToolError::BillNotFound)?;
         if !meta.is_file() {
             return Err(ToolError::BillNotFound);

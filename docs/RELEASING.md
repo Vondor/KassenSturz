@@ -9,7 +9,7 @@ A release tag is `v` plus the build number of the commit it points to, for examp
 - the tag equals `v<number of its commit>`, so the name of the release tells a tester which build it is;
 - the commit is on `main`, so only merged code that passed CI is released.
 
-**The snap's channel is chosen in the run, not by the tag (D-940, replaces D-939).** Every tag's run has two snap jobs, *Snap Store, beta channel* and *Snap Store, stable and beta channels*, each waiting for your approval in its own environment (`snap-beta`, `snap-stable`). You approve the one you want and reject the other (step 4 below); the tag itself is the same for both.
+**Every tag's run publishes to the `beta` snap channel (D-988, revising D-940).** Each tag's run has one snap job, *Snap Store, beta channel*, waiting for your approval in the `snap-beta` environment, so no job has to be rejected and a successful run finishes green (step 4 below). To promote a release to `stable`, run the manual workflow *Promote snap to stable* (`.github/workflows/snap-promote.yml`, D-941) and approve `snap-stable`; the tag itself is the same.
 
 No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the AppStream `<release>` entry for a pre-release (D-226). The build stamps its own number and date into the newest `<release>` of the AppStream file it installs (`cmake/StampMetainfo.cmake`, M6-B156), so `flatpak info` and software centres show the real number; the file in the repository keeps its last hand-set entry.
 
@@ -27,9 +27,9 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 3. **Wait for the run.** The **Release** workflow (Actions tab, about 15 minutes with a warm cache) has three jobs:
    - *Build the Flatpak bundle* builds `KassenSturz-<number>-x86_64.flatpak` from the commit, with the number and commit shown in Settings → About.
    - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what way B of `docs/testing/INSTALL_UBUNTU.de.md` (the Flatpak file) tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, uninstall it. (The update over an older build can't be checked here, since it needs two builds; the automatic update tests cover it, D-835.) Nothing is released if this fails.
-   - *Beta release on GitHub* creates the release `KassenSturz <number> (beta)`, marked as a pre-release, with the files attached and a cumulative changelog (`Changes since <tag>:`) built by `tools/release-beta.py` from the latest `(stable)` release whose tag is an ancestor of the new tag (falling back to the previous `v0.*` tag only if no stable release exists yet), then removes superseded older `(beta)` GitHub Releases while keeping git tags in place (D-987, see "Release kinds" below). It becomes the stable release in step 4 if you choose stable.
+   - *Beta release on GitHub* creates the release `KassenSturz <number> (beta)`, marked as a pre-release, with the files attached and a cumulative changelog (`Changes since <tag>:`) built by `tools/release-beta.py` from the latest `(stable)` release whose tag is an ancestor of the new tag (falling back to the previous `v0.*` tag only if no stable release exists yet), then removes superseded older `(beta)` GitHub Releases while keeping git tags in place (D-987, see "Release kinds" below). It becomes the stable release when you promote it later with *Promote snap to stable* (D-941, D-988).
    A fourth job, *Attach the experimental macOS download*, adds `KassenSturz-<number>-macos-arm64-experimental.dmg` to the release after it exists, only if the Mac build worked (D-875, `docs/MACOS.md`). A red *macOS app* job in the run does not affect the release; the file is just missing.
-4. **Choose the snap's channel.** Once the GitHub release is out, the run shows "Waiting for review" for both snap jobs. Actions tab → the run → **Review deployments**: tick **snap-beta** for a test build (the snap goes to `beta`) or **snap-stable** for the stable 0.x release (it goes to `stable` and `beta`, D-879), add a comment if you like, and press **Approve and deploy**. Your choice is also the kind of release (D-948): with **snap-stable**, once the snap is in the store, the job renames the GitHub release to `KassenSturz <number> (stable)`, takes off the *Pre-release* mark and marks it *Latest*; with **snap-beta** it stays `(beta)` and *Pre-release*. Then open **Review deployments** again, tick the other one and press **Reject**. The rejected job shows as failed; that is expected and changes nothing, since the GitHub release is already published. Approve only one: the store refuses the same file twice. A job you leave waiting is cancelled by GitHub after 30 days.
+4. **Approve the `snap-beta` upload.** Once the GitHub release is out, the run shows "Waiting for review" for *Snap Store, beta channel* (D-988). Actions tab → the run → **Review deployments**: tick **snap-beta**, add a comment if you like, and press **Approve and deploy**. The snap goes to `beta`, the GitHub release stays `(beta)` and *Pre-release*, there is no second job to reject, and the run finishes green. To make it the stable 0.x release as well (D-879, D-948), run *Promote snap to stable* below. A job you leave waiting is cancelled by GitHub after 30 days.
 5. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* (beta) or *Latest* (stable) and can be downloaded without a GitHub account. Check the title, the file name and the text.
 6. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
 
@@ -43,9 +43,9 @@ An official release carries KassenSturz's FinTS product registration number, so 
 
 From then on the *Build the Flatpak bundle* job of a tag's run waits for your approval (Actions tab → the run → Review deployments), builds the number in, and fails if the number is in any file of the built app other than the program itself. Without the secret a release is still built, without bank access, and the run shows a warning.
 
-## Once: the snap environments (D-940)
+## Once: the snap environments (D-940, D-988)
 
-The two snap jobs need two environments, which only the maintainer sets up, once. For each of `snap-beta` and `snap-stable`:
+Publishing to `beta` and promoting to `stable` use two separate environments, which only the maintainer sets up, once: `snap-beta` is used by the **Release** workflow, and `snap-stable` is used by **Promote snap to stable** and **Update Snap Store page**. For each of `snap-beta` and `snap-stable`:
 
 1. Settings → Environments → **New environment**, name `snap-beta` (then, the second time, `snap-stable`), **Configure environment**.
 2. Under *Deployment protection rules*: tick **Required reviewers** and add yourself (`Vondor`); leave **Prevent self-review** unticked (otherwise you could not approve your own tag); untick **Allow administrators to bypass configured protection rules**; press **Save protection rules**.
@@ -66,7 +66,7 @@ These settings are the protection, not the workflow file: a tag runs the `releas
 
 ## Release kinds (D-948)
 
-There are two kinds of release, and the snap channel you approve picks the kind, so nothing is edited by hand:
+There are two kinds of release (D-948, D-988): every tagged build starts as **beta**, and running *Promote snap to stable* turns it into **stable**, so nothing is edited by hand:
 
 | Kind | GitHub release | Snap Store |
 |---|---|---|
@@ -99,7 +99,7 @@ Only the revision on `beta` right now can be promoted. To bring an older one to 
 
 The store page follows `packaging/snap/snapcraft.yaml`: its summary, title, description, license and icon replace whatever was edited on snapcraft.io. The category, the links and the screenshots are not sent by snapcraft at all, so they stay as they are on the web and are still edited there.
 
-- **Automatically:** the job *Snap Store, stable and beta channels* of a release run and the workflow *Promote snap to stable* update the page from that version's snap after it reaches `stable`. If that fails, the run only warns, since the snap is already released.
+- **Automatically:** the workflow *Promote snap to stable* updates the page from that version's snap after it reaches `stable` (D-988). If that fails, the run only warns, since the snap is already released.
 - **By hand:** Actions tab → **Update Snap Store page** → **Run workflow**, with the version whose texts you want (empty: the newest release), then approve **snap-stable** under *Review deployments*. Nothing is built and no channel changes. The texts are those of that release's commit, so a text changed on `main` reaches the page with the next release.
 
 **Once:** the login in `snap-stable` needs the `package_metadata` permission. A login made before 21 Nov 2026 lacks it: make a new one with the `snap-stable` command in "Once: the snap environments" above, and replace the secret (Settings → Environments → `snap-stable` → `SNAPCRAFT_STORE_CREDENTIALS` → edit, paste the new value there and nowhere else). Without it the store refuses the update and the run says so.

@@ -957,6 +957,7 @@ fn open_reader(path: &Path) -> Result<crate::lockless::ReadOnly, MoveCause> {
         path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?;
+    crate::harden(&read)?;
     read.busy_timeout(BUSY_WAIT)?;
     Ok(read)
 }

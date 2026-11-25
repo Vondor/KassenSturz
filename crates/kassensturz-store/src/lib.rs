@@ -1272,7 +1272,7 @@ fn check_save(conn: &Connection, path: &Path, without_file_locks: bool) -> Resul
 /// that could damage the file's own structure, such as writing to
 /// `sqlite_schema`. The check that the layout holds only what KassenSturz
 /// made is [`layout::check_schema`].
-fn harden(conn: &Connection) -> Result<(), StoreError> {
+fn harden(conn: &Connection) -> rusqlite::Result<()> {
     conn.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
     conn.set_db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
     Ok(())

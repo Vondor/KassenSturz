@@ -965,3 +965,46 @@ fn a_book_that_opens_on_a_share_gets_the_save_check() {
         result.err()
     );
 }
+
+/// #1403, B-245: `open_writer` and `open_read_only` harden every connection
+/// they return, both with file locks and in lockless mode.
+#[test]
+fn open_writer_and_open_read_only_harden_connections() {
+    use rusqlite::config::DbConfig;
+
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    drop(Book::create(&path, &computer(&folder)).expect("book made"));
+
+    let assert_hardened = |conn: &Connection, label: &str| {
+        assert!(
+            !conn
+                .db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA)
+                .expect("db_config"),
+            "{label}: trusted_schema must be off"
+        );
+        assert!(
+            conn.db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("db_config"),
+            "{label}: defensive mode must be on"
+        );
+    };
+
+    let rw = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let ro = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+
+    for no_locks in [false, true] {
+        NO_LOCKS.with(|flag| flag.set(no_locks));
+        let writer = open_writer(&path, rw);
+        let reader = open_read_only(&path, ro);
+        NO_LOCKS.with(|flag| flag.set(false));
+
+        let (writer, used_no_locks) = writer.expect("writer opened");
+        assert_eq!(used_no_locks, no_locks);
+        assert_hardened(&writer, "open_writer");
+        drop(writer);
+
+        let reader = reader.expect("reader opened");
+        assert_hardened(&reader, "open_read_only");
+    }
+}

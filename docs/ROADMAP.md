@@ -75,7 +75,7 @@ Goal: let local and home-LAN OpenAI-compatible AI models (in both built-in chat 
 | Step | Scope | Needs | Tier, effort | Status |
 |---|---|---|---|---|
 | **US10.F1** (#1403) | `security(store)`: apply SQLite `harden()` (`trusted_schema=OFF`, `defensive=ON`) in `backup_copies`, `recovery`, and `moving` (both-VM line D-818) | | standard, low | todo |
-| **US10.F2** (#1405) | `security(export)`: create exported books and CSV files with `0600` permissions on Unix (align with B-414 / T-71; both-VM line D-818) | | standard, low | todo |
+| **US10.F2** (#1405) | `security(export)`: create exported books and CSV files with `0600` permissions on Unix (align with B-414 / T-71; both-VM line D-818) | | standard, low | done (#1420) |
 | **US10.F3** (#1404) | `security(keychain)`: harden KeePassXC association key wiping, response scrubbing, and handshake nonce check (human gate: keychain) | | strong, medium | todo |
 | **US10.F4** (#1406) | `docs`: English-only root `README.md` (based on outside-review #1406, D-811) | | light, low | done (#1419) |
 | **US10.1** (#1412) | Dependencies & offline Flatpak manifest: pin `pdf-extract = "=0.12.1"`, `hayro = "=0.9.0"`, `image = "=0.25.10"` (`png`/`jpeg`/`tiff`), workspace `base64`; update `THIRD_PARTY.md`, `cargo-sources.json`, `check-no-ai.sh` (D-989; human gate: direct dependencies) | | standard, medium | todo |

@@ -68,6 +68,25 @@ Phase 2 handoff steps from the sorting in D-984 and the AI figure labels in D-98
 | B-459 (#1384) | Eliminate the two macOS test races | done (#1392) |
 | D-952 (#1358) | Label figures from the book in AI answers (D-983, D-986) | done (#1394) |
 
+### User Sprint 10 (US10)
+
+Goal: let local and home-LAN OpenAI-compatible AI models (in both built-in chat and `kassensturz-mcp`) list, read, match, attach, tag, split, and file bills from the configured bill folder and receipt inbox — with zero OCR in KassenSturz (D-751) and every change confirmed on KassenSturz's check card. Stage: Beta with frozen book format (D-892), normal budget (D-982), ends with a beta release (D-981). Phase 1 gates and sorting: D-989 to D-993 (Q-740 to Q-743). At most 3 open non-gated step PRs at once (D-823, D-919).
+
+| Step | Scope | Needs | Tier, effort | Status |
+|---|---|---|---|---|
+| **US10.F1** (#1403) | `security(store)`: apply SQLite `harden()` (`trusted_schema=OFF`, `defensive=ON`) in `backup_copies`, `recovery`, and `moving` (both-VM line D-818) | | standard, low | todo |
+| **US10.F2** (#1405) | `security(export)`: create exported books and CSV files with `0600` permissions on Unix (align with B-414 / T-71; both-VM line D-818) | | standard, low | todo |
+| **US10.F3** (#1404) | `security(keychain)`: harden KeePassXC association key wiping, response scrubbing, and handshake nonce check (human gate: keychain) | | strong, medium | todo |
+| **US10.F4** (#1406) | `docs`: English-only root `README.md` (based on outside-review #1406, D-811) | | light, low | todo |
+| **US10.1** (#1412) | Dependencies & offline Flatpak manifest: pin `pdf-extract = "=0.12.1"`, `hayro = "=0.9.0"`, `image = "=0.25.10"` (`png`/`jpeg`/`tiff`), workspace `base64`; update `THIRD_PARTY.md`, `cargo-sources.json`, `check-no-ai.sh` (D-989; human gate: direct dependencies) | | standard, medium | todo |
+| **US10.2** (#1413) | Shared path-jailed bill listing & `read_bill` in `kassensturz-ai-tools` (`tif`/`tiff`, containment, caps, `hayro` fallback, `image` resize/TIFF, T-21 framing, synthetic + attack tests; D-990; human gate: AI data sharing) | US10.1 | strong, high | todo |
+| **US10.3** (#1414) | Multimodal `image_url` transport & consent v3 (`SentData::Bills`, `STATEMENT_VERSION` `2 -> 3`, portable follow-up user `image_url`, redaction + byte cap; D-990, D-991; human gate: AI data sharing) | US10.1 (parallel with US10.2) | strong, high | todo |
+| **US10.4** (#1415) | Built-in chat & UI bridge wiring (`kassensturz-ai-chat`, `kassensturz-ui-bridge`, QML, `po/de`, consent v3 strings, prompt update, `tif`/`tiff` sync, scenario tests; D-990, D-991; human gate: AI data sharing) | US10.2, US10.3 | strong, high | todo |
+| **US10.5** (#1416) | `kassensturz-mcp` parity (`read_bill`, `bill_folder` listing, stdio-only T-32) & docs (`THREAT_MODEL.md` T-62/T-66/T-72/T-22/T-23, `AI_SPLITS.md`, `RECEIPT_INBOX.md`, `CONNECT_AN_AI.md`; D-990; human gate: AI data sharing) | US10.2, US10.4 | standard, medium | todo |
+| **US10.6** (#1417) | Phase 3 live VM verification (`kubuntu-test` + `win11`, pre-check D-951, LM Studio `>= 32768`, synthetic digital/scanned PDF + PNG/JPEG/TIFF, attack block D-819, Flatpak portal B-267, install checks D-884/D-971) | US10.5 | VM thread | todo |
+
+Later (named slots, D-992): `#1369` (B-453, 19 indirect duplicate crates — slot: before Gold / next regular dependency upgrade); `#1246` (Microsoft Store listing texts and screenshots — slot: before Gold, maintainer Partner Center step). After-Gold (19) and volunteer translation (16) issues stay out of US10.
+
 ## How to pick work
 
 1. If the maintainer or the coordinator named a step, do that step. Otherwise take, in the current Sprint (the last block under "User Sprints"), the lowest step that is still `todo` and whose prerequisites are `done`. Between two Sprints (Nirvana, D-949) there is no step list: the work comes from the coordinator.

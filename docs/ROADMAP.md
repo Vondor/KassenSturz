@@ -74,7 +74,7 @@ Goal: let local and home-LAN OpenAI-compatible AI models (in both built-in chat 
 
 | Step | Scope | Needs | Tier, effort | Status |
 |---|---|---|---|---|
-| **US10.F1** (#1403) | `security(store)`: apply SQLite `harden()` (`trusted_schema=OFF`, `defensive=ON`) in `backup_copies`, `recovery`, and `moving` (both-VM line D-818) | | standard, low | todo |
+| **US10.F1** (#1403) | `security(store)`: apply SQLite `harden()` (`trusted_schema=OFF`, `defensive=ON`) in `backup_copies`, `recovery`, and `moving` (both-VM line D-818) | | standard, low | done (#1422) |
 | **US10.F2** (#1405) | `security(export)`: create exported books and CSV files with `0600` permissions on Unix (align with B-414 / T-71; both-VM line D-818) | | standard, low | done (#1420) |
 | **US10.F3** (#1404) | `security(keychain)`: harden KeePassXC association key wiping, response scrubbing, and handshake nonce check (human gate: keychain) | | strong, medium | todo |
 | **US10.F4** (#1406) | `docs`: English-only root `README.md` (based on outside-review #1406, D-811) | | light, low | done (#1419) |

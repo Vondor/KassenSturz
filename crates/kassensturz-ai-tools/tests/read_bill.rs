@@ -1438,3 +1438,216 @@ fn b468_multi_frame_tiff_paginates_all_pages() {
     assert_eq!(too_high.report().code, "ai-tools.bad-argument");
     assert_eq!(too_high.range(), Some((1, 3)));
 }
+
+#[test]
+fn b469_read_bill_blocks_all_four_pdf_safety_bypasses_and_renders_valid_inline_image() {
+    let sb = Sandbox::new("b469-pdf-bypasses");
+    let bomb = synthetic_zlib_zeros(20 * 1024 * 1024);
+
+    // Bypass 1: leading unknown filter `/Filter [/X /FlateDecode]`.
+    let mut unknown_filter_stream = format!(
+        "<< /Filter [/X /FlateDecode] /Length {} >>\nstream\n",
+        bomb.len()
+    )
+    .into_bytes();
+    unknown_filter_stream.extend_from_slice(&bomb);
+    unknown_filter_stream.extend_from_slice(b"\nendstream");
+    let unknown_filter_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Contents 4 0 R >>".to_vec(),
+        unknown_filter_stream,
+    ]);
+    sb.write("Bills/bypass1-unknown-filter.pdf", &unknown_filter_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "bypass1-unknown-filter.pdf", "as_images": true}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+
+    // Bypass 2a: oversized inline image in page content stream.
+    let mut inline_bomb_body =
+        b"q 100 0 0 100 0 0 cm BI /W 60000 /H 60000 /CS /G /BPC 8 /F /Fl ID ".to_vec();
+    inline_bomb_body.extend_from_slice(&bomb);
+    inline_bomb_body.extend_from_slice(b"\nEI Q\n");
+    let mut inline_bomb_stream =
+        format!("<< /Length {} >>\nstream\n", inline_bomb_body.len()).into_bytes();
+    inline_bomb_stream.extend_from_slice(&inline_bomb_body);
+    inline_bomb_stream.extend_from_slice(b"\nendstream");
+    let inline_bomb_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Contents 4 0 R >>".to_vec(),
+        inline_bomb_stream,
+    ]);
+    sb.write("Bills/bypass2-inline-page.pdf", &inline_bomb_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "bypass2-inline-page.pdf", "as_images": true}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+
+    // Bypass 2b: oversized inline image inside a Form XObject.
+    let form_body = b"q BI /W 60000 /H 60000 /CS /G /BPC 8 ID \x00\x00\nEI Q\n";
+    let mut form_stream = format!(
+        "<< /Type /XObject /Subtype /Form /BBox [0 0 100 100] /Length {} >>\nstream\n",
+        form_body.len()
+    )
+    .into_bytes();
+    form_stream.extend_from_slice(form_body);
+    form_stream.extend_from_slice(b"\nendstream");
+    let form_bomb_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Resources << /XObject << /Fm0 5 0 R >> >> /Contents 4 0 R >>".to_vec(),
+        b"<< /Length 9 >>\nstream\n/Fm0 Do\n\nendstream".to_vec(),
+        form_stream,
+    ]);
+    sb.write("Bills/bypass2-inline-form.pdf", &form_bomb_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "bypass2-inline-form.pdf", "as_images": true}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+
+    // Valid small 2x2 inline image still renders cleanly.
+    let valid_inline_body =
+        b"q 100 0 0 100 50 50 cm BI /W 2 /H 2 /CS /RGB /BPC 8 ID \xFF\x00\x00\x00\xFF\x00\x00\x00\xFF\xFF\xFF\x00\nEI Q\n";
+    let mut valid_inline_stream =
+        format!("<< /Length {} >>\nstream\n", valid_inline_body.len()).into_bytes();
+    valid_inline_stream.extend_from_slice(valid_inline_body);
+    valid_inline_stream.extend_from_slice(b"\nendstream");
+    let valid_inline_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R >>".to_vec(),
+        valid_inline_stream,
+    ]);
+    sb.write("Bills/valid-inline.pdf", &valid_inline_pdf);
+    let rendered = read_bill(
+        &json!({"source": "bill_folder", "file": "valid-inline.pdf", "as_images": true}),
+        unlocked(),
+        &sb.folders(),
+    )
+    .expect("valid inline image PDF must render");
+    assert_eq!(rendered.mode, ReadBillMode::PdfImages);
+    assert_eq!(rendered.images.len(), 1);
+    let decoded_img = image::load_from_memory(&rendered.images[0].bytes).expect("valid PNG");
+    assert!(decoded_img.width() > 0 && decoded_img.height() > 0);
+
+    // Bypass 3: `1 0 obj (<<) endobj` before compressed `/XRef` Flate bomb.
+    let mut bypass3_pdf = b"%PDF-1.5\n1 0 obj (<<) endobj\n2 0 obj << /Type /XRef /Size 3 /W [1 2 1] /Filter /FlateDecode /Length ".to_vec();
+    bypass3_pdf.extend_from_slice(bomb.len().to_string().as_bytes());
+    bypass3_pdf.extend_from_slice(b" >>\nstream\n");
+    bypass3_pdf.extend_from_slice(&bomb);
+    bypass3_pdf.extend_from_slice(b"\nendstream\nendobj\nstartxref\n29\n%%EOF\n");
+    sb.write("Bills/bypass3-literal-string.pdf", &bypass3_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "bypass3-literal-string.pdf"}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+
+    // Bypass 4a: `/Width 1 /Height 1 /Filter /JBIG2Decode` with 60000x60000 PageInfo.
+    let mut jbig2_data = Vec::new();
+    jbig2_data.extend_from_slice(&0u32.to_be_bytes()); // seg_num
+    jbig2_data.push(48); // PageInformation
+    jbig2_data.push(0); // 0 refs
+    jbig2_data.push(1); // page 1
+    jbig2_data.extend_from_slice(&19u32.to_be_bytes());
+    jbig2_data.extend_from_slice(&60_000u32.to_be_bytes());
+    jbig2_data.extend_from_slice(&60_000u32.to_be_bytes());
+    jbig2_data.extend_from_slice(&[0u8; 11]);
+    let mut jbig2_obj = format!(
+        "<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 1 /Filter /JBIG2Decode /Length {} >>\nstream\n",
+        jbig2_data.len()
+    )
+    .into_bytes();
+    jbig2_obj.extend_from_slice(&jbig2_data);
+    jbig2_obj.extend_from_slice(b"\nendstream");
+    let jbig2_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>".to_vec(),
+        jbig2_obj,
+        b"<< /Length 10 >>\nstream\n/Im0 Do\n\nendstream".to_vec(),
+    ]);
+    sb.write("Bills/bypass4-jbig2.pdf", &jbig2_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "bypass4-jbig2.pdf", "as_images": true}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+
+    // Bypass 4b: `/Width 1 /Height 1 /Filter /JPXDecode` with 60000x60000 J2K SIZ.
+    let mut j2k = vec![0xFF, 0x4F, 0xFF, 0x51];
+    j2k.extend_from_slice(&41u16.to_be_bytes());
+    j2k.extend_from_slice(&0u16.to_be_bytes());
+    j2k.extend_from_slice(&60_000u32.to_be_bytes());
+    j2k.extend_from_slice(&60_000u32.to_be_bytes());
+    j2k.extend_from_slice(&0u32.to_be_bytes());
+    j2k.extend_from_slice(&0u32.to_be_bytes());
+    j2k.extend_from_slice(&60_000u32.to_be_bytes());
+    j2k.extend_from_slice(&60_000u32.to_be_bytes());
+    j2k.extend_from_slice(&0u32.to_be_bytes());
+    j2k.extend_from_slice(&0u32.to_be_bytes());
+    j2k.extend_from_slice(&1u16.to_be_bytes());
+    j2k.extend_from_slice(&[7, 1, 1]);
+    let mut jpx_obj = format!(
+        "<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /JPXDecode /Length {} >>\nstream\n",
+        j2k.len()
+    )
+    .into_bytes();
+    jpx_obj.extend_from_slice(&j2k);
+    jpx_obj.extend_from_slice(b"\nendstream");
+    let jpx_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>".to_vec(),
+        jpx_obj,
+        b"<< /Length 10 >>\nstream\n/Im0 Do\n\nendstream".to_vec(),
+    ]);
+    sb.write("Bills/bypass4-jpx.pdf", &jpx_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "bypass4-jpx.pdf", "as_images": true}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+
+    // Bypass 4c: `/Width 1 /Height 10000 /Filter [/CCITTFaxDecode] /DP [ << /Columns 10000 >> ]`.
+    let ccitt_obj = b"<< /Type /XObject /Subtype /Image /Width 1 /Height 10000 /ColorSpace /DeviceGray /BitsPerComponent 1 /Filter [/CCITTFaxDecode] /DP [ << /Columns 10000 >> ] /Length 2 >>\nstream\n\x00\x00\nendstream".to_vec();
+    let ccitt_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>".to_vec(),
+        ccitt_obj,
+        b"<< /Length 10 >>\nstream\n/Im0 Do\n\nendstream".to_vec(),
+    ]);
+    sb.write("Bills/bypass4-ccitt-dp-array.pdf", &ccitt_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "bypass4-ccitt-dp-array.pdf", "as_images": true}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+}

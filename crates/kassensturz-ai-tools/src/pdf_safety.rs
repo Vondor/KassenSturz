@@ -1210,9 +1210,12 @@ fn parse_simple_indirect_value(
             parse_filter_array_checked(bytes, start, indirects)
         {
             (SimpleIndirect::Filters(filters, true), end)
-        } else if let Some((params, end)) =
+        } else if let Some((params, unresolved, end)) =
             parse_raw_stage_params_array(bytes, start, indirects, scan_budget)?
         {
+            if unresolved {
+                return Ok(None);
+            }
             (SimpleIndirect::StageParams(params, true), end)
         } else {
             return Ok(None);
@@ -1224,7 +1227,10 @@ fn parse_simple_indirect_value(
         let after = skip_pdf_ws_and_comments(bytes, end);
         // Only index standalone dictionaries (not stream dictionaries).
         if bytes[after..].starts_with(b"endobj") {
-            let params = parse_raw_stage_params_dict(dict_bytes, indirects);
+            let (params, unresolved) = parse_raw_stage_params_dict(dict_bytes, indirects);
+            if unresolved {
+                return Ok(None);
+            }
             return Ok(Some((
                 SimpleIndirect::StageParams(vec![params], false),
                 after + 6,
@@ -1269,8 +1275,8 @@ enum RawFilterParse {
 }
 
 enum RawStageParamsParse {
-    Dict(StageParams, usize),
-    Array(Vec<StageParams>, usize),
+    Dict(StageParams, bool, usize),
+    Array(Vec<StageParams>, bool, usize),
     UnresolvedRef(usize),
     Invalid,
 }
@@ -1473,7 +1479,10 @@ fn inspect_raw_dict(
                                 indirects,
                                 scan_budget,
                             )? {
-                                RawStageParamsParse::Dict(params, end) => {
+                                RawStageParamsParse::Dict(params, unresolved, end) => {
+                                    if unresolved {
+                                        info.unresolved_params_ref = true;
+                                    }
                                     if key == b"DP" {
                                         dp_dict = Some(params);
                                     } else {
@@ -1482,7 +1491,10 @@ fn inspect_raw_dict(
                                     i = end;
                                     continue;
                                 }
-                                RawStageParamsParse::Array(params, end) => {
+                                RawStageParamsParse::Array(params, unresolved, end) => {
+                                    if unresolved {
+                                        info.unresolved_params_ref = true;
+                                    }
                                     if key == b"DP" {
                                         dp_array = Some(params);
                                     } else {
@@ -1559,18 +1571,16 @@ fn parse_raw_stage_params_or_ref_checked(
     }
     if bytes[pos] == b'<' && bytes.get(pos + 1) == Some(&b'<') {
         if let Some((end, dict_bytes, _)) = extract_balanced_dict(bytes, pos, scan_budget)? {
-            return Ok(RawStageParamsParse::Dict(
-                parse_raw_stage_params_dict(dict_bytes, indirects),
-                end,
-            ));
+            let (params, unresolved) = parse_raw_stage_params_dict(dict_bytes, indirects);
+            return Ok(RawStageParamsParse::Dict(params, unresolved, end));
         }
         return Ok(RawStageParamsParse::Invalid);
     }
     if bytes[pos] == b'[' {
-        if let Some((params, end)) =
+        if let Some((params, unresolved, end)) =
             parse_raw_stage_params_array(bytes, pos, indirects, scan_budget)?
         {
-            return Ok(RawStageParamsParse::Array(params, end));
+            return Ok(RawStageParamsParse::Array(params, unresolved, end));
         }
         return Ok(RawStageParamsParse::Invalid);
     }
@@ -1588,10 +1598,11 @@ fn parse_raw_stage_params_or_ref_checked(
                     && let Some(SimpleIndirect::StageParams(list, is_arr)) = indirects.get(&id)
                 {
                     if *is_arr {
-                        return Ok(RawStageParamsParse::Array(list.clone(), end));
+                        return Ok(RawStageParamsParse::Array(list.clone(), false, end));
                     }
                     return Ok(RawStageParamsParse::Dict(
                         list.first().copied().unwrap_or_default(),
+                        false,
                         end,
                     ));
                 }
@@ -1607,11 +1618,12 @@ fn parse_raw_stage_params_array(
     start: usize,
     indirects: &HashMap<u32, SimpleIndirect>,
     scan_budget: &mut usize,
-) -> Result<Option<(Vec<StageParams>, usize)>, ToolError> {
+) -> Result<Option<(Vec<StageParams>, bool, usize)>, ToolError> {
     if bytes.get(start) != Some(&b'[') {
         return Ok(None);
     }
     let mut out = Vec::new();
+    let mut unresolved = false;
     let mut i = start + 1;
     while i < bytes.len() {
         i = skip_pdf_ws_and_comments(bytes, i);
@@ -1619,7 +1631,7 @@ fn parse_raw_stage_params_array(
             return Ok(None);
         }
         if bytes[i] == b']' {
-            return Ok(Some((out, i + 1)));
+            return Ok(Some((out, unresolved, i + 1)));
         }
         if is_pdf_null_at(bytes, i) {
             if out.len() < MAX_PDF_FILTER_STAGES {
@@ -1632,8 +1644,10 @@ fn parse_raw_stage_params_array(
             && bytes.get(i + 1) == Some(&b'<')
             && let Some((end, dict_bytes, _)) = extract_balanced_dict(bytes, i, scan_budget)?
         {
+            let (params, dict_unresolved) = parse_raw_stage_params_dict(dict_bytes, indirects);
+            unresolved |= dict_unresolved;
             if out.len() < MAX_PDF_FILTER_STAGES {
-                out.push(parse_raw_stage_params_dict(dict_bytes, indirects));
+                out.push(params);
             }
             i = end;
             continue;
@@ -1642,16 +1656,26 @@ fn parse_raw_stage_params_array(
             && let Some((obj_num, after_first)) = parse_u64_ascii(bytes, i)
         {
             let ws1 = skip_pdf_ws(bytes, after_first);
-            if let Some((_gen, after_gen)) = parse_u64_ascii(bytes, ws1) {
+            if ws1 > after_first
+                && let Some((_gen, after_gen)) = parse_u64_ascii(bytes, ws1)
+            {
                 let ws2 = skip_pdf_ws(bytes, after_gen);
-                if bytes.get(ws2) == Some(&b'R') {
-                    let stage = u32::try_from(obj_num)
+                if ws2 > after_gen
+                    && bytes.get(ws2) == Some(&b'R')
+                    && bytes.get(ws2 + 1).is_none_or(|&b| is_pdf_delim_or_ws(b))
+                {
+                    let stage = match u32::try_from(obj_num)
                         .ok()
-                        .and_then(|id| match indirects.get(&id) {
-                            Some(SimpleIndirect::StageParams(v, _)) => v.first().copied(),
-                            _ => None,
-                        })
-                        .unwrap_or_default();
+                        .and_then(|id| indirects.get(&id))
+                    {
+                        Some(SimpleIndirect::StageParams(v, false)) => {
+                            v.first().copied().unwrap_or_default()
+                        }
+                        _ => {
+                            unresolved = true;
+                            StageParams::default()
+                        }
+                    };
                     if out.len() < MAX_PDF_FILTER_STAGES {
                         out.push(stage);
                     }
@@ -1668,8 +1692,9 @@ fn parse_raw_stage_params_array(
 fn parse_raw_stage_params_dict(
     dict: &[u8],
     indirects: &HashMap<u32, SimpleIndirect>,
-) -> StageParams {
+) -> (StageParams, bool) {
     let mut params = StageParams::default();
+    let mut unresolved = false;
     let mut predictor_val = 1i64;
     let mut columns_raw: Option<i64> = None;
     let mut colors_raw: Option<i64> = None;
@@ -1706,47 +1731,86 @@ fn parse_raw_stage_params_dict(
                 let val_pos = skip_pdf_ws_and_comments(inner, after_key);
                 if depth == 0 {
                     match key.as_slice() {
-                        b"EarlyChange" => {
-                            if let Some((n, end)) = parse_i64_or_ref(inner, val_pos, indirects) {
+                        b"EarlyChange" => match parse_i64_or_ref_checked(inner, val_pos, indirects)
+                        {
+                            RawIntParse::Value(n, end) => {
                                 params.early_change = n != 0;
                                 i = end;
                                 continue;
                             }
-                        }
-                        b"Columns" => {
-                            if let Some((n, end)) = parse_i64_or_ref(inner, val_pos, indirects) {
+                            RawIntParse::UnresolvedRef(end) => {
+                                unresolved = true;
+                                i = end;
+                                continue;
+                            }
+                            RawIntParse::Invalid => {}
+                        },
+                        b"Columns" => match parse_i64_or_ref_checked(inner, val_pos, indirects) {
+                            RawIntParse::Value(n, end) => {
                                 columns_raw = Some(n);
                                 params.ccitt_columns = u64::try_from(n).ok();
                                 i = end;
                                 continue;
                             }
-                        }
-                        b"Rows" => {
-                            if let Some((n, end)) = parse_int_or_ref(inner, val_pos, indirects) {
-                                params.ccitt_rows = Some(n);
+                            RawIntParse::UnresolvedRef(end) => {
+                                unresolved = true;
                                 i = end;
                                 continue;
                             }
-                        }
-                        b"Predictor" => {
-                            if let Some((n, end)) = parse_i64_or_ref(inner, val_pos, indirects) {
+                            RawIntParse::Invalid => {}
+                        },
+                        b"Rows" => match parse_i64_or_ref_checked(inner, val_pos, indirects) {
+                            RawIntParse::Value(n, end) => {
+                                params.ccitt_rows = u64::try_from(n).ok();
+                                i = end;
+                                continue;
+                            }
+                            RawIntParse::UnresolvedRef(end) => {
+                                unresolved = true;
+                                i = end;
+                                continue;
+                            }
+                            RawIntParse::Invalid => {}
+                        },
+                        b"Predictor" => match parse_i64_or_ref_checked(inner, val_pos, indirects) {
+                            RawIntParse::Value(n, end) => {
                                 predictor_val = n;
                                 i = end;
                                 continue;
                             }
-                        }
-                        b"Colors" => {
-                            if let Some((n, end)) = parse_i64_or_ref(inner, val_pos, indirects) {
+                            RawIntParse::UnresolvedRef(end) => {
+                                unresolved = true;
+                                i = end;
+                                continue;
+                            }
+                            RawIntParse::Invalid => {}
+                        },
+                        b"Colors" => match parse_i64_or_ref_checked(inner, val_pos, indirects) {
+                            RawIntParse::Value(n, end) => {
                                 colors_raw = Some(n);
                                 i = end;
                                 continue;
                             }
-                        }
-                        b"BitsPerComponent" => {
-                            if let Some((n, end)) = parse_i64_or_ref(inner, val_pos, indirects) {
-                                bpc_raw = Some(n);
+                            RawIntParse::UnresolvedRef(end) => {
+                                unresolved = true;
                                 i = end;
                                 continue;
+                            }
+                            RawIntParse::Invalid => {}
+                        },
+                        b"BitsPerComponent" => {
+                            match parse_i64_or_ref_checked(inner, val_pos, indirects) {
+                                RawIntParse::Value(n, end) => {
+                                    bpc_raw = Some(n);
+                                    i = end;
+                                    continue;
+                                }
+                                RawIntParse::UnresolvedRef(end) => {
+                                    unresolved = true;
+                                    i = end;
+                                    continue;
+                                }
+                                RawIntParse::Invalid => {}
                             }
                         }
                         _ => {}
@@ -1759,7 +1823,7 @@ fn parse_raw_stage_params_dict(
     }
 
     params.predictor = compute_predictor_check(predictor_val, columns_raw, colors_raw, bpc_raw);
-    params
+    (params, unresolved)
 }
 
 fn check_raw_dict_image(
@@ -1962,16 +2026,24 @@ fn skip_stream_eol(bytes: &[u8], pos: usize) -> usize {
     }
 }
 
-fn parse_i64_or_ref(
+enum RawIntParse {
+    Value(i64, usize),
+    UnresolvedRef(usize),
+    Invalid,
+}
+
+fn parse_i64_or_ref_checked(
     bytes: &[u8],
     pos: usize,
     indirects: &HashMap<u32, SimpleIndirect>,
-) -> Option<(i64, usize)> {
+) -> RawIntParse {
     if pos >= bytes.len() {
-        return None;
+        return RawIntParse::Invalid;
     }
     if bytes[pos].is_ascii_digit() {
-        let (first, after_first) = parse_u64_ascii(bytes, pos)?;
+        let Some((first, after_first)) = parse_u64_ascii(bytes, pos) else {
+            return RawIntParse::Invalid;
+        };
         let ws1 = skip_pdf_ws(bytes, after_first);
         if ws1 > after_first
             && let Some((_gen, after_gen)) = parse_u64_ascii(bytes, ws1)
@@ -1981,16 +2053,19 @@ fn parse_i64_or_ref(
                 && bytes.get(ws2) == Some(&b'R')
                 && bytes.get(ws2 + 1).is_none_or(|&b| is_pdf_delim_or_ws(b))
             {
-                let obj_num = u32::try_from(first).ok()?;
-                return match indirects.get(&obj_num) {
-                    Some(SimpleIndirect::Int(v)) => Some((*v, ws2 + 1)),
-                    _ => None,
+                let end = ws2 + 1;
+                return match u32::try_from(first).ok().and_then(|id| indirects.get(&id)) {
+                    Some(SimpleIndirect::Int(v)) => RawIntParse::Value(*v, end),
+                    _ => RawIntParse::UnresolvedRef(end),
                 };
             }
         }
-        return Some((i64::try_from(first).unwrap_or(i64::MAX), after_first));
+        return RawIntParse::Value(i64::try_from(first).unwrap_or(i64::MAX), after_first);
     }
-    parse_i64_ascii(bytes, pos)
+    match parse_i64_ascii(bytes, pos) {
+        Some((v, end)) => RawIntParse::Value(v, end),
+        None => RawIntParse::Invalid,
+    }
 }
 
 fn parse_int_or_ref(
@@ -3182,6 +3257,7 @@ fn bounded_flate_decode(
     // Strip optional zlib header (RFC 1950), falling back to raw deflate if
     // the zlib attempt fails to parse (matching `hayro-syntax`).
     let mut tried_offset_2 = false;
+    let mut decoded = None;
     if data.len() >= 2 {
         let cmf = data[0];
         let flg = data[1];
@@ -3191,22 +3267,26 @@ fn bounded_flate_decode(
             if offset == 2 {
                 tried_offset_2 = true;
             }
-            if offset <= data.len()
-                && let Some(decoded) = bounded_deflate_raw(&data[offset..], max_out, capture)?
-            {
-                return Ok(Some(decoded));
+            if offset <= data.len() {
+                decoded = bounded_deflate_raw(&data[offset..], max_out, capture)?;
             }
         }
     }
-    if let Some(decoded) = bounded_deflate_raw(data, max_out, capture)? {
-        return Ok(Some(decoded));
+    if decoded.is_none() {
+        decoded = bounded_deflate_raw(data, max_out, capture)?;
     }
     // Match `lopdf`'s `decompress_zlib` fallback, which skips 2 bytes and
     // attempts raw deflate when standard zlib header validation fails (B-469).
+    // Check `&data[2..]` even when offset 0 (e.g. `[0x03, 0x00, <bomb>]`) or
+    // offset 6 (`FDICT`) succeeded, and reject multi-stage / ObjStm streams
+    // where `hayro` and `lopdf` would decode diverging payloads.
     if !tried_offset_2 && data.len() > 2 {
-        let _ = bounded_deflate_raw(&data[2..], max_out, false)?;
+        let offset2 = bounded_deflate_raw(&data[2..], max_out, false)?;
+        if capture && matches!(offset2, Some((n, _)) if n > 0) {
+            return Err(ToolError::BillUnreadable);
+        }
     }
-    Ok(None)
+    Ok(decoded)
 }
 
 fn bounded_deflate_raw(
@@ -4628,5 +4708,123 @@ mod tests {
             elapsed_percents < Duration::from_secs(1),
             "repeated `%` + `<<` took {elapsed_percents:?} (must be < 1s)"
         );
+    }
+
+    #[test]
+    fn b469_flate_offset0_prefix_and_multistage_divergence_rejected() {
+        // 1. Single-stage `/Filter /FlateDecode` with `[0x03, 0x00]` (valid
+        // 0-byte raw deflate at offset 0) followed by a raw deflate bomb at
+        // offset 2 (`lopdf` fallback) must be rejected with `BillTooBig`.
+        let zlib_bomb = zlib_zero_bomb(MAX_PDF_STREAM_DECOMPRESSED_BYTES + 4_096);
+        let raw_bomb = &zlib_bomb[2..zlib_bomb.len() - 4];
+        let mut prefix03_bomb = Vec::with_capacity(2 + raw_bomb.len());
+        prefix03_bomb.extend_from_slice(&[0x03, 0x00]);
+        prefix03_bomb.extend_from_slice(raw_bomb);
+
+        let mut single_stream = format!(
+            "<< /Filter /FlateDecode /Length {} >>\nstream\n",
+            prefix03_bomb.len()
+        )
+        .into_bytes();
+        single_stream.extend_from_slice(&prefix03_bomb);
+        single_stream.extend_from_slice(b"\nendstream");
+
+        let pdf_single = assemble_test_pdf(&[
+            b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+            b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R >>".to_vec(),
+            single_stream,
+        ]);
+        assert!(matches!(
+            validate_raw_pdf_safety(&pdf_single),
+            Err(ToolError::BillTooBig)
+        ));
+        let parsed_single = Pdf::new(pdf_single).expect("parseable PDF");
+        assert!(matches!(
+            validate_parsed_pdf_safety(&parsed_single),
+            Err(ToolError::BillTooBig)
+        ));
+
+        // 2. Multi-stage `/Filter [/FlateDecode /FlateDecode]` with
+        // `[0x03, 0x00]` + raw deflate of a small non-empty payload must be
+        // rejected because `hayro` (offset 0) and `lopdf` (offset 2) decode
+        // different payloads at stage 1.
+        let small_zlib = zlib_zero_bomb(32);
+        let raw_small = &small_zlib[2..small_zlib.len() - 4];
+        let mut prefix03_small = Vec::with_capacity(2 + raw_small.len());
+        prefix03_small.extend_from_slice(&[0x03, 0x00]);
+        prefix03_small.extend_from_slice(raw_small);
+
+        let mut multi_stream = format!(
+            "<< /Filter [/FlateDecode /FlateDecode] /Length {} >>\nstream\n",
+            prefix03_small.len()
+        )
+        .into_bytes();
+        multi_stream.extend_from_slice(&prefix03_small);
+        multi_stream.extend_from_slice(b"\nendstream");
+
+        let pdf_multi = assemble_test_pdf(&[
+            b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+            b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R >>".to_vec(),
+            multi_stream,
+        ]);
+        assert!(matches!(
+            validate_raw_pdf_safety(&pdf_multi),
+            Err(ToolError::BillUnreadable | ToolError::BillTooBig)
+        ));
+        let parsed_multi = Pdf::new(pdf_multi).expect("parseable PDF");
+        assert!(matches!(
+            validate_parsed_pdf_safety(&parsed_multi),
+            Err(ToolError::BillUnreadable | ToolError::BillTooBig)
+        ));
+    }
+
+    #[test]
+    fn b469_layer1_unresolved_indirect_decode_parms_rejected_on_obj_stm() {
+        let small_zlib = zlib_zero_bomb(16);
+
+        // 1. `/ObjStm` with `/Filter [/FlateDecode] /DecodeParms [ 99 0 R ]`
+        // where `99 0 obj` is missing/hidden.
+        let mut case1 = format!(
+            "%PDF-1.5\n1 0 obj << /Type /ObjStm /N 1 /First 5 /Filter [/FlateDecode] /DecodeParms [ 99 0 R ] /Length {} >>\nstream\n",
+            small_zlib.len()
+        )
+        .into_bytes();
+        case1.extend_from_slice(&small_zlib);
+        case1.extend_from_slice(b"\nendstream\nendobj\n%%EOF\n");
+        assert!(matches!(
+            validate_raw_pdf_safety(&case1),
+            Err(ToolError::BillUnreadable)
+        ));
+
+        // 2. `/ObjStm` with `/Filter /FlateDecode /DecodeParms 99 0 R` where
+        // `99 0 obj << /Predictor 12 /Columns 100 0 R >> endobj` appears BEFORE
+        // `100 0 obj 2000000000 endobj` (forward reference inside indirect dict).
+        let mut case2 = format!(
+            "%PDF-1.5\n99 0 obj << /Predictor 12 /Columns 100 0 R >> endobj\n100 0 obj 2000000000 endobj\n1 0 obj << /Type /ObjStm /N 1 /First 5 /Filter /FlateDecode /DecodeParms 99 0 R /Length {} >>\nstream\n",
+            small_zlib.len()
+        )
+        .into_bytes();
+        case2.extend_from_slice(&small_zlib);
+        case2.extend_from_slice(b"\nendstream\nendobj\n%%EOF\n");
+        assert!(matches!(
+            validate_raw_pdf_safety(&case2),
+            Err(ToolError::BillUnreadable)
+        ));
+
+        // 3. `/ObjStm` with direct `/Filter /FlateDecode /DecodeParms << /Predictor 12 /Columns 100 0 R >>`
+        // where `100 0 obj` is missing/hidden.
+        let mut case3 = format!(
+            "%PDF-1.5\n1 0 obj << /Type /ObjStm /N 1 /First 5 /Filter /FlateDecode /DecodeParms << /Predictor 12 /Columns 100 0 R >> /Length {} >>\nstream\n",
+            small_zlib.len()
+        )
+        .into_bytes();
+        case3.extend_from_slice(&small_zlib);
+        case3.extend_from_slice(b"\nendstream\nendobj\n%%EOF\n");
+        assert!(matches!(
+            validate_raw_pdf_safety(&case3),
+            Err(ToolError::BillUnreadable)
+        ));
     }
 }

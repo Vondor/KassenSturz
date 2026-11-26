@@ -296,7 +296,20 @@ pub fn bill_path(folder: &Path, file: &str) -> Result<PathBuf, ToolError> {
     if !has_bill_type(&named) {
         return Err(ToolError::BillType);
     }
-    let real = joined.canonicalize().map_err(|_| ToolError::BillNotFound)?;
+    let real = match joined.canonicalize() {
+        Ok(real) => real,
+        Err(_) => {
+            // Inspect prefixes under `real_folder` with `symlink_metadata` so a
+            // dangling or escaping symlink (leaf or intermediate directory)
+            // returns uniform `BillOutsideFolder` rather than leaking outside
+            // file existence (B-467).
+            let rel = named
+                .strip_prefix(&chosen)
+                .or_else(|_| named.strip_prefix(&real_folder))
+                .map_err(|_| ToolError::BillOutsideFolder)?;
+            return Err(classify_missing_bill(&real_folder, rel));
+        }
+    };
     if !inside(&real, &real_folder) {
         return Err(ToolError::BillOutsideFolder);
     }
@@ -308,6 +321,104 @@ pub fn bill_path(folder: &Path, file: &str) -> Result<PathBuf, ToolError> {
         return Err(ToolError::BillNotFound);
     }
     Ok(real)
+}
+
+/// Classifies a failed `canonicalize` for `rel` under canonical `real_folder`:
+/// returns [`ToolError::BillOutsideFolder`] if any traversed symlink (leaf or
+/// intermediate directory) escapes `real_folder` or loops, and
+/// [`ToolError::BillNotFound`] only when the path stays strictly within
+/// `real_folder` (eliminating an outside-file existence oracle, B-467).
+///
+/// Deepest existing ancestors are canonicalized before comparing against
+/// `real_folder`, so symlinks whose absolute target passes through a symlinked
+/// parent directory (such as macOS `/var -> /private/var`) are resolved
+/// accurately.
+fn classify_missing_bill(real_folder: &Path, rel: &Path) -> ToolError {
+    const MAX_SYMLINK_HOPS: usize = 16;
+    let mut cur = real_folder.to_path_buf();
+    for component in rel.components() {
+        let Component::Normal(name) = component else {
+            return ToolError::BillOutsideFolder;
+        };
+        cur.push(name);
+        let Ok(meta) = std::fs::symlink_metadata(&cur) else {
+            return ToolError::BillNotFound;
+        };
+        if !meta.file_type().is_symlink() {
+            continue;
+        }
+        // If this symlink's target exists, canonicalize it directly (handling
+        // macOS `/var -> /private/var` and multi-hop links in one step).
+        if let Ok(resolved) = cur.canonicalize() {
+            if !resolved.starts_with(real_folder) {
+                return ToolError::BillOutsideFolder;
+            }
+            cur = resolved;
+            continue;
+        }
+        // Dangling symlink or symlink loop: follow hops and canonicalize the
+        // deepest existing ancestor of each target to test containment.
+        let mut link_path = cur.clone();
+        for hop in 0..=MAX_SYMLINK_HOPS {
+            if hop == MAX_SYMLINK_HOPS {
+                return ToolError::BillOutsideFolder;
+            }
+            let Ok(target) = std::fs::read_link(&link_path) else {
+                return ToolError::BillOutsideFolder;
+            };
+            let raw_target = if target.is_absolute() {
+                target
+            } else {
+                let Some(parent) = link_path.parent() else {
+                    return ToolError::BillOutsideFolder;
+                };
+                parent.join(&target)
+            };
+            let Some(lex_target) = lexical(&raw_target) else {
+                return ToolError::BillOutsideFolder;
+            };
+            let Some(canon_target) = canonicalize_existing_prefix(&lex_target) else {
+                return ToolError::BillOutsideFolder;
+            };
+            if !canon_target.starts_with(real_folder) {
+                return ToolError::BillOutsideFolder;
+            }
+            match std::fs::symlink_metadata(&canon_target) {
+                Ok(next_meta) if next_meta.file_type().is_symlink() => {
+                    link_path = canon_target;
+                }
+                Ok(_) => {
+                    cur = canon_target;
+                    break;
+                }
+                Err(_) => return ToolError::BillNotFound,
+            }
+        }
+    }
+    ToolError::BillNotFound
+}
+
+/// Canonicalizes the deepest existing ancestor of `path` and re-appends the
+/// non-existing suffix, so containment checks work even when an absolute
+/// dangling symlink traverses a symlinked parent such as macOS
+/// `/var -> /private/var`.
+fn canonicalize_existing_prefix(path: &Path) -> Option<PathBuf> {
+    let mut existing = path.to_path_buf();
+    let mut tail = Vec::new();
+    loop {
+        if let Ok(canon) = existing.canonicalize() {
+            let mut out = canon;
+            for part in tail.into_iter().rev() {
+                out.push(part);
+            }
+            return Some(out);
+        }
+        let name = existing.file_name()?.to_os_string();
+        tail.push(name);
+        if !existing.pop() {
+            return None;
+        }
+    }
 }
 
 /// Whether `path` ends in one of the [`BILL_TYPES`], compared without case.

@@ -92,24 +92,47 @@ pub fn inbox_answer_allowed(
 }
 
 /// Resolves `given` as a plain bill file directly inside `inbox`: no
-/// subdirectory, no symlink (even one pointing inside `inbox`), allowed
-/// [`crate::BILL_TYPES`] only, and regular file only (T-66, T-72).
+/// subdirectory, no symlink (even one pointing inside `inbox` or through a
+/// directory symlink `sub -> .`), allowed [`crate::BILL_TYPES`] only, and
+/// regular file only (T-66, T-72, B-467).
 pub(crate) fn inbox_file_path(inbox: &Path, given: &str) -> Result<PathBuf, ToolError> {
+    if given.is_empty() || given.contains('\0') {
+        return Err(ToolError::BadArgument { argument: "file" });
+    }
+    let real_inbox = inbox.canonicalize().map_err(|_| ToolError::NoInbox)?;
+    let given_path = Path::new(given);
+    // Reject any path that is not a single plain filename directly inside
+    // `inbox` *before* canonicalizing, so directory symlinks such as
+    // `inbox/sub -> .` with `given = "sub/real.pdf"` cannot bypass the flat
+    // inbox rule (B-467).
+    let leaf = if given_path.is_absolute() {
+        given_path
+            .strip_prefix(inbox)
+            .or_else(|_| given_path.strip_prefix(&real_inbox))
+            .map_err(|_| ToolError::BillOutsideFolder)?
+    } else {
+        given_path
+    };
+    let mut components = leaf.components();
+    let Some(std::path::Component::Normal(file_name)) = components.next() else {
+        return Err(ToolError::BillOutsideFolder);
+    };
+    if components.next().is_some() {
+        return Err(ToolError::BillOutsideFolder);
+    }
+
+    // Refuse any symlink directly inside `inbox` (even a dangling or
+    // in-folder symlink) before `bill_path` canonicalizes it.
+    let direct = real_inbox.join(file_name);
+    if std::fs::symlink_metadata(&direct).is_ok_and(|meta| meta.file_type().is_symlink()) {
+        return Err(ToolError::BillOutsideFolder);
+    }
+
     let file = bill_path(inbox, given).map_err(|error| match error {
         ToolError::NoBillFolder => ToolError::NoInbox,
         other => other,
     })?;
-    // Right in the inbox: no subfolder, and not through a link.
-    let real_inbox = inbox.canonicalize().map_err(|_| ToolError::NoInbox)?;
     if file.parent() != Some(real_inbox.as_path()) {
-        return Err(ToolError::BillOutsideFolder);
-    }
-    let named = if Path::new(given).is_absolute() {
-        PathBuf::from(given)
-    } else {
-        inbox.join(given)
-    };
-    if std::fs::symlink_metadata(&named).is_ok_and(|meta| meta.file_type().is_symlink()) {
         return Err(ToolError::BillOutsideFolder);
     }
     Ok(file)

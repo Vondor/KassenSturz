@@ -455,7 +455,7 @@ fn read_bill_handles_png_jpeg_tiff_and_downscales_oversized_images() {
     sb.write("Bills/receipt.tiff", &tiff);
     sb.write("Bills/oversized.png", &huge);
 
-    // Small PNG preserved directly.
+    // Small PNG re-encoded cleanly (stripping any metadata/trailing bytes, B-464).
     let res_png = read_bill(
         &json!({"source": "bill_folder", "file": "receipt.png"}),
         unlocked(),
@@ -465,9 +465,10 @@ fn read_bill_handles_png_jpeg_tiff_and_downscales_oversized_images() {
     assert_eq!(res_png.mode, ReadBillMode::Image);
     assert_eq!(res_png.images.len(), 1);
     assert_eq!(res_png.images[0].mime_type, "image/png");
-    assert_eq!(res_png.images[0].bytes, png);
+    let decoded_png = image::load_from_memory(&res_png.images[0].bytes).unwrap();
+    assert_eq!((decoded_png.width(), decoded_png.height()), (120, 80));
 
-    // Small JPEG preserved directly.
+    // Small JPEG re-encoded cleanly (stripping any EXIF/GPS metadata, B-464).
     let res_jpg = read_bill(
         &json!({"source": "bill_folder", "file": "receipt.jpg"}),
         unlocked(),
@@ -476,7 +477,8 @@ fn read_bill_handles_png_jpeg_tiff_and_downscales_oversized_images() {
     .unwrap();
     assert_eq!(res_jpg.mode, ReadBillMode::Image);
     assert_eq!(res_jpg.images[0].mime_type, "image/jpeg");
-    assert_eq!(res_jpg.images[0].bytes, jpg);
+    let decoded_jpg = image::load_from_memory(&res_jpg.images[0].bytes).unwrap();
+    assert_eq!((decoded_jpg.width(), decoded_jpg.height()), (120, 80));
 
     // TIFF converted to PNG/JPEG cleanly.
     let res_tiff = read_bill(
@@ -926,4 +928,513 @@ fn file_bills_accepts_tiff_and_preserves_exact_minor_unit_total_check() {
         panic!("expected FileBill");
     };
     assert_eq!(bill.check, TotalCheck::Differs);
+}
+
+/// Builds a tiny valid RFC 1950 zlib stream decompressing to `count` zero bytes
+/// using fixed-Huffman max-length (258) back-references.
+fn synthetic_zlib_zeros(count: usize) -> Vec<u8> {
+    let mut bits: Vec<u8> = Vec::new();
+    let mut cur = 0u8;
+    let mut used = 0u8;
+    let mut push_lsb = |val: u32, n: u8| {
+        for i in 0..n {
+            if ((val >> i) & 1) != 0 {
+                cur |= 1 << used;
+            }
+            used += 1;
+            if used == 8 {
+                bits.push(cur);
+                cur = 0;
+                used = 0;
+            }
+        }
+    };
+    push_lsb(1, 1); // BFINAL = 1
+    push_lsb(1, 2); // BTYPE = 01 (fixed Huffman)
+    let mut push_msb = |val: u32, n: u8| {
+        for i in (0..n).rev() {
+            push_lsb((val >> i) & 1, 1);
+        }
+    };
+    push_msb(0x30, 8); // literal 0x00
+    let mut rem = count.saturating_sub(1);
+    while rem >= 258 {
+        push_msb(0xC5, 8); // length 258
+        push_msb(0, 5); // distance 1
+        rem -= 258;
+    }
+    for _ in 0..rem {
+        push_msb(0x30, 8);
+    }
+    push_msb(0, 7); // EOB
+    if used > 0 {
+        bits.push(cur);
+    }
+    let mut out = Vec::with_capacity(bits.len() + 6);
+    out.extend_from_slice(&[0x78, 0x9C]);
+    out.extend_from_slice(&bits);
+    out.extend_from_slice(&[0, 0, 0, 1]);
+    out
+}
+
+/// Computes IEEE 802.3 CRC-32 for a PNG chunk `(chunk_type || data)`.
+fn png_crc32(chunk_type: &[u8; 4], data: &[u8]) -> u32 {
+    let mut crc = 0xFFFF_FFFFu32;
+    for &b in chunk_type.iter().chain(data.iter()) {
+        crc ^= u32::from(b);
+        for _ in 0..8 {
+            crc = if (crc & 1) != 0 {
+                (crc >> 1) ^ 0xEDB8_8320
+            } else {
+                crc >> 1
+            };
+        }
+    }
+    !crc
+}
+
+/// Inserts a PNG `tEXt` chunk right before `IEND` and appends `trailer` bytes.
+fn inject_png_text_and_trailer(png: &[u8], key: &str, value: &str, trailer: &[u8]) -> Vec<u8> {
+    // IEND is always the final 12 bytes (`\0\0\0\0IEND<crc>`).
+    let split = png.len() - 12;
+    let mut data = Vec::new();
+    data.extend_from_slice(key.as_bytes());
+    data.push(0);
+    data.extend_from_slice(value.as_bytes());
+    let chunk_type = *b"tEXt";
+    let crc = png_crc32(&chunk_type, &data);
+
+    let mut out = Vec::with_capacity(png.len() + data.len() + 12 + trailer.len());
+    out.extend_from_slice(&png[..split]);
+    out.extend_from_slice(&(u32::try_from(data.len()).unwrap()).to_be_bytes());
+    out.extend_from_slice(&chunk_type);
+    out.extend_from_slice(&data);
+    out.extend_from_slice(&crc.to_be_bytes());
+    out.extend_from_slice(&png[split..]);
+    out.extend_from_slice(trailer);
+    out
+}
+
+/// Inserts JPEG APP1 (EXIF) and COM segments right after SOI (`FF D8`) and
+/// appends `trailer` bytes after EOI (`FF D9`).
+fn inject_jpeg_exif_comment_and_trailer(
+    jpg: &[u8],
+    exif_payload: &[u8],
+    comment: &[u8],
+    trailer: &[u8],
+) -> Vec<u8> {
+    assert!(jpg.starts_with(&[0xFF, 0xD8]));
+    let mut out = Vec::new();
+    out.extend_from_slice(&[0xFF, 0xD8]);
+    // APP1 marker (0xFF 0xE1)
+    let app1_len = u16::try_from(exif_payload.len() + 2).unwrap();
+    out.extend_from_slice(&[0xFF, 0xE1]);
+    out.extend_from_slice(&app1_len.to_be_bytes());
+    out.extend_from_slice(exif_payload);
+    // COM marker (0xFF 0xFE)
+    let com_len = u16::try_from(comment.len() + 2).unwrap();
+    out.extend_from_slice(&[0xFF, 0xFE]);
+    out.extend_from_slice(&com_len.to_be_bytes());
+    out.extend_from_slice(comment);
+    out.extend_from_slice(&jpg[2..]);
+    out.extend_from_slice(trailer);
+    out
+}
+
+/// Builds a valid multi-page classic Little-Endian uncompressed RGB TIFF where
+/// each entry in `pages` specifies `(width, height, [r, g, b])`.
+fn synthetic_multipage_tiff(pages: &[(u32, u32, [u8; 3])]) -> Vec<u8> {
+    let mut out = Vec::new();
+    // Classic TIFF LE header: "II", magic 42, first IFD offset (patched below).
+    out.extend_from_slice(b"II");
+    out.extend_from_slice(&42u16.to_le_bytes());
+    out.extend_from_slice(&0u32.to_le_bytes());
+
+    let mut next_ifd_patch = 4usize;
+    for &(w, h, color) in pages {
+        // Store 3-byte BitsPerSample array `[8, 8, 8]` as three u16s = 6 bytes.
+        let bps_offset = u32::try_from(out.len()).unwrap();
+        out.extend_from_slice(&8u16.to_le_bytes());
+        out.extend_from_slice(&8u16.to_le_bytes());
+        out.extend_from_slice(&8u16.to_le_bytes());
+
+        // Store uncompressed RGB strip.
+        let strip_offset = u32::try_from(out.len()).unwrap();
+        let pixel_count = usize::try_from(w * h).unwrap();
+        for _ in 0..pixel_count {
+            out.extend_from_slice(&color);
+        }
+        let strip_bytes = u32::try_from(pixel_count * 3).unwrap();
+
+        // Write IFD (10 sorted tags).
+        let ifd_offset = u32::try_from(out.len()).unwrap();
+        out[next_ifd_patch..next_ifd_patch + 4].copy_from_slice(&ifd_offset.to_le_bytes());
+
+        let entries: [(u16, u16, u32, u32); 10] = [
+            (256, 4, 1, w),            // ImageWidth (LONG)
+            (257, 4, 1, h),            // ImageLength (LONG)
+            (258, 3, 3, bps_offset),   // BitsPerSample (3x SHORT -> offset)
+            (259, 3, 1, 1),            // Compression = None
+            (262, 3, 1, 2),            // PhotometricInterpretation = RGB
+            (273, 4, 1, strip_offset), // StripOffsets
+            (277, 3, 1, 3),            // SamplesPerPixel = 3
+            (278, 4, 1, h),            // RowsPerStrip = height
+            (279, 4, 1, strip_bytes),  // StripByteCounts
+            (284, 3, 1, 1),            // PlanarConfiguration = Chunky
+        ];
+        out.extend_from_slice(&(u16::try_from(entries.len()).unwrap()).to_le_bytes());
+        for (tag, field_type, count, val) in entries {
+            out.extend_from_slice(&tag.to_le_bytes());
+            out.extend_from_slice(&field_type.to_le_bytes());
+            out.extend_from_slice(&count.to_le_bytes());
+            if field_type == 3 && count == 1 {
+                out.extend_from_slice(&(u16::try_from(val).unwrap()).to_le_bytes());
+                out.extend_from_slice(&0u16.to_le_bytes());
+            } else {
+                out.extend_from_slice(&val.to_le_bytes());
+            }
+        }
+        next_ifd_patch = out.len();
+        out.extend_from_slice(&0u32.to_le_bytes());
+    }
+    out
+}
+
+#[test]
+fn b461_pdf_flate_bomb_oversized_xobject_and_extreme_aspect_ratio() {
+    let sb = Sandbox::new("b461-pdf-bombs");
+
+    // 1. Compact Flate bomb (~100 KB compressed -> 20 MiB zeros) rejected cleanly as BillTooBig.
+    let bomb_stream = synthetic_zlib_zeros(20 * 1024 * 1024);
+    assert!(bomb_stream.len() < 200_000);
+    let mut bomb_content = format!(
+        "<< /Filter /FlateDecode /Length {} >>\nstream\n",
+        bomb_stream.len()
+    )
+    .into_bytes();
+    bomb_content.extend_from_slice(&bomb_stream);
+    bomb_content.extend_from_slice(b"\nendstream");
+    let bomb_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R >>".to_vec(),
+        bomb_content,
+    ]);
+    sb.write("Bills/flate-bomb.pdf", &bomb_pdf);
+    let start = std::time::Instant::now();
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "flate-bomb.pdf"}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+    assert!(
+        start.elapsed() < std::time::Duration::from_secs(2),
+        "Flate bomb must abort quickly without allocating: {:?}",
+        start.elapsed()
+    );
+
+    // 2. Embedded /XObject /Image declaring 30000x30000 pixels rejected as BillTooBig.
+    let mut huge_img_obj =
+        b"<< /Type /XObject /Subtype /Image /Width 30000 /Height 30000 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length 3 >>\nstream\n"
+            .to_vec();
+    huge_img_obj.extend_from_slice(&[0, 0, 0]);
+    huge_img_obj.extend_from_slice(b"\nendstream");
+    let huge_xobj_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 4 0 R ] /Count 1 >>".to_vec(),
+        huge_img_obj,
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Resources << /XObject << /Im0 3 0 R >> >> /Contents 5 0 R >>".to_vec(),
+        b"<< /Length 29 >>\nstream\nq 200 0 0 200 50 100 cm /Im0 Do Q\nendstream".to_vec(),
+    ]);
+    sb.write("Bills/huge-xobject.pdf", &huge_xobj_pdf);
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "bill_folder", "file": "huge-xobject.pdf", "as_images": true}),
+            unlocked(),
+            &sb.folders(),
+        )),
+        "ai-tools.bill-too-big"
+    );
+
+    // 3. Extreme aspect ratio PDF (MediaBox [0 0 100000 10]) renders cleanly without panicking.
+    let extreme_pdf = assemble_pdf(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100000 10] /Contents 4 0 R >>".to_vec(),
+        b"<< /Length 0 >>\nstream\nendstream".to_vec(),
+    ]);
+    sb.write("Bills/extreme-ratio.pdf", &extreme_pdf);
+    let rendered = read_bill(
+        &json!({"source": "bill_folder", "file": "extreme-ratio.pdf", "as_images": true}),
+        unlocked(),
+        &sb.folders(),
+    )
+    .expect("extreme aspect ratio must clamp safely");
+    assert_eq!(rendered.mode, ReadBillMode::PdfImages);
+    assert_eq!(rendered.images.len(), 1);
+    assert_eq!(rendered.images[0].width, MAX_BILL_IMAGE_DIMENSION);
+    assert!(rendered.images[0].height >= 1);
+    let decoded = image::load_from_memory(&rendered.images[0].bytes).expect("valid rendered PNG");
+    assert_eq!(decoded.width(), rendered.images[0].width);
+    assert_eq!(decoded.height(), rendered.images[0].height);
+}
+
+#[test]
+fn b464_strips_png_text_chunks_jpeg_exif_and_trailing_polyglot_bytes() {
+    let sb = Sandbox::new("b464-metadata");
+
+    // Synthetic PNG with tEXt metadata chunk + trailing polyglot bytes.
+    let base_png = synthetic_image(64, 48, ImageFormat::Png);
+    let tainted_png = inject_png_text_and_trailer(
+        &base_png,
+        "SecretGPS",
+        "48.1351,11.5820",
+        b"POLYGLOT-PNG-TRAILER-SECRET",
+    );
+    assert!(
+        tainted_png
+            .windows(b"48.1351,11.5820".len())
+            .any(|w| w == b"48.1351,11.5820")
+    );
+    sb.write("Bills/tainted.png", &tainted_png);
+
+    let res_png = read_bill(
+        &json!({"source": "bill_folder", "file": "tainted.png"}),
+        unlocked(),
+        &sb.folders(),
+    )
+    .expect("re-encoded PNG");
+    assert_eq!(res_png.images.len(), 1);
+    let out_png = &res_png.images[0].bytes;
+    for canary in [
+        b"SecretGPS".as_slice(),
+        b"48.1351,11.5820".as_slice(),
+        b"POLYGLOT-PNG-TRAILER-SECRET".as_slice(),
+    ] {
+        assert!(
+            !out_png.windows(canary.len()).any(|w| w == canary),
+            "PNG metadata canary leaked into output"
+        );
+    }
+    let decoded_png = image::load_from_memory(out_png).unwrap();
+    assert_eq!((decoded_png.width(), decoded_png.height()), (64, 48));
+
+    // Synthetic JPEG with APP1 EXIF canary + COM canary + trailing polyglot bytes.
+    let base_jpg = synthetic_image(64, 48, ImageFormat::Jpeg);
+    let tainted_jpg = inject_jpeg_exif_comment_and_trailer(
+        &base_jpg,
+        b"Exif\0\0CANARY-EXIF-SECRET",
+        b"CANARY-JPEG-COMMENT",
+        b"POLYGLOT-JPEG-TRAILER",
+    );
+    sb.write("Bills/tainted.jpg", &tainted_jpg);
+
+    let res_jpg = read_bill(
+        &json!({"source": "bill_folder", "file": "tainted.jpg"}),
+        unlocked(),
+        &sb.folders(),
+    )
+    .expect("re-encoded JPEG");
+    assert_eq!(res_jpg.images.len(), 1);
+    let out_jpg = &res_jpg.images[0].bytes;
+    for canary in [
+        b"CANARY-EXIF-SECRET".as_slice(),
+        b"CANARY-JPEG-COMMENT".as_slice(),
+        b"POLYGLOT-JPEG-TRAILER".as_slice(),
+    ] {
+        assert!(
+            !out_jpg.windows(canary.len()).any(|w| w == canary),
+            "JPEG EXIF/comment canary leaked into output"
+        );
+    }
+    let decoded_jpg = image::load_from_memory(out_jpg).unwrap();
+    assert_eq!((decoded_jpg.width(), decoded_jpg.height()), (64, 48));
+}
+
+#[test]
+fn b467_dir_symlink_dangling_escape_fifo_and_archive_gate() {
+    let sb = Sandbox::new("b467-hardening");
+    let valid_pdf = synthetic_text_pdf(&[&["Copper Finch Goods", "Total 12.00 EUR"]]);
+    sb.write("Inbox/real.pdf", &valid_pdf);
+    sb.write("Bills/real.pdf", &valid_pdf);
+
+    // 1. `read_bill_allowed` and `read_bill(Inbox)` require `folders.archive.is_some()`.
+    let inbox_without_archive = Folders {
+        bills: None,
+        inbox: Some(sb.inbox()),
+        archive: None,
+    };
+    assert!(!read_bill_allowed(unlocked(), &inbox_without_archive));
+    assert_eq!(
+        code(read_bill(
+            &json!({"source": "inbox", "file": "real.pdf"}),
+            unlocked(),
+            &inbox_without_archive,
+        )),
+        "ai-tools.no-archive"
+    );
+
+    #[cfg(unix)]
+    {
+        // 2. Directory symlink `Inbox/loopdir -> .` rejected uniformly.
+        std::os::unix::fs::symlink(".", sb.inbox().join("loopdir")).unwrap();
+        assert_eq!(
+            code(read_bill(
+                &json!({"source": "inbox", "file": "loopdir/real.pdf"}),
+                unlocked(),
+                &sb.folders(),
+            )),
+            "ai-tools.bill-outside-folder"
+        );
+
+        // 3. Dangling escaping symlink & escaping dir-symlink to non-existing
+        //    outside target return the exact same `BillOutsideFolder` error as
+        //    an existing outside target (eliminating existence oracle).
+        std::os::unix::fs::symlink(
+            sb.root.join("Elsewhere/nonexistent.pdf"),
+            sb.bills().join("dangling-escape.pdf"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(sb.root.join("Elsewhere"), sb.bills().join("LinkedOut"))
+            .unwrap();
+        for file in ["dangling-escape.pdf", "LinkedOut/nonexistent.pdf"] {
+            assert_eq!(
+                code(read_bill(
+                    &json!({"source": "bill_folder", "file": file}),
+                    unlocked(),
+                    &sb.folders(),
+                )),
+                "ai-tools.bill-outside-folder",
+                "{file}"
+            );
+        }
+
+        // 4. Symlink whose absolute target traverses a symlinked parent
+        //    directory (simulating macOS `/var -> /private/var`) resolves
+        //    accurately for valid files, wrong-type files, and dangling targets.
+        let alias_root = sb.root.join("AliasRoot");
+        std::os::unix::fs::symlink(sb.bills(), &alias_root).unwrap();
+        sb.write("Bills/notes.txt", b"not a bill");
+        std::os::unix::fs::symlink(
+            alias_root.join("real.pdf"),
+            sb.bills().join("via-alias.pdf"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(
+            alias_root.join("notes.txt"),
+            sb.bills().join("via-alias-txt.pdf"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(
+            alias_root.join("missing.pdf"),
+            sb.bills().join("via-alias-dangling.pdf"),
+        )
+        .unwrap();
+        assert_eq!(
+            code(read_bill(
+                &json!({"source": "bill_folder", "file": "via-alias.pdf"}),
+                unlocked(),
+                &sb.folders(),
+            )),
+            "ok"
+        );
+        assert_eq!(
+            code(read_bill(
+                &json!({"source": "bill_folder", "file": "via-alias-txt.pdf"}),
+                unlocked(),
+                &sb.folders(),
+            )),
+            "ai-tools.bill-type"
+        );
+        assert_eq!(
+            code(read_bill(
+                &json!({"source": "bill_folder", "file": "via-alias-dangling.pdf"}),
+                unlocked(),
+                &sb.folders(),
+            )),
+            "ai-tools.bill-not-found"
+        );
+
+        // 5. FIFO / named pipe inside bill folder refused immediately without blocking.
+        let fifo = sb.bills().join("pipe.pdf");
+        let status = std::process::Command::new("mkfifo").arg(&fifo).status();
+        if status.is_ok_and(|s| s.success()) {
+            assert_eq!(
+                code(read_bill(
+                    &json!({"source": "bill_folder", "file": "pipe.pdf"}),
+                    unlocked(),
+                    &sb.folders(),
+                )),
+                "ai-tools.bill-not-found"
+            );
+        }
+    }
+}
+
+#[test]
+fn b468_multi_frame_tiff_paginates_all_pages() {
+    let sb = Sandbox::new("b468-multipage-tiff");
+    let tiff = synthetic_multipage_tiff(&[
+        (24, 16, [220, 20, 20]), // Page 1: red
+        (24, 16, [20, 220, 20]), // Page 2: green
+        (24, 16, [20, 20, 220]), // Page 3: blue
+    ]);
+    sb.write("Bills/multi-page.tiff", &tiff);
+
+    // Call 1 (page 1): returns pages 1 & 2, with total_pages = 3 and has_more_pages = true.
+    let first = read_bill(
+        &json!({"source": "bill_folder", "file": "multi-page.tiff"}),
+        unlocked(),
+        &sb.folders(),
+    )
+    .expect("tiff page 1-2");
+    assert_eq!(first.mode, ReadBillMode::Image);
+    assert_eq!(first.images.len(), MAX_BILL_PAGES_PER_CALL);
+    assert_eq!(first.output.value["page"], 1);
+    assert_eq!(first.output.value["pages_returned"], 2);
+    assert_eq!(first.output.value["total_pages"], 3);
+    assert_eq!(first.output.value["has_more_pages"], true);
+    assert_eq!(first.images[0].page, 1);
+    assert_eq!(first.images[1].page, 2);
+
+    let p1 = image::load_from_memory(&first.images[0].bytes)
+        .unwrap()
+        .to_rgb8();
+    let p2 = image::load_from_memory(&first.images[1].bytes)
+        .unwrap()
+        .to_rgb8();
+    assert_eq!(*p1.get_pixel(0, 0), Rgb([220, 20, 20]));
+    assert_eq!(*p2.get_pixel(0, 0), Rgb([20, 220, 20]));
+
+    // Call 2 (page 3): returns page 3, has_more_pages = false.
+    let second = read_bill(
+        &json!({"source": "bill_folder", "file": "multi-page.tiff", "page": 3}),
+        unlocked(),
+        &sb.folders(),
+    )
+    .expect("tiff page 3");
+    assert_eq!(second.mode, ReadBillMode::Image);
+    assert_eq!(second.images.len(), 1);
+    assert_eq!(second.images[0].page, 3);
+    assert_eq!(second.output.value["page"], 3);
+    assert_eq!(second.output.value["pages_returned"], 1);
+    assert_eq!(second.output.value["total_pages"], 3);
+    assert_eq!(second.output.value["has_more_pages"], false);
+    let p3 = image::load_from_memory(&second.images[0].bytes)
+        .unwrap()
+        .to_rgb8();
+    assert_eq!(*p3.get_pixel(0, 0), Rgb([20, 20, 220]));
+
+    // Page 4 is out of range (1..=3).
+    let too_high = read_bill(
+        &json!({"source": "bill_folder", "file": "multi-page.tiff", "page": 4}),
+        unlocked(),
+        &sb.folders(),
+    )
+    .unwrap_err();
+    assert_eq!(too_high.report().code, "ai-tools.bad-argument");
+    assert_eq!(too_high.range(), Some((1, 3)));
 }

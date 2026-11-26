@@ -66,6 +66,8 @@ mod note;
 #[cfg(feature = "ai")]
 mod open_page;
 #[cfg(feature = "ai")]
+mod pdf_safety;
+#[cfg(feature = "ai")]
 mod plans;
 #[cfg(feature = "ai")]
 mod read;

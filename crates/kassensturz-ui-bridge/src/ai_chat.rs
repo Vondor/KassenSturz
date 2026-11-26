@@ -190,7 +190,7 @@ impl Hooks for WindowHooks {
             self.screen.reviewing(Review {
                 address: request.address().as_str().to_owned(),
                 model: request.model().to_owned(),
-                body: request.preview().to_owned(),
+                body: request.display_preview(),
                 left_out,
                 summary: Summary::of(request),
                 can_stop_asking: self.can_stop_asking,
@@ -3272,6 +3272,209 @@ mod tests {
         // window says so instead of "The changes were made" (B-284).
         assert!(!moved.made);
         assert_eq!(book.change_to_undo().unwrap().map(|change| change.id), last);
+    }
+
+    /// US10.4 (#1415, D-990, D-997): a bill filed through the built-in chat
+    /// (`inbox` -> `read_bill` -> `propose_changes` -> `confirm_with_bills_in`)
+    /// shows summarized images in `WindowHooks::review`, moves safely into the
+    /// archive, moves back to the inbox on Undo, and files again on Redo.
+    #[test]
+    fn built_in_chat_file_bill_reviews_confirms_and_supports_undo_and_redo() {
+        use std::collections::VecDeque;
+
+        use kassensturz_ai::ScriptedProvider;
+        use kassensturz_ai_tools::Folders;
+        use kassensturz_core::{
+            Account, AccountId, AccountKind, AccountType, CurrencyCode, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_platform::bill_files::{JOURNAL_FILE, Journal, RealDisk};
+        use serde_json::json;
+
+        /// Minimal valid 1x1 RGB PNG (synthetic fixture).
+        const PNG: &[u8] = &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
+            0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00,
+            0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08,
+            0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00, 0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D,
+            0xB0, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+        ];
+
+        fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::hard_link(from, to)?;
+            std::fs::remove_file(from)
+        }
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let checking = Account {
+            id: AccountId::generate(),
+            name: "Checking".into(),
+            kind: AccountKind::Asset,
+            currency: eur,
+            account_type: Some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let groceries = Account {
+            id: AccountId::generate(),
+            name: "Groceries".into(),
+            kind: AccountKind::Expense,
+            account_type: None,
+            ..checking.clone()
+        };
+        book.add_account(&checking).unwrap();
+        book.add_account(&groceries).unwrap();
+        let tx = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 11, 5),
+            Some("Papierladen Nord".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-2_450, eur)),
+                Split::new(groceries.id, Money::from_minor_units(2_450, eur)),
+            ],
+        )
+        .unwrap();
+        book.add_transaction(&tx).unwrap();
+
+        let folder = TestFolder::new();
+        let store = store(&folder);
+        let inbox = folder.join("Inbox");
+        let archive = folder.join("Archive");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::create_dir_all(&archive).unwrap();
+        let bill = inbox.join("RE-0042.png");
+        std::fs::write(&bill, PNG).unwrap();
+
+        let propose_args = json!({
+            "file_bills": [{
+                "transaction_id": tx.id().to_string(),
+                "file": "RE-0042.png",
+                "bill_total": "24.50",
+                "bill_currency": "EUR",
+            }]
+        })
+        .to_string();
+        let steps = Mutex::new(VecDeque::from([
+            json!({"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": null, "tool_calls": [
+                {"id": "c1", "type": "function", "function": {"name": "inbox", "arguments": "{}"}}
+            ]}}]}).to_string(),
+            json!({"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": null, "tool_calls": [
+                {"id": "c2", "type": "function", "function": {"name": "read_bill", "arguments": r#"{"source":"inbox","file":"RE-0042.png"}"#}}
+            ]}}]}).to_string(),
+            json!({"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": null, "tool_calls": [
+                {"id": "c3", "type": "function", "function": {"name": "propose_changes", "arguments": propose_args}}
+            ]}}]}).to_string(),
+            json!({"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": "I prepared filing RE-0042.png for your review."}}]}).to_string(),
+        ]));
+        let provider = ScriptedProvider::new(store.config().clone(), move |_, _| {
+            Ok(steps.lock().unwrap().pop_front().unwrap())
+        });
+
+        let screen = Recorder::default();
+        let (controls, mut hooks) = hooks(Box::new(screen.clone()), true);
+        for _ in 0..4 {
+            controls.command(Command::Send);
+        }
+
+        let mut chat = session().with_folders(Folders {
+            bills: None,
+            inbox: Some(inbox.clone()),
+            archive: Some(archive.clone()),
+        });
+        let mut answer = chat
+            .ask(
+                &book,
+                &provider,
+                None,
+                "Please file the bill in my inbox.",
+                TODAY,
+                &mut hooks,
+            )
+            .unwrap();
+        assert_eq!(answer.changes.len(), 1);
+
+        // Request review showed the readable image summary, not raw base64.
+        let reviews = screen.reviews.lock().unwrap();
+        assert_eq!(reviews.len(), 4);
+        assert!(
+            reviews[2].body.contains("[image: image/png,"),
+            "review body should summarize image: {}",
+            reviews[2].body
+        );
+        assert!(!reviews[2].body.contains("data:image/png;base64,"));
+
+        // Confirm through the shared Filing/Mover path.
+        let disk = RealDisk::new(rename_no_replace as fn(&Path, &Path) -> std::io::Result<()>);
+        let journal = Journal::at(folder.join(JOURNAL_FILE));
+        let filing = Filing {
+            inbox: inbox.clone(),
+            archive: archive.clone(),
+            mover: Mover {
+                disk: &disk,
+                journal: &journal,
+            },
+        };
+        let moved = confirm_with_bills_in(
+            &mut book,
+            answer.changes.remove(0),
+            Permissions::all(),
+            TODAY,
+            Some(&filing),
+        )
+        .unwrap();
+        assert!(moved.made);
+        assert_eq!(moved.moved, 1);
+        assert!(moved.stayed.is_empty());
+        assert!(!bill.exists(), "original removed from inbox after save");
+        let archived = archive
+            .join("Checking")
+            .join("Groceries")
+            .join("261105_RE-0042.png");
+        assert!(archived.exists(), "bill moved into archive");
+        assert_eq!(
+            book.transaction(tx.id()).unwrap().attachments()[0].link,
+            archived.to_string_lossy()
+        );
+
+        // Undo moves the bill back to the inbox and removes the link.
+        let (_, undone) = crate::receipt_moves::step(
+            &mut book,
+            false,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            |book| book.undo().map(|u| u.is_some()),
+        )
+        .map_err(|_| "undo blocked")
+        .unwrap();
+        assert_eq!(undone.moved, 1);
+        assert!(bill.exists() && !archived.exists());
+        assert!(book.transaction(tx.id()).unwrap().attachments().is_empty());
+
+        // Redo moves the bill back into the archive and restores the link.
+        let (_, redone) = crate::receipt_moves::step(
+            &mut book,
+            true,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            |book| book.redo().map(|r| r.is_some()),
+        )
+        .map_err(|_| "redo blocked")
+        .unwrap();
+        assert_eq!(redone.moved, 1);
+        assert!(!bill.exists() && archived.exists());
+        assert_eq!(
+            book.transaction(tx.id()).unwrap().attachments()[0].link,
+            archived.to_string_lossy()
+        );
     }
 
     #[test]

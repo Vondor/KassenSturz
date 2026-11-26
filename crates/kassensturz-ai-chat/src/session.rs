@@ -10,16 +10,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use kassensturz_ai::{
-    AiError, Finish, FunctionSpec, MAX_ANSWER_TOKENS, Message, PreparedRequest, Provider, Role,
-    ToolCall,
+    AiError, Finish, FunctionSpec, ImageAttachment, ImageMediaType, MAX_ANSWER_TOKENS, Message,
+    PreparedRequest, Provider, Role, ToolCall,
 };
 use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
 use kassensturz_ai_tools::{
-    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
-    NoteSuggestion, OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange,
-    SUGGEST_NOTE, ToolError, Unverified, check_numbers, description_titles, draft_issue,
-    label_numbers, open_page_allowed, propose_on, propose_spec, propose_view_spec,
-    propose_view_text, readable_functions, suggest_note, unique_codes, view_choices,
+    BILL_FOLDER, ChangeSet, DRAFT_ISSUE, EditError, Figures, Folders, Function, INBOX,
+    IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER, NoteSuggestion, OPEN_PAGE, PROPOSE_CHANGES,
+    PROPOSE_VIEW_NAME, PageTarget, ProposedChange, READ_BILL, SUGGEST_NOTE, ToolError, Unverified,
+    bill_folder_answer_allowed, check_numbers, description_titles, draft_issue,
+    inbox_answer_allowed, label_numbers, open_page_allowed, prepare_named_with_folders,
+    propose_spec, propose_view_spec, propose_view_text, read_bill, read_bill_allowed,
+    readable_functions, suggest_note, unique_codes, view_choices,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -382,6 +384,9 @@ pub struct ChatSession {
     /// Which changes the model may prepare, fixed for tests; `None` reads
     /// the user's settings for each request (D-239).
     permissions: Option<Permissions>,
+    /// The bill folders on this computer, fixed for tests or handed in by the
+    /// bridge; `None` reads the user's settings for each request (D-990, D-997).
+    folders: Option<Folders>,
     /// The user's notes, fixed for tests; `None` reads the user's settings
     /// for each request (US7, #808).
     notes: Option<String>,
@@ -430,6 +435,7 @@ impl ChatSession {
             debug_log: DebugLog::none(),
             screen: None,
             permissions: None,
+            folders: None,
             notes: None,
             note: None,
             category_question: false,
@@ -461,18 +467,31 @@ impl ChatSession {
         self
     }
 
-    /// Which changes the model may prepare now (D-239). Asked again for
-    /// each request and each call: the user may change it while a
+    /// The conversation with the bill folders fixed to `folders`, instead of
+    /// read from the user's settings for each request (D-990, D-997).
+    #[must_use]
+    pub fn with_folders(mut self, folders: Folders) -> Self {
+        self.folders = Some(folders);
+        self
+    }
+
+    /// Sets the configured bill folders for this conversation (D-990, D-997).
+    pub fn set_folders(&mut self, folders: Folders) {
+        self.folders = Some(folders);
+    }
+
+    /// The configured bill folders now (D-990, D-997). Asked again for each
+    /// request when not fixed: the user may change them while the chat is
+    /// open.
+    fn folders(&self) -> Folders {
+        self.folders.clone().unwrap_or_else(configured_folders)
+    }
+
+    /// Which changes the model may prepare now (D-239, D-990, D-997). Asked
+    /// again for each request and each call: the user may change it while a
     /// question runs.
-    /// Bills are attached only by the user's own AI tools over MCP, which
-    /// read the bill themselves: the chat reads no PDF, so it is never
-    /// offered `attach_bills` (Q-506, D-739), nor `file_bills` from the
-    /// receipt inbox (D-752).
     fn permissions(&self) -> Permissions {
-        self.permissions
-            .unwrap_or_else(ai_switch::permissions)
-            .with(ai_switch::Permission::AttachBills, false)
-            .with(ai_switch::Permission::FileBills, false)
+        self.permissions.unwrap_or_else(ai_switch::permissions)
     }
 
     /// The conversation, writing to `log` while the developer mode is on
@@ -549,6 +568,7 @@ impl ChatSession {
         for message in &mut self.history {
             if message.role == Role::Tool {
                 message.content = SHORTENED_RESULT.to_owned();
+                message.images.clear();
             }
         }
         let start = self.history.len();
@@ -643,6 +663,7 @@ impl ChatSession {
             // or off while a question runs.
             let log_readable = self.log_readable();
             let permissions = self.permissions();
+            let folders = self.folders();
             let notes = self.notes();
             self.figures.add_text(&notes);
             self.said.add_text(&notes);
@@ -663,13 +684,14 @@ impl ChatSession {
                             today,
                             log_readable,
                             permissions,
+                            &folders,
                             language
                         )
                     ),
                     if closing {
                         Vec::new()
                     } else {
-                        function_specs(log_readable, permissions)
+                        function_specs(log_readable, permissions, &folders)
                     },
                 ),
             };
@@ -698,10 +720,12 @@ impl ChatSession {
             {
                 self.history = request.messages()[1..].to_vec();
             }
+            let display_body = request.display_preview();
+            let display_len = display_body.len();
             self.note(
                 LogEntry::Sent {
                     round,
-                    body: request.preview().to_owned(),
+                    body: display_body,
                 },
                 hooks,
             );
@@ -750,7 +774,7 @@ impl ChatSession {
             if offered {
                 self.functions_taken = true;
             }
-            context_cut |= looks_cut(request.preview().len(), reply.prompt_tokens);
+            context_cut |= looks_cut(display_len, reply.prompt_tokens);
             if reply.calls.is_empty() && reply.ignored_calls.is_empty() {
                 // Nothing came back because the context was full: the
                 // request and the answer didn't fit (M5-B33).
@@ -940,14 +964,17 @@ impl ChatSession {
                 )
             })
             .count();
+        let permissions = self.permissions();
+        let folders = self.folders();
         let mut view_refused = false;
+        let mut images: Vec<ImageAttachment> = Vec::new();
         let outcome = if call.name == PROPOSE_VIEW_NAME {
             // The text itself, so a key written twice is seen (D-353).
             // Prepared for the user, never applied here (T-27, T-46).
             if views >= MAX_VIEWS_PER_ANSWER {
                 Err(ToolError::TooManyChanges)
             } else {
-                propose_view_text(book, &call.arguments, self.permissions(), today)
+                propose_view_text(book, &call.arguments, permissions, today)
                     .inspect_err(|_| view_refused = true)
                     .map(|proposal| {
                         self.proposed.push(proposal.changes);
@@ -962,9 +989,45 @@ impl ChatSession {
                 .and_then(|arguments| {
                     if call.name == PROPOSE_CHANGES.name {
                         // Prepared for the user, never applied here (T-27).
-                        propose_on(book, &arguments, self.permissions(), today).map(|proposal| {
-                            self.proposed.push(proposal.changes);
-                            proposal.output
+                        // A bill whose total differs from the bank's starts
+                        // left out for the user to check on purpose (D-751).
+                        prepare_named_with_folders(
+                            book,
+                            PROPOSE_CHANGES.name,
+                            &arguments,
+                            permissions,
+                            today,
+                            &folders,
+                        )
+                        .and_then(|proposal| {
+                            let changes = proposal
+                                .changes
+                                .leave_out_differing_bills(book, permissions)
+                                .map_err(|error| match error {
+                                    EditError::Refused(error) => error,
+                                    _ => ToolError::BadArgument {
+                                        argument: "file_bills",
+                                    },
+                                })?;
+                            self.proposed.push(changes);
+                            Ok(proposal.output)
+                        })
+                    } else if call.name == BILL_FOLDER.name {
+                        bill_folder_answer_allowed(&folders, &arguments, permissions)
+                    } else if call.name == INBOX.name {
+                        inbox_answer_allowed(&folders, &arguments, permissions)
+                    } else if call.name == READ_BILL.name {
+                        // Read-only, path-jailed bill inspection (D-990, D-751).
+                        // Result carries zero authoritative book figures (D-052).
+                        read_bill(&arguments, permissions, &folders).map(|read| {
+                            for image in read.images {
+                                if let Some(media_type) =
+                                    ImageMediaType::from_mime(&image.mime_type)
+                                {
+                                    images.push(ImageAttachment::new(media_type, image.bytes));
+                                }
+                            }
+                            read.output
                         })
                     } else if call.name == DRAFT_ISSUE.name {
                         // Shown to the user, never sent from here (T-33).
@@ -984,12 +1047,10 @@ impl ChatSession {
                     } else if call.name == OPEN_PAGE.name {
                         // Shown to the user when the answer is ready; changes
                         // nothing (T-36).
-                        open_page_allowed(book, &arguments, self.permissions()).map(
-                            |(page, output)| {
-                                self.page = Some(page);
-                                output
-                            },
-                        )
+                        open_page_allowed(book, &arguments, permissions).map(|(page, output)| {
+                            self.page = Some(page);
+                            output
+                        })
                     } else {
                         self.read(book, &call.name, &arguments, today)
                     }
@@ -1045,7 +1106,11 @@ impl ChatSession {
             },
             hooks,
         );
-        Message::tool_result(call.id.clone(), result)
+        if images.is_empty() {
+            Message::tool_result(call.id.clone(), result)
+        } else {
+            Message::tool_result_with_images(call.id.clone(), result, images)
+        }
     }
 
     /// The numbers in the titles of the new charts of `set` that the user
@@ -1209,6 +1274,33 @@ impl ChatSession {
     }
 }
 
+/// The bill folders currently configured in the user's settings (D-990, D-997).
+fn configured_folders() -> Folders {
+    let (inbox, archive) = ai_switch::inbox_folders().unzip();
+    Folders {
+        bills: ai_switch::bill_folder(),
+        inbox,
+        archive,
+    }
+}
+
+/// Permissions masked to the bill folders that are actually configured on this
+/// computer, so `attach_bills` and `file_bills` are only offered in
+/// `propose_changes` when both the permission and the folder(s) are set.
+pub(crate) fn effective_permissions(permissions: Permissions, folders: &Folders) -> Permissions {
+    permissions
+        .with(
+            ai_switch::Permission::AttachBills,
+            permissions.allows(ai_switch::Permission::AttachBills) && folders.bills.is_some(),
+        )
+        .with(
+            ai_switch::Permission::FileBills,
+            permissions.allows(ai_switch::Permission::FileBills)
+                && folders.inbox.is_some()
+                && folders.archive.is_some(),
+        )
+}
+
 /// The first request of a question, as the provider would get it for
 /// `question` asked without any earlier conversation, but with nothing
 /// sent: the screens show it as an example of what a request holds
@@ -1220,8 +1312,9 @@ pub fn sample_request(
     today: Date,
     question: &str,
 ) -> Result<PreparedRequest, AiError> {
-    // As a real question would get it, with the user's permissions now.
+    // As a real question would get it, with the user's permissions and folders now.
     let permissions = ai_switch::permissions();
+    let folders = configured_folders();
     provider.prepare(
         vec![
             Message::system(format!(
@@ -1231,13 +1324,14 @@ pub fn sample_request(
                     today,
                     false,
                     permissions,
+                    &folders,
                     prompt::question_language(question),
                 ),
                 prompt::notes_block(&ai_switch::notes())
             )),
             Message::user(question),
         ],
-        function_specs(false, permissions),
+        function_specs(false, permissions, &folders),
     )
 }
 
@@ -1367,7 +1461,11 @@ fn book_names(book: &Book) -> HashSet<String> {
     names
 }
 
-fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionSpec> {
+fn function_specs(
+    log_readable: bool,
+    permissions: Permissions,
+    folders: &Folders,
+) -> Vec<FunctionSpec> {
     let spec = |function: &Function| FunctionSpec {
         name: function.name.to_owned(),
         description: function.description.to_owned(),
@@ -1375,12 +1473,27 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
             .unwrap_or_else(|_| json!({"type": "object"})),
     };
     let mut specs: Vec<FunctionSpec> = readable_functions(permissions).map(spec).collect();
-    specs.extend(propose_spec(permissions).map(|propose| FunctionSpec {
-        name: propose.name.to_owned(),
-        description: propose.description,
-        parameters:
-            serde_json::from_str(&propose.parameters).unwrap_or_else(|_| json!({"type": "object"})),
-    }));
+    if permissions.allows(ai_switch::Permission::AttachBills) && folders.bills.is_some() {
+        specs.push(spec(&BILL_FOLDER));
+    }
+    if permissions.allows(ai_switch::Permission::FileBills)
+        && folders.inbox.is_some()
+        && folders.archive.is_some()
+    {
+        specs.push(spec(&INBOX));
+    }
+    if read_bill_allowed(permissions, folders) {
+        specs.push(spec(&READ_BILL));
+    }
+    let propose_permissions = effective_permissions(permissions, folders);
+    specs.extend(
+        propose_spec(propose_permissions).map(|propose| FunctionSpec {
+            name: propose.name.to_owned(),
+            description: propose.description,
+            parameters: serde_json::from_str(&propose.parameters)
+                .unwrap_or_else(|_| json!({"type": "object"})),
+        }),
+    );
     specs.extend(propose_view_spec(permissions).map(|view| FunctionSpec {
         name: view.name.to_owned(),
         description: view.description,
@@ -1597,28 +1710,63 @@ mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
 
-    /// The chat reads no bill, so it never attaches one (Q-506, D-739): not
-    /// offered, and refused if a model tries, whatever the user allowed.
+    /// Bill tools (`bill_folder`, `inbox`, `read_bill`, `attach_bills`,
+    /// `file_bills`) are offered in the built-in chat only when BOTH their
+    /// permission is on AND their folder(s) are configured (D-990, D-997).
     #[test]
-    fn the_chat_never_attaches_bills() {
+    fn bill_tools_require_both_permission_and_configured_folders() {
+        let no_folders = Folders::default();
+        let all_folders = Folders {
+            bills: Some(std::path::PathBuf::from("/tmp/bills")),
+            inbox: Some(std::path::PathBuf::from("/tmp/inbox")),
+            archive: Some(std::path::PathBuf::from("/tmp/archive")),
+        };
         let session = ChatSession::new(crate::BuildInfo::new("0.1.0", "abc"))
-            .with_permissions(Permissions::all());
+            .with_permissions(Permissions::all())
+            .with_folders(no_folders.clone());
         let permissions = session.permissions();
-        assert!(!permissions.allows(ai_switch::Permission::AttachBills));
-        assert!(!permissions.allows(ai_switch::Permission::FileBills));
+        assert!(permissions.allows(ai_switch::Permission::AttachBills));
+        assert!(permissions.allows(ai_switch::Permission::FileBills));
         assert!(permissions.allows(ai_switch::Permission::SplitTransactions));
-        let specs = function_specs(false, permissions);
-        assert!(
-            specs
-                .iter()
-                .all(|spec| spec.name != "bill_folder" && spec.name != "inbox")
-        );
+
+        // Permissions on, but no folders configured -> no bill tools offered.
+        let specs = function_specs(false, permissions, &no_folders);
+        assert!(specs.iter().all(|spec| spec.name != "bill_folder"
+            && spec.name != "inbox"
+            && spec.name != "read_bill"));
         let propose = specs
             .iter()
             .find(|spec| spec.name == "propose_changes")
             .expect("offered");
         assert!(!propose.parameters.to_string().contains("attach_bills"));
         assert!(!propose.parameters.to_string().contains("file_bills"));
+
+        // Folders configured, but permissions off -> no bill tools offered.
+        let no_bill_perms = Permissions::all()
+            .with(ai_switch::Permission::AttachBills, false)
+            .with(ai_switch::Permission::FileBills, false);
+        let specs = function_specs(false, no_bill_perms, &all_folders);
+        assert!(specs.iter().all(|spec| spec.name != "bill_folder"
+            && spec.name != "inbox"
+            && spec.name != "read_bill"));
+        let propose = specs
+            .iter()
+            .find(|spec| spec.name == "propose_changes")
+            .expect("offered");
+        assert!(!propose.parameters.to_string().contains("attach_bills"));
+        assert!(!propose.parameters.to_string().contains("file_bills"));
+
+        // Both permissions on AND folders configured -> all bill tools offered.
+        let specs = function_specs(false, permissions, &all_folders);
+        assert!(specs.iter().any(|spec| spec.name == "bill_folder"));
+        assert!(specs.iter().any(|spec| spec.name == "inbox"));
+        assert!(specs.iter().any(|spec| spec.name == "read_bill"));
+        let propose = specs
+            .iter()
+            .find(|spec| spec.name == "propose_changes")
+            .expect("offered");
+        assert!(propose.parameters.to_string().contains("attach_bills"));
+        assert!(propose.parameters.to_string().contains("file_bills"));
     }
 
     #[test]
@@ -1763,23 +1911,44 @@ mod tests {
         let everything = ai_switch::Field::ALL
             .iter()
             .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
-        let specs = function_specs(false, everything);
-        assert_eq!(specs.len(), FUNCTIONS.len() + 5);
-        assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
+        let folders = Folders {
+            bills: Some(std::path::PathBuf::from("/tmp/bills")),
+            inbox: Some(std::path::PathBuf::from("/tmp/inbox")),
+            archive: Some(std::path::PathBuf::from("/tmp/archive")),
+        };
+        let specs = function_specs(false, everything, &folders);
+        let bill_tools = 3; // bill_folder, inbox, read_bill
+        assert_eq!(specs.len(), FUNCTIONS.len() + bill_tools + 5);
+        assert_eq!(specs[FUNCTIONS.len()].name, BILL_FOLDER.name);
+        assert_eq!(specs[FUNCTIONS.len() + 1].name, INBOX.name);
+        assert_eq!(specs[FUNCTIONS.len() + 2].name, READ_BILL.name);
+        assert_eq!(
+            specs[FUNCTIONS.len() + bill_tools].name,
+            PROPOSE_CHANGES.name
+        );
         // A chart has its own function, offered with Charts › Add (D-352).
         let all_specs = specs.clone();
         let mut specs = specs;
-        let view = specs.remove(FUNCTIONS.len() + 1);
+        let view = specs.remove(FUNCTIONS.len() + bill_tools + 1);
         assert_eq!(view.name, PROPOSE_VIEW_NAME);
         assert_eq!(
             view.parameters,
             serde_json::from_str::<Value>(&propose_view_spec(everything).unwrap().parameters)
                 .unwrap()
         );
-        assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
-        assert_eq!(specs[FUNCTIONS.len() + 2].name, OPEN_PAGE.name);
-        assert_eq!(specs[FUNCTIONS.len() + 3].name, SUGGEST_NOTE.name);
+        assert_eq!(
+            specs[FUNCTIONS.len() + bill_tools + 1].name,
+            DRAFT_ISSUE.name
+        );
+        assert_eq!(specs[FUNCTIONS.len() + bill_tools + 2].name, OPEN_PAGE.name);
+        assert_eq!(
+            specs[FUNCTIONS.len() + bill_tools + 3].name,
+            SUGGEST_NOTE.name
+        );
         for (spec, function) in specs.iter().zip(FUNCTIONS.iter().chain([
+            &BILL_FOLDER,
+            &INBOX,
+            &READ_BILL,
             &PROPOSE_CHANGES,
             &DRAFT_ISSUE,
             &OPEN_PAGE,
@@ -1795,7 +1964,7 @@ mod tests {
         }
         // The debug log is offered only while the model may read it, and
         // never in a build without it.
-        let with_log = function_specs(true, everything);
+        let with_log = function_specs(true, everything, &folders);
         #[cfg(feature = "debug-log")]
         {
             assert_eq!(with_log.len(), all_specs.len() + 1);

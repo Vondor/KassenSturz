@@ -121,10 +121,12 @@ ColumnLayout {
             ]
         },
         {
-            // Its own row (D-739): only the user's own AI tools link a bill
-            // from the bill folder, which the user chooses under "Your own
-            // AI tools". Only the link is kept; the file is never touched.
-            // It reads the transactions, so it keeps Transactions › Read on.
+            // Its own row (D-739, D-990, D-997): both the built-in chat and
+            // external AI tools may list and read bills from the bill folder
+            // chosen in AI settings and propose linking them to transactions.
+            // Only the link is kept; files in the bill folder are never moved,
+            // changed or deleted. It reads the transactions, so it keeps
+            // Transactions › Read on.
             name: i18nContext.i18nc("@label a part of the book", "Bills linked to transactions"),
             readRow: "Transactions",
             cells: [
@@ -135,12 +137,12 @@ ColumnLayout {
             ]
         },
         {
-            // Its own row and cell (US7, #333, D-752), so linking a bill
-            // never moves one by accident: the user's own AI tools propose
-            // moving a bill from the inbox into the archive, which
-            // KassenSturz does when the user confirms. A Change: the file
-            // moves. It reads the transactions, so it keeps Transactions ›
-            // Read on.
+            // Its own row and cell (US7, #333, D-752, D-990, D-997), so linking
+            // a bill never moves one by accident: both the built-in chat and
+            // external AI tools may read bills in the inbox and propose moving
+            // them into the archive, which KassenSturz does when the user
+            // confirms. A Change: the file moves. It reads the transactions, so
+            // it keeps Transactions › Read on.
             name: i18nContext.i18nc("@label a part of the book", "Bills filed from the inbox"),
             readRow: "Transactions",
             cells: [
@@ -406,12 +408,12 @@ ColumnLayout {
         text: grid.i18nContext.i18nc("@info", "Danger: the AI can now change your transaction history. A model can misunderstand or make things up, and a wrong entry that you confirm without noticing may stay unnoticed for a long time. You can undo your last steps, but undo does not replace a backup. Save a copy of your book first (Save a copy of my data → The whole book).")
     }
 
-    // The plain warning of D-752: filing moves the user's own files.
+    // The plain warning of D-752, D-990, D-997: filing moves the user's own files.
     Kirigami.InlineMessage {
         Layout.fillWidth: true
         visible: grid.isOn("AllowFileBills", grid.revision)
         type: Kirigami.MessageType.Warning
-        text: grid.i18nContext.i18nc("@info", "Your AI tools can now prepare moving bills from your inbox into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Your own AI tools\" below.")
+        text: grid.i18nContext.i18nc("@info", "The built-in chat and your external AI tools can now read bills in your inbox and prepare moving them into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Inbox and archive for bills\" below.")
     }
 
     // The plain warning of D-709: the AI writes what a custom chart draws.

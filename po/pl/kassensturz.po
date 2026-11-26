@@ -20054,12 +20054,18 @@ msgstr "Folder rachunków"
 
 msgctxt "@info"
 msgid ""
-"Choose a folder where you keep your bills as PDF or picture files. Your AI "
-"tools can then read a bill there themselves, find the payment it belongs to "
-"and suggest linking it to that transaction, if you allow \"Bills linked to "
-"transactions\" above. KassenSturz itself never reads, moves, changes or "
-"deletes these files."
-msgstr "Wybierz folder, w którym przechowujesz rachunki jako pliki PDF lub obrazy. Twoje narzędzia AI mogą wtedy same odczytać tam rachunek, znaleźć płatność, do której należy, i zaproponować połączenie go z tą transakcją, jeśli zezwolisz powyżej na „Rachunki połączone z transakcjami”. Sam KassenSturz nigdy nie odczytuje, nie przenosi, nie zmienia ani nie usuwa tych plików."
+"Choose a folder where you keep your bills as PDF or picture files (PDF, PNG, "
+"JPEG or TIFF). Both the built-in chat and your external AI tools can read "
+"bills there, find the payment a bill belongs to and suggest linking it to "
+"that transaction, if you allow \"Bills linked to transactions\" above. "
+"KassenSturz never moves, changes or deletes files in this folder."
+msgstr ""
+"Wybierz folder, w którym przechowujesz rachunki jako pliki PDF lub obrazy "
+"(PDF, PNG, JPEG lub TIFF). Zarówno wbudowany czat, jak i Twoje zewnętrzne "
+"narzędzia AI mogą odczytywać tam rachunki, znaleźć płatność, do której należy "
+"rachunek, i zaproponować połączenie go z tą transakcją, jeśli zezwolisz "
+"powyżej na „Rachunki połączone z transakcjami”. KassenSturz nigdy nie "
+"przenosi, nie zmienia ani nie usuwa plików w tym folderze."
 
 msgctxt "@info no bill folder is chosen"
 msgid "No folder chosen."
@@ -22712,11 +22718,11 @@ msgctxt "@info"
 msgid "it isn't in the inbox any more"
 msgstr "nie ma go już w skrzynce"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:393
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:410
 #, kde-format
 msgctxt "@info"
-msgid "no inbox and archive are chosen under Your own AI tools"
-msgstr "nie wybrano skrzynki i archiwum w „Twoich własnych narzędziach AI”"
+msgid "no inbox and archive are chosen in AI settings"
+msgstr "nie wybrano skrzynki i archiwum w ustawieniach AI"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:395
 #, kde-format
@@ -22847,11 +22853,11 @@ msgctxt "@label a part of the book"
 msgid "Bills filed from the inbox"
 msgstr "Rachunki odłożone ze skrzynki"
 
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:380
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:416
 #, kde-format
 msgctxt "@info"
-msgid "Your AI tools can now prepare moving bills from your inbox into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Your own AI tools\" below."
-msgstr "Twoje narzędzia AI mogą teraz przygotowywać przenoszenie rachunków z Twojej skrzynki do archiwum. Nic się nie przenosi, dopóki nie potwierdzisz. Każdy plik jest najpierw kopiowany i sprawdzany, a ze skrzynki usuwany dopiero po zapisaniu Twojej księgi, a „Cofnij” przenosi go z powrotem. Wybierz oba foldery poniżej w „Twoich własnych narzędziach AI”."
+msgid "The built-in chat and your external AI tools can now read bills in your inbox and prepare moving them into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Inbox and archive for bills\" below."
+msgstr "Wbudowany czat i Twoje zewnętrzne narzędzia AI mogą teraz odczytywać rachunki w Twojej skrzynce i przygotowywać ich przeniesienie do archiwum. Nic się nie przenosi, dopóki nie potwierdzisz. Każdy plik jest najpierw kopiowany i sprawdzany, a ze skrzynki usuwany dopiero po zapisaniu Twojej księgi, a „Cofnij” przenosi go z powrotem. Wybierz oba foldery poniżej w „Skrzynka i archiwum na rachunki”."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:816
 #, kde-format
@@ -22859,11 +22865,11 @@ msgctxt "@title:group"
 msgid "Inbox and archive for bills"
 msgstr "Skrzynka i archiwum na rachunki"
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:823
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1200
 #, kde-format
 msgctxt "@info"
-msgid "Drop bills into the inbox. Your AI reads them, and when you confirm, KassenSturz moves each one into the archive, sorted by account and category. Undo puts it back. This needs \"Bills filed from the inbox\" above."
-msgstr "Wrzucaj rachunki do skrzynki. Twoje AI je odczytuje, a gdy potwierdzisz, KassenSturz przenosi każdy z nich do archiwum, posortowany według konta i kategorii. „Cofnij” go przywraca. Wymaga to powyższej opcji „Rachunki odłożone ze skrzynki”."
+msgid "Drop bills into the inbox. Both the built-in chat and your external AI tools can read them and propose filing them. When you confirm, KassenSturz moves each one into the archive, sorted by account and category, and Undo puts it back. This needs \"Bills filed from the inbox\" above."
+msgstr "Wrzucaj rachunki do skrzynki. Zarówno wbudowany czat, jak i Twoje zewnętrzne narzędzia AI mogą je odczytywać i proponować ich odłożenie. Gdy potwierdzisz, KassenSturz przenosi każdy z nich do archiwum, posortowany według konta i kategorii, a „Cofnij” go przywraca. Wymaga to powyższej opcji „Rachunki odłożone ze skrzynki”."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:830
 #, kde-format

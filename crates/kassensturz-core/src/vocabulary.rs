@@ -32,6 +32,7 @@ pub const DETAILS: &[&str] = &[
     "server_info",
     "bill_folder",
     "inbox",
+    "read_bill",
     "draft_issue",
     "open_page",
     "suggest_note",

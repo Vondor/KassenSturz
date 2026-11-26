@@ -1027,6 +1027,28 @@ mod tests {
                 assert_eq!(tool.input_schema.get("type"), Some(&Value::from("object")));
             }
         }
+        assert!(kassensturz_core::vocabulary::known_detail(READ_BILL.name).is_some());
+    }
+
+    /// Each offered tool's name (including folder-gated bill tools when
+    /// configured and allowed) can be a detail of the debug log (D-173).
+    #[test]
+    fn every_tool_is_in_the_vocabulary() {
+        let all_tools = super::tools(
+            Permissions::all(),
+            Some(Permissions::all()),
+            true,
+            true,
+            true,
+        );
+        assert!(all_tools.iter().any(|tool| tool.name == READ_BILL.name));
+        for tool in &all_tools {
+            assert!(
+                kassensturz_core::vocabulary::known_detail(&tool.name).is_some(),
+                "{}",
+                tool.name
+            );
+        }
     }
 
     #[test]
@@ -1062,14 +1084,6 @@ mod tests {
         }
         #[cfg(not(feature = "debug-log"))]
         assert_eq!(with_log, with_writes);
-        // Each tool's name can be a detail of the debug log (D-173).
-        for tool in &with_log {
-            assert!(
-                kassensturz_core::vocabulary::known_detail(&tool.name).is_some(),
-                "{}",
-                tool.name
-            );
-        }
         let tools = super::tools(Permissions::all(), None, true, false, false);
         for tool in &tools {
             let annotations = tool.annotations.as_ref().expect("annotated");

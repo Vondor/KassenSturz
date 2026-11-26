@@ -439,6 +439,7 @@ pub(crate) mod engine {
             ("model", text(&review.model)),
             ("body", text(&review.body)),
             ("leftOut", whole(review.left_out)),
+            ("error", text(review.error.unwrap_or_default())),
             // What the request holds, for the short summary (D-935).
             ("questions", whole(review.summary.questions)),
             ("bookAnswers", whole(review.summary.book_answers)),
@@ -1178,7 +1179,6 @@ pub(crate) mod engine {
         };
         let mut conversation = earlier.unwrap_or_else(new_conversation);
         conversation.set_screen(crate::developer_mode::current_screen());
-        conversation.set_folders(configured_folders());
         chat.as_mut().busy_changed();
         let thread = chat.qt_thread();
         std::thread::spawn(move || {
@@ -1212,11 +1212,11 @@ pub(crate) mod engine {
     }
 
     /// A new conversation in this build, writing to the developer mode's
-    /// log while it runs (D-227).
+    /// log while it runs (D-227). Leaves `folders` unset so `ChatSession`
+    /// re-reads live settings between tool rounds.
     fn new_conversation() -> ChatSession {
         let conversation =
-            ChatSession::new(BuildInfo::new(app_version(), ai_settings::build_commit()))
-                .with_folders(configured_folders());
+            ChatSession::new(BuildInfo::new(app_version(), ai_settings::build_commit()));
         #[cfg(feature = "debug-log")]
         let conversation = conversation.with_debug_log(crate::developer_mode::log().clone());
         conversation
@@ -1901,6 +1901,7 @@ mod tests {
                 functions: 12,
             },
             can_stop_asking: true,
+            error: None,
         });
         assert_eq!(
             keys(&request),
@@ -1909,6 +1910,7 @@ mod tests {
                 "body",
                 "bookAnswers",
                 "canStopAsking",
+                "error",
                 "functions",
                 "leftOut",
                 "model",
@@ -1919,10 +1921,22 @@ mod tests {
         assert_eq!(text_of(&request, "model"), "big");
         assert_eq!(text_of(&request, "body"), "{\"messages\":[]}");
         assert_eq!(number_of(&request, "leftOut"), 2);
+        assert_eq!(text_of(&request, "error"), "");
         assert_eq!(number_of(&request, "questions"), 3);
         assert_eq!(number_of(&request, "bookAnswers"), 4);
         assert_eq!(number_of(&request, "functions"), 12);
         assert!(flag_of(&request, "canStopAsking"));
+
+        let failed = review_object(&Review {
+            address: "https://api.example.com/v1".into(),
+            model: "big".into(),
+            body: "{\"messages\":[]}".into(),
+            left_out: 0,
+            summary: Summary::default(),
+            can_stop_asking: false,
+            error: Some("ai.request-too-large"),
+        });
+        assert_eq!(text_of(&failed, "error"), "ai.request-too-large");
     }
 
     #[test]

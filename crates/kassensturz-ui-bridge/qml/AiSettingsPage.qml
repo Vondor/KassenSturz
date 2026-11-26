@@ -1153,12 +1153,20 @@ Kirigami.ScrollablePage {
             id: billFolderPath
 
             property string folder: page.settings.billFolder()
+            property string refused: ""
 
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             font.italic: folder === ""
             text: folder !== "" ? folder : page.i18nContext.i18nc("@info no bill folder is chosen", "No folder chosen.")
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Error
+            visible: billFolderPath.refused !== ""
+            text: billFolderPath.refused !== "" ? Plain.plain(page.folderReasonFor(billFolderPath.refused)) : ""
         }
 
         RowLayout {
@@ -1178,6 +1186,7 @@ Kirigami.ScrollablePage {
                 onClicked: {
                     ActionLog.taken("AiSettingsPage_removeBillFolder")
                     page.notWritten = !page.settings.removeBillFolder();
+                    billFolderPath.refused = "";
                     billFolderPath.folder = page.settings.billFolder();
                 }
             }
@@ -1223,19 +1232,6 @@ Kirigami.ScrollablePage {
 
                 Layout.fillWidth: true
 
-                function reasonFor(code: string): string {
-                    switch (code) {
-                    case "settings.inbox-archive-nested":
-                        return page.i18nContext.i18nc("@info", "The inbox and the archive must be two separate folders, neither inside the other, and not KassenSturz's own folder or your book's folder. Please choose another folder.");
-                    case "folder.too-broad":
-                        return page.i18nContext.i18nc("@info", "Please choose a folder inside your home folder, for example one just for your bills.");
-                    case "settings.not-written":
-                        return page.i18nContext.i18nc("@info", "The setting couldn't be saved. Check that your settings folder can be written to, then try again.");
-                    default:
-                        return page.i18nContext.i18nc("@info", "KassenSturz can't use this folder. Please choose another one.");
-                    }
-                }
-
                 Controls.Label {
                     Layout.fillWidth: true
                     font.bold: true
@@ -1255,7 +1251,7 @@ Kirigami.ScrollablePage {
                     Layout.fillWidth: true
                     type: Kirigami.MessageType.Error
                     visible: receiptRow.refused !== ""
-                    text: receiptRow.refused !== "" ? Plain.plain(receiptRow.reasonFor(receiptRow.refused)) : ""
+                    text: receiptRow.refused !== "" ? Plain.plain(page.folderReasonFor(receiptRow.refused)) : ""
                 }
 
                 RowLayout {
@@ -1297,6 +1293,19 @@ Kirigami.ScrollablePage {
         }
     }
 
+    function folderReasonFor(code: string): string {
+        switch (code) {
+        case "settings.inbox-archive-nested":
+            return page.i18nContext.i18nc("@info", "The inbox and the archive must be two separate folders, neither inside the other, and not KassenSturz's own folder or your book's folder. Please choose another folder.");
+        case "folder.too-broad":
+            return page.i18nContext.i18nc("@info", "Please choose a folder inside your home folder, for example one just for your bills.");
+        case "settings.not-written":
+            return page.i18nContext.i18nc("@info", "The setting couldn't be saved. Check that your settings folder can be written to, then try again.");
+        default:
+            return page.i18nContext.i18nc("@info", "KassenSturz can't use this folder. Please choose another one.");
+        }
+    }
+
     // The system's folder chooser: in the Flatpak the file chooser portal,
     // which grants the app this one folder (D-739).
     Dialogs.FolderDialog {
@@ -1305,7 +1314,7 @@ Kirigami.ScrollablePage {
         title: page.i18nContext.i18nc("@title:window", "Choose your bill folder")
         onAccepted: {
             ActionLog.taken("AiSettingsPage_billFolderChosen")
-            page.notWritten = !page.settings.setBillFolder(selectedFolder);
+            billFolderPath.refused = page.settings.setBillFolder(selectedFolder);
             billFolderPath.folder = page.settings.billFolder();
         }
     }

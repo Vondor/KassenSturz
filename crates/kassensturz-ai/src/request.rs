@@ -133,10 +133,11 @@ impl PreparedRequest {
             }
         };
         // Indented, so the preview is readable; it is still the body sent.
-        self.body = serde_json::to_string_pretty(&body).map_err(|_| AiError::BadReply)?;
-        if self.body.len() > max_bytes {
+        let next_body = serde_json::to_string_pretty(&body).map_err(|_| AiError::BadReply)?;
+        if next_body.len() > max_bytes {
             return Err(AiError::RequestTooLarge);
         }
+        self.body = next_body;
         Ok(())
     }
 
@@ -224,6 +225,8 @@ impl PreparedRequest {
         if phrase.trim().is_empty() {
             return Ok(0);
         }
+        let prev_messages = self.messages.clone();
+        let prev_redacted = self.redacted.clone();
         if !self.redacted.iter().any(|existing| existing == phrase) {
             self.redacted.push(phrase.to_owned());
         }
@@ -242,8 +245,12 @@ impl PreparedRequest {
                 count += redact_json_text(&mut call.arguments, phrase);
             }
         }
-        if count > 0 {
-            self.build()?;
+        if count > 0
+            && let Err(error) = self.build()
+        {
+            self.messages = prev_messages;
+            self.redacted = prev_redacted;
+            return Err(error);
         }
         Ok(count)
     }
@@ -549,5 +556,60 @@ mod tests {
             None,
         );
         assert_eq!(huge_text_with_image, Err(AiError::RequestTooLarge));
+    }
+
+    #[test]
+    fn redaction_overflow_rolls_back_text_request_cleanly() {
+        // Case 1: redacting a 1-char token pushes text_bytes past MAX_REQUEST_BYTES.
+        let mut big_text = request(vec![Message::user("a".repeat(MAX_REQUEST_BYTES - 1024))]);
+        let before_body = big_text.preview().to_owned();
+        let before_messages = big_text.messages().to_vec();
+        assert_eq!(big_text.redact("a"), Err(AiError::RequestTooLarge));
+        assert_eq!(big_text.preview(), before_body);
+        assert!(big_text.preview().len() <= MAX_REQUEST_BYTES);
+        assert_eq!(big_text.messages(), before_messages.as_slice());
+        assert!(big_text.redacted_phrases().is_empty());
+
+        // Case 2: text_bytes stays <= MAX_REQUEST_BYTES after redaction, but
+        // the pretty-printed JSON body exceeds MAX_REQUEST_BYTES.
+        let base = request(vec![Message::user("b")]);
+        let overhead = base.preview().len() - 1;
+        // Leave 12 bytes of JSON headroom: replacing 2 occurrences of "xy"
+        // (4 bytes) with "[redacted]" (20 bytes) grows by +16 bytes, crossing
+        // MAX_REQUEST_BYTES while raw text_bytes stays below MAX_REQUEST_BYTES.
+        let pad_len = MAX_REQUEST_BYTES - overhead - 12 - 4;
+        let content = format!("{}xyxy", "z".repeat(pad_len));
+        let mut near_json_limit = request(vec![Message::user(content)]);
+        assert!(near_json_limit.preview().len() <= MAX_REQUEST_BYTES);
+        let before_body = near_json_limit.preview().to_owned();
+        let before_messages = near_json_limit.messages().to_vec();
+        assert_eq!(near_json_limit.redact("xy"), Err(AiError::RequestTooLarge));
+        assert_eq!(near_json_limit.preview(), before_body);
+        assert!(near_json_limit.preview().len() <= MAX_REQUEST_BYTES);
+        assert_eq!(near_json_limit.messages(), before_messages.as_slice());
+        assert!(near_json_limit.redacted_phrases().is_empty());
+    }
+
+    #[test]
+    fn redaction_overflow_rolls_back_multimodal_request_cleanly() {
+        // Fill close to MAX_MULTIMODAL_REQUEST_BYTES using a valid image plus
+        // text containing a 2-char token whose expansion overflows the limit.
+        let image = ImageAttachment::png(vec![0xAB; 4 * 1024 * 1024]);
+        let probe = request(vec![Message::user_with_images("z", vec![image.clone()])]);
+        let headroom = MAX_MULTIMODAL_REQUEST_BYTES - probe.preview().len();
+        // Keep a few bytes of headroom so the initial request fits, while
+        // replacing two "xy" tokens (+16 bytes) exceeds MAX_MULTIMODAL_REQUEST_BYTES.
+        let pad_len = headroom - 8;
+        let content = format!("{}xyxy", "z".repeat(pad_len.saturating_sub(3)));
+        let mut multimodal = request(vec![Message::user_with_images(content, vec![image])]);
+        assert!(multimodal.preview().len() <= MAX_MULTIMODAL_REQUEST_BYTES);
+        let before_body = multimodal.preview().to_owned();
+        let before_messages = multimodal.messages().to_vec();
+
+        assert_eq!(multimodal.redact("xy"), Err(AiError::RequestTooLarge));
+        assert_eq!(multimodal.preview(), before_body);
+        assert!(multimodal.preview().len() <= MAX_MULTIMODAL_REQUEST_BYTES);
+        assert_eq!(multimodal.messages(), before_messages.as_slice());
+        assert!(multimodal.redacted_phrases().is_empty());
     }
 }

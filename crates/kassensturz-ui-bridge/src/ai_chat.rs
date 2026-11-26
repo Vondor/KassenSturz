@@ -31,7 +31,7 @@ use kassensturz_ai_tools::{
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::receipt_inbox::{ArchivePlace, PlaceError, free_file_name};
 use kassensturz_core::{
-    AccountKind, BudgetEvery, Date, ErrorParam, ErrorReport, MatchMode, Money, Rule,
+    AccountKind, BudgetEvery, Date, ErrorParam, ErrorReport, MatchMode, Money, Report, Rule,
 };
 use kassensturz_platform::Secret;
 use kassensturz_platform::bill_files::{Direction, Disk, Fingerprint, tidy_archive};
@@ -80,6 +80,9 @@ pub struct Review {
     /// not for the fake model, which stands for a provider on another
     /// computer only to try the look (D-935).
     pub can_stop_asking: bool,
+    /// The error code when leaving a phrase out failed (for example
+    /// `ai.request-too-large`, B-462); `None` when the request may be sent.
+    pub error: Option<&'static str>,
 }
 
 /// What a request holds, counted from the messages that are sent (D-935).
@@ -186,6 +189,7 @@ impl Hooks for WindowHooks {
             return true;
         }
         let mut left_out = 0;
+        let mut redaction_error: Option<&'static str> = None;
         loop {
             self.screen.reviewing(Review {
                 address: request.address().as_str().to_owned(),
@@ -194,19 +198,43 @@ impl Hooks for WindowHooks {
                 left_out,
                 summary: Summary::of(request),
                 can_stop_asking: self.can_stop_asking,
+                error: redaction_error,
             });
             // A closed window or a question given up on drops the sender.
             match self.commands.recv() {
-                Ok(Command::Send) => return !self.cancel.is_cancelled(),
+                Ok(Command::Send) => {
+                    if self.cancel.is_cancelled() {
+                        return false;
+                    }
+                    // Never send a request after a failed redaction until a
+                    // redaction succeeds or the user stops the question (B-462).
+                    if redaction_error.is_none() {
+                        return true;
+                    }
+                }
                 Ok(Command::SendAndStopAsking) => {
-                    // The rest of this question goes without being shown:
-                    // the user said so for this provider (D-935).
-                    self.ask_first = false;
-                    return !self.cancel.is_cancelled();
+                    if self.cancel.is_cancelled() {
+                        return false;
+                    }
+                    if redaction_error.is_none() {
+                        // The rest of this question goes without being shown:
+                        // the user said so for this provider (D-935).
+                        self.ask_first = false;
+                        return true;
+                    }
                 }
-                Ok(Command::LeaveOut(phrase)) => {
-                    left_out = request.redact(&phrase).unwrap_or(0);
-                }
+                Ok(Command::LeaveOut(phrase)) => match request.redact(&phrase) {
+                    Ok(count) => {
+                        left_out = count;
+                        if count > 0 {
+                            redaction_error = None;
+                        }
+                    }
+                    Err(error) => {
+                        left_out = 0;
+                        redaction_error = Some(error.report().code);
+                    }
+                },
                 Ok(Command::Stop) | Err(_) => return false,
             }
         }
@@ -1921,17 +1949,29 @@ pub fn confirm_with_bills_in(
 
 /// `to` once its folder is made and lies inside the archive, its links
 /// resolved (§5): a link inside the archive named like an account can't
-/// lead a bill out of it.
+/// lead a bill out of it, and is refused before creating any directory
+/// through it.
 fn inside_archive(
     disk: &dyn Disk,
     archive: Option<&Path>,
     to: PathBuf,
 ) -> Result<PathBuf, &'static str> {
     let archive = archive.ok_or("archive-gone")?;
+    if to.to_str().is_none() {
+        return Err("outside");
+    }
     let folder = to.parent().ok_or("outside")?;
+    let existing = folder
+        .ancestors()
+        .find(|ancestor| std::fs::symlink_metadata(ancestor).is_ok())
+        .ok_or("archive-gone")?;
+    let existing_real = std::fs::canonicalize(existing).map_err(|_| "outside")?;
+    if !existing_real.starts_with(archive) {
+        return Err("outside");
+    }
     disk.make_folders(folder).map_err(|_| "archive-gone")?;
     let real = std::fs::canonicalize(folder).map_err(|_| "archive-gone")?;
-    if !real.starts_with(archive) || to.to_str().is_none() {
+    if !real.starts_with(archive) {
         tidy_archive(disk, &to);
         return Err("outside");
     }
@@ -1944,7 +1984,6 @@ mod tests {
 
     use kassensturz_ai::{KeyUse, ProviderSettings};
     use kassensturz_ai_chat::{BuildInfo, DEMO_CATEGORY, Mode};
-    use kassensturz_core::Report;
     use kassensturz_store::Action;
 
     use super::*;
@@ -3516,5 +3555,107 @@ mod tests {
         );
         assert_eq!(text.code, "ai.provider-failed");
         assert_eq!(text.params, [("status", "500".to_owned())]);
+    }
+
+    /// B-462 (#1430): when redacting a phrase fails with `RequestTooLarge`,
+    /// `WindowHooks::review` reports `ai.request-too-large`, refuses `Send`
+    /// and `SendAndStopAsking` so the unredacted request cannot slip through,
+    /// and keeps the request body rolled back and within the size limit.
+    #[test]
+    fn a_failed_redaction_blocks_sending_and_reports_the_error() {
+        use kassensturz_ai::{MAX_REQUEST_BYTES, Message, Provider, ScriptedProvider};
+
+        let folder = TestFolder::new();
+        let store = store(&folder);
+        let provider = ScriptedProvider::new(store.config().clone(), |_, _| Ok(String::new()));
+        let content = format!("SECRET_PAYEE {}", "a".repeat(MAX_REQUEST_BYTES - 1024));
+        let mut request = provider
+            .prepare(vec![Message::user(content)], Vec::new())
+            .unwrap();
+        let before_body = request.preview().to_owned();
+
+        let screen = Recorder::default();
+        let (controls, hooks) = hooks(Box::new(screen.clone()), true);
+        let mut hooks = hooks.offering_to_stop_asking();
+        controls.command(Command::LeaveOut("a".into()));
+        controls.command(Command::Send);
+        controls.command(Command::SendAndStopAsking);
+        controls.command(Command::LeaveOut("not-present".into()));
+        controls.command(Command::Send);
+        controls.command(Command::Stop);
+
+        assert!(
+            !hooks.review(&mut request),
+            "unredacted request must not be sent after failed redaction"
+        );
+        assert_eq!(request.preview(), before_body);
+        assert!(request.preview().len() <= MAX_REQUEST_BYTES);
+        let reviews = screen.reviews.lock().unwrap();
+        assert_eq!(reviews.len(), 6);
+        assert_eq!(reviews[0].error, None);
+        for review in &reviews[1..] {
+            assert_eq!(review.error, Some("ai.request-too-large"));
+            assert_eq!(review.left_out, 0);
+        }
+
+        // A subsequent valid redaction resolves the error and lets the user
+        // send the redacted request.
+        let screen = Recorder::default();
+        let (controls, mut hooks) = super::hooks(Box::new(screen.clone()), true);
+        controls.command(Command::LeaveOut("a".into()));
+        controls.command(Command::LeaveOut("SECRET_PAYEE".into()));
+        controls.command(Command::Send);
+
+        assert!(hooks.review(&mut request));
+        assert!(!request.preview().contains("SECRET_PAYEE"));
+        let reviews = screen.reviews.lock().unwrap();
+        assert_eq!(reviews.len(), 3);
+        assert_eq!(reviews[1].error, Some("ai.request-too-large"));
+        assert_eq!(reviews[2].error, None);
+        assert_eq!(reviews[2].left_out, 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn inside_archive_refuses_escaping_symlink_before_making_folders() {
+        use kassensturz_platform::bill_files::RealDisk;
+
+        fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::hard_link(from, to)?;
+            std::fs::remove_file(from)
+        }
+
+        let folder = TestFolder::new();
+        let archive = folder.join("Archive");
+        let outside = folder.join("Outside");
+        std::fs::create_dir_all(&archive).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        let canonical_archive = std::fs::canonicalize(&archive).unwrap();
+
+        let escape_link = archive.join("Checking");
+        std::os::unix::fs::symlink(&outside, &escape_link).unwrap();
+        let disk = RealDisk::new(rename);
+
+        let target = escape_link.join("Groceries").join("261105_bill.pdf");
+        assert_eq!(
+            inside_archive(&disk, Some(&canonical_archive), target),
+            Err("outside")
+        );
+        assert!(
+            !outside.join("Groceries").exists(),
+            "no directory may be created outside the archive through an escaping symlink"
+        );
+
+        // A dangling symlink inside the archive is also refused without
+        // creating directories.
+        let dangling_link = archive.join("Savings");
+        let missing_outside = outside.join("Missing");
+        std::os::unix::fs::symlink(&missing_outside, &dangling_link).unwrap();
+        let dangling_target = dangling_link.join("Groceries").join("261105_bill.pdf");
+        assert_eq!(
+            inside_archive(&disk, Some(&canonical_archive), dangling_target),
+            Err("outside")
+        );
+        assert!(!missing_outside.exists());
     }
 }

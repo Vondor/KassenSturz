@@ -165,8 +165,20 @@ Kirigami.ApplicationWindow {
                 shown.customFooterActions[0].trigger();
                 break;
             }
-            default:
+            case 10:
                 window.check(chat.reviewAnswers[chat.reviewAnswers.length - 1] === "send", "an unticked box is a plain send: " + JSON.stringify(chat.reviewAnswers));
+                // A failed redaction reports the error and disables Send (B-462).
+                review.show({address: "https://ai.example.org/v1", model: "example-model", body: "{}", leftOut: 0, error: "ai.request-too-large"});
+                break;
+            case 11: {
+                const errorBanner = window.find(shown, "reviewError");
+                window.check(shown.visible && !shown.customFooterActions[0].enabled, "Send is disabled after a failed redaction");
+                window.check(errorBanner !== null && errorBanner.visible, "the redaction error is shown");
+                shown.customFooterActions[1].trigger();
+                break;
+            }
+            default:
+                window.check(!shown.visible && chat.reviewAnswers[chat.reviewAnswers.length - 1] === "stop", "Don't send stops after a failed redaction: " + JSON.stringify(chat.reviewAnswers));
                 Qt.exit(window.failed ? 1 : 0);
             }
             window.step += 1;

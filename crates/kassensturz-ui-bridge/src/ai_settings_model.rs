@@ -242,11 +242,12 @@ pub mod qobject {
         fn bill_folder(self: &AiSettings) -> QString;
 
         /// Keeps the folder the chooser returned as `folder` as the bill
-        /// folder. Returns whether that was saved; a URL that is not a
-        /// local folder is not.
+        /// folder. Returns an empty text when it is saved, or the code of why
+        /// not: `folder.too-broad`, `folder.not-usable` or
+        /// `settings.not-written` (B-465).
         #[qinvokable]
         #[cxx_name = "setBillFolder"]
-        fn set_bill_folder(self: &AiSettings, folder: &QUrl) -> bool;
+        fn set_bill_folder(self: &AiSettings, folder: &QUrl) -> QString;
 
         /// Forgets the bill folder. The bills and the links to them stay.
         /// Returns whether that was saved.
@@ -912,22 +913,17 @@ impl qobject::AiSettings {
         QString::from(bill_folder_in(&crate::settings::Settings::user()).as_str())
     }
 
-    fn set_bill_folder(&self, folder: &QUrl) -> bool {
-        crate::book_session::local_path(folder).is_some_and(|path| {
-            // Shown by its real path where the system says it (B-267).
-            let shown = crate::platform::choose_folder(&path, false)
-                .map(|grant| grant.shown_as)
-                .unwrap_or_default();
-            path.is_absolute()
-                && path.is_dir()
-                && path.to_str().is_some_and(|path| {
-                    keep_bill_folder(&crate::settings::Settings::user(), path, &shown)
-                })
-        })
+    fn set_bill_folder(&self, folder: &QUrl) -> QString {
+        let code = choose_and_keep_bill_folder(
+            &crate::settings::Settings::user(),
+            crate::book_session::local_path(folder).as_deref(),
+            &own_folders(),
+        );
+        QString::from(code)
     }
 
     fn remove_bill_folder(&self) -> bool {
-        keep_bill_folder(&crate::settings::Settings::user(), "", "")
+        forget_bill_folder(&crate::settings::Settings::user())
     }
 
     fn receipt_folder(&self, which: &QString) -> QString {
@@ -941,23 +937,12 @@ impl qobject::AiSettings {
             None => "folder.not-usable",
             Some(path) => match crate::platform::choose_folder(&path, false) {
                 Err(refused) => refused.code(),
-                Ok(grant) => {
-                    let book = crate::session::path();
-                    let own: Vec<std::path::PathBuf> = crate::platform::app_folder()
-                        .into_iter()
-                        .chain(
-                            book.as_deref()
-                                .and_then(std::path::Path::parent)
-                                .map(Into::into),
-                        )
-                        .collect();
-                    keep_receipt_folder(
-                        &crate::settings::Settings::user(),
-                        &which.to_string(),
-                        &grant,
-                        &own,
-                    )
-                }
+                Ok(grant) => keep_receipt_folder(
+                    &crate::settings::Settings::user(),
+                    &which.to_string(),
+                    &grant,
+                    &own_folders(),
+                ),
             },
         };
         QString::from(code)
@@ -1400,6 +1385,20 @@ fn shown_or_path(settings: &crate::settings::Settings, key: &str, shown_key: &st
     }
 }
 
+/// KassenSturz's own folders that must not be chosen as a bill, inbox or
+/// archive folder: the app's data folder and the open book's folder.
+fn own_folders() -> Vec<std::path::PathBuf> {
+    let book = crate::session::path();
+    crate::platform::app_folder()
+        .into_iter()
+        .chain(
+            book.as_deref()
+                .and_then(std::path::Path::parent)
+                .map(Into::into),
+        )
+        .collect()
+}
+
 /// Keeps `path` as the bill folder in `settings`, or none for an empty
 /// one, shown as `shown` (display text only, empty: as its path). Returns
 /// whether that was saved.
@@ -1414,6 +1413,73 @@ fn keep_bill_folder(settings: &crate::settings::Settings, path: &str, shown: &st
 #[cfg(not(feature = "ai"))]
 fn keep_bill_folder(_settings: &crate::settings::Settings, _path: &str, _shown: &str) -> bool {
     false
+}
+
+/// Forgets the bill folder in `settings`.
+fn forget_bill_folder(settings: &crate::settings::Settings) -> bool {
+    keep_bill_folder(settings, "", "")
+}
+
+/// Validates and saves `path` as the bill folder in `settings` (B-465):
+/// refuses overly broad folders (`$HOME`, `/`), non-folders, and KassenSturz's
+/// `own` folders (app folder and open book's folder), with links resolved.
+/// Returns an empty code when saved.
+#[cfg(feature = "ai")]
+fn choose_and_keep_bill_folder(
+    settings: &crate::settings::Settings,
+    path: Option<&std::path::Path>,
+    own: &[std::path::PathBuf],
+) -> &'static str {
+    let Some(path) = path else {
+        return "folder.not-usable";
+    };
+    let grant = match crate::platform::choose_folder(path, false) {
+        Err(refused) => return refused.code(),
+        Ok(grant) => grant,
+    };
+    keep_bill_folder_grant(settings, &grant, own)
+}
+
+#[cfg(not(feature = "ai"))]
+fn choose_and_keep_bill_folder(
+    _settings: &crate::settings::Settings,
+    _path: Option<&std::path::Path>,
+    _own: &[std::path::PathBuf],
+) -> &'static str {
+    "settings.not-written"
+}
+
+/// Keeps `grant` as the bill folder in `settings`, unless it is not a usable
+/// directory, resolves to an overly broad folder, or is one of KassenSturz's
+/// `own` folders, compared with links resolved (B-465). Returns an empty code
+/// when saved.
+#[cfg(feature = "ai")]
+fn keep_bill_folder_grant(
+    settings: &crate::settings::Settings,
+    grant: &kassensturz_core::book_folder::FolderGrant,
+    own: &[std::path::PathBuf],
+) -> &'static str {
+    if !grant.path.is_dir() {
+        return "folder.not-usable";
+    }
+    let Some(path) = grant.path.to_str() else {
+        return "folder.not-usable";
+    };
+    let real = |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.into());
+    let chosen = real(&grant.path);
+    if chosen != grant.path
+        && let Err(refused) = crate::platform::choose_folder(&chosen, false)
+    {
+        return refused.code();
+    }
+    if own.iter().any(|folder| real(folder) == chosen) {
+        return "folder.not-usable";
+    }
+    if keep_bill_folder(settings, path, &grant.shown_as) {
+        ""
+    } else {
+        "settings.not-written"
+    }
 }
 
 /// The settings keys of the receipt inbox's folder `which` (`inbox` or
@@ -1698,6 +1764,86 @@ mod bill_folder_tests {
         );
         assert!(keep_bill_folder(&settings, "", ""));
         assert_eq!(bill_folder_in(&settings), "");
+    }
+
+    /// B-465 (#1433): `set_bill_folder` refuses `$HOME`, `/`, symlinks to
+    /// overly broad folders, non-folders, and KassenSturz's own app and book
+    /// folders without saving.
+    #[test]
+    fn too_broad_and_kassensturzs_own_folders_are_refused_as_bill_folder() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(settings.set_text(GROUP, ENABLED_KEY, ON));
+        let app_dir = folder.join("KassenSturz");
+        let book_dir = folder.join("Book");
+        let bills = folder.join("Bills");
+        for dir in [&app_dir, &book_dir, &bills] {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        let own = [app_dir.clone(), book_dir.clone()];
+
+        // Root and home are refused as too broad.
+        assert_eq!(
+            choose_and_keep_bill_folder(&settings, Some(std::path::Path::new("/")), &own),
+            "folder.too-broad"
+        );
+        assert_eq!(bill_folder_in(&settings), "");
+        if let Some(home) = crate::platform::home_dir() {
+            assert_eq!(
+                choose_and_keep_bill_folder(&settings, Some(&home), &own),
+                "folder.too-broad"
+            );
+            assert_eq!(bill_folder_in(&settings), "");
+        }
+
+        // KassenSturz's own app folder and book folder are refused.
+        for refused in [&app_dir, &book_dir] {
+            assert_eq!(
+                choose_and_keep_bill_folder(&settings, Some(refused), &own),
+                "folder.not-usable",
+                "{}",
+                refused.display()
+            );
+            assert_eq!(bill_folder_in(&settings), "");
+        }
+
+        // Non-folder and missing path are refused.
+        let regular_file = folder.join("not-a-folder");
+        std::fs::write(&regular_file, b"x").unwrap();
+        assert_eq!(
+            choose_and_keep_bill_folder(&settings, Some(&regular_file), &own),
+            "folder.not-usable"
+        );
+        assert_eq!(
+            choose_and_keep_bill_folder(&settings, None, &own),
+            "folder.not-usable"
+        );
+
+        #[cfg(unix)]
+        {
+            let link_to_own = folder.join("LinkToBook");
+            std::os::unix::fs::symlink(&book_dir, &link_to_own).unwrap();
+            assert_eq!(
+                choose_and_keep_bill_folder(&settings, Some(&link_to_own), &own),
+                "folder.not-usable"
+            );
+            let link_to_root = folder.join("LinkToRoot");
+            std::os::unix::fs::symlink(std::path::Path::new("/"), &link_to_root).unwrap();
+            assert_eq!(
+                choose_and_keep_bill_folder(&settings, Some(&link_to_root), &own),
+                "folder.too-broad"
+            );
+        }
+
+        // A dedicated bills folder is accepted and saved.
+        assert_eq!(
+            choose_and_keep_bill_folder(&settings, Some(&bills), &own),
+            ""
+        );
+        assert_eq!(bill_folder_in(&settings), bills.to_str().unwrap());
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(read_by_tools(&text), Some(bills));
     }
 }
 

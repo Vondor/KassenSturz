@@ -3282,8 +3282,16 @@ fn bounded_flate_decode(
     // where `hayro` and `lopdf` would decode diverging payloads.
     if !tried_offset_2 && data.len() > 2 {
         let offset2 = bounded_deflate_raw(&data[2..], max_out, false)?;
-        if capture && matches!(offset2, Some((n, _)) if n > 0) {
-            return Err(ToolError::BillUnreadable);
+        if let Some((offset2_len, _)) = offset2
+            && offset2_len > 0
+        {
+            if capture {
+                return Err(ToolError::BillUnreadable);
+            }
+            match &mut decoded {
+                Some((produced, _)) => *produced = (*produced).max(offset2_len),
+                None => return Err(ToolError::BillUnreadable),
+            }
         }
     }
     Ok(decoded)
@@ -4825,6 +4833,45 @@ mod tests {
         assert!(matches!(
             validate_raw_pdf_safety(&case3),
             Err(ToolError::BillUnreadable)
+        ));
+    }
+
+    #[test]
+    fn b469_flate_offset2_bytes_charged_against_cumulative_budget() {
+        // 5 streams each with `[0x03, 0x00]` (0-byte offset-0 EOB) + 14 MiB
+        // raw deflate payload at offset 2 -> 70 MiB total exceeds
+        // `MAX_PDF_TOTAL_DECOMPRESSED_BYTES` (64 MiB) even though each stream
+        // stays below the 16 MiB per-stream limit.
+        let chunk_14mib_zlib = zlib_zero_bomb(14 * 1024 * 1024);
+        let mut payload = vec![0x03u8, 0x00];
+        payload.extend_from_slice(&chunk_14mib_zlib[2..chunk_14mib_zlib.len() - 4]);
+
+        let mut objects = vec![
+            b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+            b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>".to_vec(),
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents [ 4 0 R 5 0 R 6 0 R 7 0 R 8 0 R ] >>"
+                .to_vec(),
+        ];
+        for _ in 0..5 {
+            let mut s = format!(
+                "<< /Filter /FlateDecode /Length {} >>\nstream\n",
+                payload.len()
+            )
+            .into_bytes();
+            s.extend_from_slice(&payload);
+            s.extend_from_slice(b"\nendstream");
+            objects.push(s);
+        }
+        let pdf = assemble_test_pdf(&objects);
+
+        assert!(matches!(
+            validate_raw_pdf_safety(&pdf),
+            Err(ToolError::BillTooBig)
+        ));
+        let parsed = Pdf::new(pdf).expect("parseable PDF");
+        assert!(matches!(
+            validate_parsed_pdf_safety(&parsed),
+            Err(ToolError::BillTooBig)
         ));
     }
 }

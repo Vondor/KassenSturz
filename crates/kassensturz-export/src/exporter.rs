@@ -85,8 +85,9 @@ pub fn export(exporter: &dyn Exporter, data: &ExportData) -> Result<Vec<u8>, Exp
 
 /// Writes `data` with `exporter` to a new file at `path`.
 ///
-/// On Unix, a newly created file is readable and writable only by its owner
-/// (`0o600`, aligning with B-414 / T-71). Never overwrites: if something is
+/// On Unix, a newly created or pre-created empty file is readable and
+/// writable only by its owner (`0o600`, aligning with B-414 / T-71). Never
+/// overwrites: if something is
 /// at `path`, it fails with [`ExportError::AlreadyExists`], naming the file,
 /// and leaves it alone. The one exception is an empty file, which holds
 /// nothing to lose: a sandbox's file chooser (xdg-desktop-portal, in the
@@ -116,6 +117,11 @@ pub fn export_file(
                 .ok_or_else(|| ExportError::AlreadyExists {
                     file: path.display().to_string(),
                 })?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                file.set_permissions(fs::Permissions::from_mode(EXPORT_FILE_MODE))?;
+            }
             (file, true)
         }
         Err(error) => return Err(error.into()),
@@ -207,6 +213,12 @@ mod tests {
         }
     }
 
+    fn create_empty_with_mode(path: &Path, file_mode: u32) {
+        File::create(path).expect("empty file created");
+        fs::set_permissions(path, fs::Permissions::from_mode(file_mode)).expect("set mode");
+        assert_eq!(mode(path), file_mode);
+    }
+
     #[test]
     fn exported_csv_file_has_owner_only_permissions() {
         let dir = TempDir::new("csv");
@@ -224,6 +236,29 @@ mod tests {
     fn exported_book_json_file_has_owner_only_permissions() {
         let dir = TempDir::new("book");
         let path = dir.join("book.json");
+        export_file(&BookExport, &ExportData::Book(empty_book()), &path).expect("book exported");
+        assert_eq!(mode(&path), 0o600);
+    }
+
+    #[test]
+    fn precreated_empty_csv_file_gets_owner_only_permissions() {
+        let dir = TempDir::new("precreated-csv");
+        let path = dir.join("transactions.csv");
+        create_empty_with_mode(&path, 0o644);
+        export_file(
+            &CsvExport::default(),
+            &ExportData::Transactions(Vec::new()),
+            &path,
+        )
+        .expect("csv exported");
+        assert_eq!(mode(&path), 0o600);
+    }
+
+    #[test]
+    fn precreated_empty_book_json_file_gets_owner_only_permissions() {
+        let dir = TempDir::new("precreated-book");
+        let path = dir.join("book.json");
+        create_empty_with_mode(&path, 0o644);
         export_file(&BookExport, &ExportData::Book(empty_book()), &path).expect("book exported");
         assert_eq!(mode(&path), 0o600);
     }

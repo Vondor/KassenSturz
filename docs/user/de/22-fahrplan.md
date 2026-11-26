@@ -19,7 +19,7 @@ Vor der stabilen Ausgabe wurde der Code, der mit Geld, Passwörtern, Bankverbind
 - Schlagwörter, auch als Filter auf den Dashboards
 - Eine geführte Einrichtung für neue Bücher; sie ist freiwillig, und jeder Schritt lässt sich überspringen
 - Plugins: eigene Erweiterungen für Importer, Exporter, Berichte, Automatisierungen, Designs und KI-Anbieter. Jedes Plugin zeigt vorher, was es darf.
-- KI-Hilfe, die aus ist, bis Sie sie einschalten
+- KI-Hilfe, die aus ist, bis Sie sie einschalten (einschließlich Belege aus von Ihnen gewählten Ordnern lesen, verknüpfen und ablegen — im eingebauten Chat wie über MCP)
 
 Wie das alles funktioniert, steht in den anderen Seiten dieses [Handbuchs](README.md).
 
@@ -40,7 +40,6 @@ Das ist geplant, aber noch nicht begonnen:
 - Ein Importer für GnuCash-Bücher
 - Sicherungen in Ihrer eigenen Cloud und optionale Verschlüsselung des Buchs
 - Eine Begleit-App für Android zum Fotografieren von Belegen
-- Ein Posteingang für Belege, den Ihre eigene KI lesen kann
 
 ## Was KassenSturz nicht werden soll
 

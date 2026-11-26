@@ -105,11 +105,16 @@ pub fn older_backups_of(book: &Path, folder: &Path) -> Result<Vec<BackupFile>, S
 /// book: `None` if it has none (a layout before 34) or can't be read.
 #[must_use]
 pub fn book_id_of_file(book: &Path) -> Option<BookId> {
+    let book = std::path::absolute(book).ok()?;
+    if !fs::metadata(&book).ok()?.is_file() || !is_book_file(&book).ok()? {
+        return None;
+    }
     let conn = crate::lockless::open_read_only(
-        book,
+        &book,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
     .ok()?;
+    crate::harden(&conn).ok()?;
     BookId::try_read(&conn)
 }
 
@@ -381,12 +386,23 @@ fn copy_file(from: &Path, folder: &Path, tag: &str, keep: usize) -> Result<PathB
     Ok(path)
 }
 
+/// Opens an existing copy of an older backup for updating its layout and
+/// identity, hardened before anything in the file is read (B-245).
+fn open_for_adopt(path: &Path) -> Result<rusqlite::Connection, StoreError> {
+    let conn = rusqlite::Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    crate::harden(&conn)?;
+    Ok(conn)
+}
+
 /// Brings the book at `path`, a copy of a backup from before books had an
 /// identity, to the current layout with the identity `id` in place of the
 /// one the update would make up (B-333). The copy is the user's own; the
 /// backup it was made from stays as it was.
 fn adopt_identity(path: &Path, id: &BookId) -> Result<(), StoreError> {
-    let mut conn = rusqlite::Connection::open(path)?;
+    let mut conn = open_for_adopt(path)?;
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
     // The checks opening a book makes, before anything in the file runs.
     layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, version)
@@ -512,7 +528,8 @@ impl Drop for PreparedRestore {
 /// Checks that `backup` is a book this KassenSturz can open, reading it
 /// only.
 fn check_backup(backup: &Path) -> Result<Option<BookId>, StoreError> {
-    if !fs::metadata(backup)?.is_file() || !is_book_file(backup)? {
+    let backup = std::path::absolute(backup)?;
+    if !fs::metadata(&backup)?.is_file() || !is_book_file(&backup)? {
         return Err(StoreError::NotABook);
     }
     // A backup that opens only to a damage message must never replace the
@@ -527,10 +544,11 @@ fn check_backup(backup: &Path) -> Result<Option<BookId>, StoreError> {
     // Where the folder refuses file locks this reads a private copy
     // (Q-570, D-776).
     let conn = crate::lockless::open_read_only(
-        backup,
+        &backup,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
     .map_err(damaged)?;
+    crate::harden(&conn)?;
     crate::integrity::check_file(&conn).map_err(damaged)?;
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
     match version {
@@ -1373,5 +1391,59 @@ mod tests {
         }
         assert_eq!(fs::read(&path).expect("book read"), before);
         assert!(!folder.join("Household.ksz.restore.part").exists());
+    }
+
+    /// #1403, B-245: backup open paths harden SQLite (`trusted_schema = OFF`,
+    /// `defensive = ON`), never create missing files, and block views that use
+    /// virtual tables before reading an untrusted book's identity.
+    #[test]
+    fn backup_open_paths_harden_sqlite_and_never_create_missing_files() {
+        use rusqlite::config::DbConfig;
+
+        let folder = TempFolder::new();
+        let (book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let backup = book.back_up_now(&path, &backups).expect("backed up");
+        drop(book);
+
+        // `open_for_adopt` hardens the connection and never creates a file.
+        let missing = folder.join("missing.ksz");
+        assert!(open_for_adopt(&missing).is_err());
+        assert!(!missing.exists(), "open_for_adopt must not create a file");
+
+        let conn = open_for_adopt(&backup).expect("opened for adopt");
+        assert!(
+            !conn
+                .db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA)
+                .expect("db_config"),
+            "trusted_schema must be off"
+        );
+        assert!(
+            conn.db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("db_config"),
+            "defensive mode must be on"
+        );
+        drop(conn);
+
+        // A hostile book replacing `book_identity` with a view backed by an
+        // eponymous virtual table (`pragma_database_list`) returns a fake ID
+        // without hardening, and is refused once hardened.
+        let hostile = folder.join("Hostile.ksz");
+        fs::copy(&backup, &hostile).expect("copied");
+        Connection::open(&hostile)
+            .and_then(|conn| {
+                conn.execute_batch(
+                    "DROP TABLE book_identity;
+                     CREATE VIEW book_identity AS
+                       SELECT 1 AS id, zeroblob(16) AS book_id FROM pragma_database_list LIMIT 1;",
+                )
+            })
+            .expect("hostile view planted");
+        assert_eq!(
+            book_id_of_file(&hostile),
+            None,
+            "trusted_schema=OFF must block virtual tables in views"
+        );
+        assert!(matches!(check_backup(&hostile), Err(StoreError::NotABook)));
     }
 }

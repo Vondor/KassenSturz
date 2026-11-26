@@ -3060,6 +3060,18 @@ msgstr ""
 "Ihren Notizen sowie Ihre Regeln. Nur so viel, wie Ihre Frage braucht, nie "
 "das ganze Buch."
 
+#: crates/kassensturz-ui-bridge/qml/AiConsentStatement.qml:41
+#, kde-format
+msgctxt "@info what is sent"
+msgid ""
+"The names and contents (text or page images) of bills from your bill folder "
+"or receipt inbox that the AI asks to read, if you chose a folder and "
+"switched those permissions on."
+msgstr ""
+"Die Namen und Inhalte (Text oder Seitenbilder) von Belegen aus Ihrem "
+"Belegordner oder Belegeingang, die die KI zum Lesen anfordert, sofern Sie "
+"einen Ordner gewählt und diese Berechtigungen eingeschaltet haben."
+
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:76
 #, kde-format
 msgctxt "@info what is sent"
@@ -22181,17 +22193,18 @@ msgstr "Rechnungsordner"
 
 msgctxt "@info"
 msgid ""
-"Choose a folder where you keep your bills as PDF or picture files. Your AI "
-"tools can then read a bill there themselves, find the payment it belongs to "
-"and suggest linking it to that transaction, if you allow \"Bills linked to "
-"transactions\" above. KassenSturz itself never reads, moves, changes or "
-"deletes these files."
+"Choose a folder where you keep your bills as PDF or picture files (PDF, PNG, "
+"JPEG or TIFF). Both the built-in chat and your external AI tools can read "
+"bills there, find the payment a bill belongs to and suggest linking it to "
+"that transaction, if you allow \"Bills linked to transactions\" above. "
+"KassenSturz never moves, changes or deletes files in this folder."
 msgstr ""
 "Wählen Sie einen Ordner, in dem Sie Ihre Rechnungen als PDF- oder Bilddateien "
-"aufbewahren. Ihre KI-Werkzeuge können dort dann selbst eine Rechnung lesen, "
-"die passende Zahlung finden und vorschlagen, sie mit dieser Buchung zu "
-"verknüpfen, wenn Sie oben „Rechnungen, mit Buchungen verknüpft“ erlauben. "
-"KassenSturz selbst liest, verschiebt, ändert oder löscht diese Dateien nie."
+"(PDF, PNG, JPEG oder TIFF) aufbewahren. Sowohl der eingebaute Chat als auch "
+"Ihre externen KI-Programme können dort Rechnungen lesen, die passende Zahlung "
+"finden und vorschlagen, sie mit dieser Buchung zu verknüpfen, wenn Sie oben "
+"„Rechnungen, mit Buchungen verknüpft“ erlauben. KassenSturz verschiebt, "
+"ändert oder löscht Dateien in diesem Ordner nie."
 
 msgctxt "@info no bill folder is chosen"
 msgid "No folder chosen."
@@ -25007,11 +25020,11 @@ msgctxt "@info"
 msgid "it isn't in the inbox any more"
 msgstr "sie liegt nicht mehr im Eingangsordner"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:393
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:410
 #, kde-format
 msgctxt "@info"
-msgid "no inbox and archive are chosen under Your own AI tools"
-msgstr "unter „Ihre eigenen KI-Programme“ sind kein Eingangsordner und kein Archiv gewählt"
+msgid "no inbox and archive are chosen in AI settings"
+msgstr "in den KI-Einstellungen sind kein Eingangsordner und kein Archiv gewählt"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:395
 #, kde-format
@@ -25141,11 +25154,11 @@ msgctxt "@label a part of the book"
 msgid "Bills filed from the inbox"
 msgstr "Rechnungen aus dem Eingangsordner ablegen"
 
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:380
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:416
 #, kde-format
 msgctxt "@info"
-msgid "Your AI tools can now prepare moving bills from your inbox into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Your own AI tools\" below."
-msgstr "Ihre KI-Programme können jetzt vorbereiten, Rechnungen aus Ihrem Eingangsordner in Ihr Archiv zu verschieben. Nichts wird verschoben, bevor Sie bestätigen. Jede Datei wird zuerst kopiert und geprüft und erst aus dem Eingangsordner entfernt, wenn Ihr Buch gespeichert ist, und Rückgängig verschiebt sie zurück. Wählen Sie die beiden Ordner unten unter „Ihre eigenen KI-Programme“."
+msgid "The built-in chat and your external AI tools can now read bills in your inbox and prepare moving them into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Inbox and archive for bills\" below."
+msgstr "Der eingebaute Chat und Ihre externen KI-Programme können jetzt Rechnungen in Ihrem Eingangsordner lesen und vorbereiten, sie in Ihr Archiv zu verschieben. Nichts wird verschoben, bevor Sie bestätigen. Jede Datei wird zuerst kopiert und geprüft und erst aus dem Eingangsordner entfernt, wenn Ihr Buch gespeichert ist, und Rückgängig verschiebt sie zurück. Wählen Sie die beiden Ordner unten unter „Eingangsordner und Archiv für Rechnungen“."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:816
 #, kde-format
@@ -25153,11 +25166,11 @@ msgctxt "@title:group"
 msgid "Inbox and archive for bills"
 msgstr "Eingangsordner und Archiv für Rechnungen"
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:823
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1200
 #, kde-format
 msgctxt "@info"
-msgid "Drop bills into the inbox. Your AI reads them, and when you confirm, KassenSturz moves each one into the archive, sorted by account and category. Undo puts it back. This needs \"Bills filed from the inbox\" above."
-msgstr "Legen Sie Rechnungen in den Eingangsordner. Ihre KI liest sie, und wenn Sie bestätigen, verschiebt KassenSturz jede ins Archiv, sortiert nach Konto und Kategorie. Rückgängig legt sie zurück. Dafür muss oben „Rechnungen aus dem Eingangsordner ablegen“ eingeschaltet sein."
+msgid "Drop bills into the inbox. Both the built-in chat and your external AI tools can read them and propose filing them. When you confirm, KassenSturz moves each one into the archive, sorted by account and category, and Undo puts it back. This needs \"Bills filed from the inbox\" above."
+msgstr "Legen Sie Rechnungen in den Eingangsordner. Sowohl der eingebaute Chat als auch Ihre externen KI-Programme können sie lesen und vorschlagen, sie abzulegen. Wenn Sie bestätigen, verschiebt KassenSturz jede ins Archiv, sortiert nach Konto und Kategorie, und Rückgängig legt sie zurück. Dafür muss oben „Rechnungen aus dem Eingangsordner ablegen“ eingeschaltet sein."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:830
 #, kde-format

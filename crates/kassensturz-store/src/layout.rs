@@ -1536,6 +1536,7 @@ pub(crate) fn check_schema(
         .filter(|count| (1..=migrations.len()).contains(count))
         .ok_or(StoreError::UnsupportedLayout { found: version })?;
     let mut expected = Connection::open_in_memory()?;
+    crate::harden(&expected)?;
     migrate_with(&mut expected, &migrations[..count], first_version, 0)?;
     if schema_objects(conn)? == schema_objects(&expected)? {
         Ok(())

@@ -14,7 +14,7 @@ In KassenSturz, the AI is **off** until you switch it on. While it is off, nothi
 
 ## What the AI can and can't do
 
-- It can answer questions about your book and prepare changes, for example suggest categories or Rules.
+- It can answer questions about your book, read bills and receipts from folders you choose (PDF, PNG, JPEG or TIFF), and prepare changes such as categories, splits, attached bills or Rules.
 - **It changes nothing by itself.** Every change is shown to you first, and only your click on **Confirm and make these changes** makes it. **Undo** takes it back.
 - **The numbers come from KassenSturz, not from the AI.** The AI asks KassenSturz for your totals and balances. Still, check a number that matters on KassenSturz's own screens.
 - It gives no tax, legal or investment advice you should rely on.

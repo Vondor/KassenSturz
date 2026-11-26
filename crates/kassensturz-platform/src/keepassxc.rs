@@ -193,7 +193,10 @@ impl KeePassXcKeychain {
         }
         let link = session.associate()?;
         // Without a system keychain the key lives until the app closes.
-        let _ = self.links.store(&key, &Secret::new(link.to_text()));
+        let mut encoded = link.to_text();
+        let _ = self
+            .links
+            .store(&key, &Secret::new(std::mem::take(&mut *encoded)));
         session.links.push((hash.clone(), link.clone()));
         Ok(Front { hash, link })
     }
@@ -270,7 +273,7 @@ impl Keychain for KeePassXcKeychain {
             Ok(self
                 .find(session, &front.link, key)?
                 .and_then(|entry| entry.password)
-                .map(|password| Secret::new(password.to_string())))
+                .map(|mut password| Secret::new(std::mem::take(&mut *password))))
         })
     }
 
@@ -346,20 +349,23 @@ impl From<std::io::Error> for Problem {
 #[derive(Clone)]
 struct Link {
     id: String,
-    key: String,
+    key: Zeroizing<String>,
 }
 
 impl Link {
-    fn to_text(&self) -> String {
-        json!({ "id": self.id, "key": self.key }).to_string()
+    fn to_text(&self) -> Zeroizing<String> {
+        let value = Scrubbed(json!({ "id": self.id, "key": self.key.as_str() }));
+        Zeroizing::new(value.0.to_string())
     }
 
     fn parse(text: &str) -> Option<Self> {
-        let value: Value = serde_json::from_str(text).ok()?;
-        Some(Self {
-            id: value.get("id")?.as_str()?.to_owned(),
-            key: value.get("key")?.as_str()?.to_owned(),
-        })
+        let mut value = Scrubbed(serde_json::from_str(text).ok()?);
+        let id = value.0.get("id")?.as_str()?.to_owned();
+        let key = match value.0.get_mut("key") {
+            Some(Value::String(key)) => Zeroizing::new(std::mem::take(key)),
+            _ => return None,
+        };
+        Some(Self { id, key })
     }
 }
 
@@ -449,6 +455,7 @@ impl Session {
         if answer.get("errorCode").is_some() || text(&answer, "success") != Some("true") {
             return Err(Problem::Refused);
         }
+        reply_nonce(&answer, nonce)?;
         let key = text(&answer, "publicKey")
             .and_then(|key| BASE64.decode(key).ok())
             .and_then(|bytes| PublicKey::from_slice(&bytes).ok())
@@ -485,7 +492,8 @@ impl Session {
 
     /// Whether KeePassXC still accepts `link` for the database in front.
     fn test_link(&mut self, link: &Link) -> Result<bool, Problem> {
-        let message = json!({ "action": "test-associate", "id": link.id, "key": link.key });
+        let message =
+            json!({ "action": "test-associate", "id": link.id, "key": link.key.as_str() });
         match self.request("test-associate", message, false) {
             Ok(_) => Ok(true),
             Err(Reply::Error(_)) => Ok(false),
@@ -497,11 +505,11 @@ impl Session {
     /// user names the connection there.
     fn associate(&mut self) -> Result<Link, Problem> {
         let id_key = BoxKey::generate(&mut OsRng);
-        let key = BASE64.encode(id_key.public_key().as_bytes());
+        let key = Zeroizing::new(BASE64.encode(id_key.public_key().as_bytes()));
         let message = json!({
             "action": "associate",
             "key": BASE64.encode(self.own.public_key().as_bytes()),
-            "idKey": key,
+            "idKey": key.as_str(),
         });
         let answer = self
             .request("associate", message, false)
@@ -516,7 +524,7 @@ impl Session {
             "action": "get-logins",
             "url": url,
             "submitUrl": url,
-            "keys": [{ "id": link.id, "key": link.key }],
+            "keys": [{ "id": link.id, "key": link.key.as_str() }],
         });
         let mut answer = match self.request("get-logins", message, false) {
             Ok(answer) => answer,
@@ -526,7 +534,7 @@ impl Session {
         let Some(Value::Array(entries)) = answer.get_mut("entries") else {
             return Ok(Vec::new());
         };
-        Ok(entries
+        let found = entries
             .iter_mut()
             .filter_map(|entry| {
                 let uuid = text(entry, "uuid")?.to_owned();
@@ -544,7 +552,8 @@ impl Session {
                     password,
                 })
             })
-            .collect())
+            .collect();
+        Ok(found)
     }
 
     /// Saves `password` for `login` at `url`: a new entry in the target's
@@ -587,7 +596,7 @@ impl Session {
     fn database_groups(&mut self, link: &Link) -> Result<Tree, Problem> {
         let message = json!({
             "action": "get-database-groups",
-            "keys": [{ "id": link.id, "key": link.key }],
+            "keys": [{ "id": link.id, "key": link.key.as_str() }],
         });
         let answer = self
             .request("get-database-groups", message, false)
@@ -621,7 +630,7 @@ impl Session {
         let message = json!({
             "action": "create-new-group",
             "groupName": GROUP,
-            "keys": [{ "id": link.id, "key": link.key }],
+            "keys": [{ "id": link.id, "key": link.key.as_str() }],
         });
         let answer = self
             .request("create-new-group", message, false)
@@ -633,8 +642,9 @@ impl Session {
     }
 
     /// Sends `message` encrypted and returns KeePassXC's decrypted answer.
-    /// The message is wiped from memory once it is encrypted.
-    fn request(&mut self, action: &str, message: Value, unlock: bool) -> Result<Value, Reply> {
+    /// The message is wiped from memory once it is encrypted, and the
+    /// returned answer wipes all of its strings when dropped.
+    fn request(&mut self, action: &str, message: Value, unlock: bool) -> Result<Scrubbed, Reply> {
         let nonce = random_nonce();
         let mut plain = Zeroizing::new(message.to_string());
         drop(scrub(message));
@@ -664,11 +674,7 @@ impl Session {
             };
             return Err(Reply::Error(code));
         }
-        let expected = increment(nonce);
-        let nonce = text(&answer, "nonce")
-            .and_then(|nonce| BASE64.decode(nonce).ok())
-            .filter(|nonce| nonce[..] == expected[..])
-            .ok_or(Reply::Problem(Problem::Garbled))?;
+        let nonce = reply_nonce(&answer, nonce).map_err(Reply::Problem)?;
         let sealed = text(&answer, "message")
             .and_then(|message| BASE64.decode(message).ok())
             .ok_or(Reply::Problem(Problem::Garbled))?;
@@ -677,8 +683,8 @@ impl Session {
                 .decrypt(Nonce::from_slice(&nonce), sealed.as_slice())
                 .map_err(|_| Reply::Problem(Problem::Garbled))?,
         );
-        let answer: Value =
-            serde_json::from_slice(&plain).map_err(|_| Reply::Problem(Problem::Garbled))?;
+        let answer =
+            Scrubbed(serde_json::from_slice(&plain).map_err(|_| Reply::Problem(Problem::Garbled))?);
         if let Some(code) = answer.get("errorCode") {
             return Err(Reply::Error(code.as_str().unwrap_or("").to_owned()));
         }
@@ -790,16 +796,62 @@ fn text<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key)?.as_str()
 }
 
-/// Wipes the strings of a message that held a secret before it is dropped.
-fn scrub(mut value: Value) -> Value {
-    if let Value::Object(map) = &mut value {
-        for (_, field) in map.iter_mut() {
-            if let Value::String(text) = field {
-                text.zeroize();
+/// A JSON value whose string fields are wiped recursively when dropped.
+struct Scrubbed(Value);
+
+impl std::ops::Deref for Scrubbed {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Scrubbed {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Drop for Scrubbed {
+    fn drop(&mut self) {
+        scrub_in_place(&mut self.0);
+    }
+}
+
+/// Wipes every string in a JSON value recursively before it is dropped.
+fn scrub_in_place(value: &mut Value) {
+    match value {
+        Value::String(text) => text.zeroize(),
+        Value::Array(items) => {
+            for item in items {
+                scrub_in_place(item);
             }
         }
+        Value::Object(map) => {
+            for (_, field) in map.iter_mut() {
+                scrub_in_place(field);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
     }
+}
+
+/// Wipes the strings of a message that held a secret before it is dropped.
+fn scrub(mut value: Value) -> Value {
+    scrub_in_place(&mut value);
     value
+}
+
+/// Checks that KeePassXC answered with `increment(sent)` as base64 and
+/// returns those bytes.
+fn reply_nonce(answer: &Value, sent: [u8; 24]) -> Result<[u8; 24], Problem> {
+    let expected = increment(sent);
+    text(answer, "nonce")
+        .and_then(|nonce| BASE64.decode(nonce).ok())
+        .filter(|nonce| nonce[..] == expected[..])
+        .map(|_| expected)
+        .ok_or(Problem::Garbled)
 }
 
 fn random_nonce() -> [u8; 24] {

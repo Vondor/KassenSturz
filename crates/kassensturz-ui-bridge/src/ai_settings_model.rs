@@ -2235,7 +2235,14 @@ mod tests {
             .collect();
         assert_eq!(
             words,
-            ["questions", "book-data", "notes", "instructions", "key"]
+            [
+                "questions",
+                "book-data",
+                "bills",
+                "notes",
+                "instructions",
+                "key"
+            ]
         );
     }
 

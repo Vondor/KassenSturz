@@ -34,6 +34,20 @@ pub struct FakeEntry {
     pub group: String,
 }
 
+/// How the made-up KeePassXC sets the reply `nonce` of `change-public-keys`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum HandshakeNonce {
+    /// Normal KeePassXC: `increment(nonce)`.
+    #[default]
+    Increment,
+    /// Echoes the client's `nonce` unchanged instead of incrementing it.
+    Unchanged,
+    /// Leaves the `nonce` field out of the reply.
+    Missing,
+    /// Sends invalid base64 in `nonce`.
+    InvalidBase64,
+}
+
 /// What the made-up KeePassXC holds and how its "user" answers.
 #[derive(Debug, Default)]
 pub struct FakeState {
@@ -41,6 +55,8 @@ pub struct FakeState {
     pub locked: bool,
     /// Whether the user allows a new connection.
     pub refuse_association: bool,
+    /// How `change-public-keys` sets its reply `nonce`.
+    pub handshake_nonce: HandshakeNonce,
     /// The database's name: its top group's.
     pub name: String,
     /// The groups at the top of the database: name and UUID.
@@ -164,18 +180,30 @@ fn answer(
         let key = BASE64.decode(field(request, "publicKey")).expect("key");
         let key = PublicKey::from_slice(&key).expect("key");
         *client = Some(SalsaBox::new(&key, own));
-        state
-            .lock()
-            .expect("fake state")
-            .actions
-            .push(action.clone());
-        return vec![json!({
+        let handshake_nonce = {
+            let mut state = state.lock().expect("fake state");
+            state.actions.push(action.clone());
+            state.handshake_nonce
+        };
+        let mut reply = json!({
             "action": action,
             "version": "2.7.10",
             "publicKey": BASE64.encode(own.public_key().as_bytes()),
-            "nonce": BASE64.encode(increment(nonce)),
             "success": "true",
-        })];
+        });
+        match handshake_nonce {
+            HandshakeNonce::Increment => {
+                reply["nonce"] = json!(BASE64.encode(increment(nonce)));
+            }
+            HandshakeNonce::Unchanged => {
+                reply["nonce"] = json!(BASE64.encode(nonce));
+            }
+            HandshakeNonce::Missing => {}
+            HandshakeNonce::InvalidBase64 => {
+                reply["nonce"] = json!("not-valid-base64!!!");
+            }
+        }
+        return vec![reply];
     }
     let Some(sealed_box) = client.as_ref() else {
         return vec![error(&action, 3)];

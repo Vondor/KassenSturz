@@ -10,6 +10,9 @@
 //! list of read functions (D-170). A call for a function that wasn't
 //! offered is not handed on at all (threat T-31).
 
+use std::fmt;
+
+use base64::Engine as _;
 use serde_json::Value;
 
 /// Who a message is from.
@@ -37,6 +40,81 @@ impl Role {
     }
 }
 
+/// The image format of an [`ImageAttachment`] sent to a multimodal model
+/// (D-990, D-996).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ImageMediaType {
+    /// PNG (`image/png`).
+    Png,
+    /// JPEG (`image/jpeg`).
+    Jpeg,
+}
+
+impl ImageMediaType {
+    /// The MIME type used in `data:<mime>;base64,...` URLs.
+    pub fn as_mime(self) -> &'static str {
+        match self {
+            Self::Png => "image/png",
+            Self::Jpeg => "image/jpeg",
+        }
+    }
+
+    /// Parses a MIME type (`image/png` or `image/jpeg`, case-insensitive).
+    pub fn from_mime(mime: &str) -> Option<Self> {
+        if mime.eq_ignore_ascii_case("image/png") {
+            Some(Self::Png)
+        } else if mime.eq_ignore_ascii_case("image/jpeg") || mime.eq_ignore_ascii_case("image/jpg")
+        {
+            Some(Self::Jpeg)
+        } else {
+            None
+        }
+    }
+}
+
+/// An image attached to a [`Message`], serialized as a
+/// `data:<mime>;base64,...` `image_url` part for multimodal models
+/// (D-990, D-996).
+#[derive(Clone, PartialEq, Eq)]
+pub struct ImageAttachment {
+    /// The image's media type.
+    pub media_type: ImageMediaType,
+    /// The encoded PNG or JPEG bytes.
+    pub data: Vec<u8>,
+}
+
+impl fmt::Debug for ImageAttachment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ImageAttachment")
+            .field("media_type", &self.media_type)
+            .field("bytes", &self.data.len())
+            .finish()
+    }
+}
+
+impl ImageAttachment {
+    /// Creates an image attachment with `media_type` and encoded image `data`.
+    pub fn new(media_type: ImageMediaType, data: Vec<u8>) -> Self {
+        Self { media_type, data }
+    }
+
+    /// Creates a PNG image attachment.
+    pub fn png(data: Vec<u8>) -> Self {
+        Self::new(ImageMediaType::Png, data)
+    }
+
+    /// Creates a JPEG image attachment.
+    pub fn jpeg(data: Vec<u8>) -> Self {
+        Self::new(ImageMediaType::Jpeg, data)
+    }
+
+    /// Encodes this attachment as a `data:<mime>;base64,...` URI.
+    pub fn data_uri(&self) -> String {
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&self.data);
+        format!("data:{};base64,{encoded}", self.media_type.as_mime())
+    }
+}
+
 /// One message of a conversation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Message {
@@ -49,6 +127,9 @@ pub struct Message {
     pub calls: Vec<ToolCall>,
     /// The call this message answers ([`Role::Tool`] only).
     pub call_id: Option<String>,
+    /// Images attached to this message ([`Role::User`] or [`Role::Tool`]
+    /// only, D-990, D-996).
+    pub images: Vec<ImageAttachment>,
 }
 
 impl Message {
@@ -58,6 +139,7 @@ impl Message {
             content: content.into(),
             calls: Vec::new(),
             call_id: None,
+            images: Vec::new(),
         }
     }
 
@@ -69,6 +151,15 @@ impl Message {
     /// What the user wrote.
     pub fn user(content: impl Into<String>) -> Self {
         Self::new(Role::User, content)
+    }
+
+    /// What the user wrote, with attached images for a multimodal model
+    /// (D-990, D-996).
+    pub fn user_with_images(content: impl Into<String>, images: Vec<ImageAttachment>) -> Self {
+        Self {
+            images,
+            ..Self::new(Role::User, content)
+        }
     }
 
     /// What the model answered earlier, with the functions it called.
@@ -85,6 +176,31 @@ impl Message {
             call_id: Some(call_id.into()),
             ..Self::new(Role::Tool, content)
         }
+    }
+
+    /// The result of the call `call_id`, with attached images emitted in a
+    /// portable follow-up `role: "user"` `image_url` message (D-990, D-996).
+    pub fn tool_result_with_images(
+        call_id: impl Into<String>,
+        content: impl Into<String>,
+        images: Vec<ImageAttachment>,
+    ) -> Self {
+        Self {
+            images,
+            ..Self::tool_result(call_id, content)
+        }
+    }
+
+    /// Attaches `images` to this message.
+    pub fn with_images(mut self, images: Vec<ImageAttachment>) -> Self {
+        self.images = images;
+        self
+    }
+
+    /// Whether this message carries images that will be sent to the provider
+    /// ([`Role::User`] or [`Role::Tool`]).
+    pub fn has_images(&self) -> bool {
+        matches!(self.role, Role::User | Role::Tool) && !self.images.is_empty()
     }
 }
 

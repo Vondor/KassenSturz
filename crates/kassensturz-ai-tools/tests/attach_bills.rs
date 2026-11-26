@@ -438,12 +438,22 @@ fn a_bill_never_goes_on_a_transaction_the_set_removes() {
 #[test]
 fn the_bill_folder_names_the_folder_and_the_types() {
     let f = fixture();
+    f.folders.file("Bills/INV-1001.pdf");
+    f.folders.file("Bills/scan.TIFF");
     let answer = bill_folder_answer(&f.folders.bills(), &json!({})).unwrap();
     assert_eq!(answer.value["folder"], f.folders.bills().to_str().unwrap());
     assert_eq!(
         answer.value["file_types"],
-        json!(["pdf", "png", "jpg", "jpeg"])
+        json!(["pdf", "png", "jpg", "jpeg", "tif", "tiff"])
     );
+    let names: Vec<&str> = answer.value["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|file| file["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["INV-1001.pdf", "scan.TIFF"]);
+    assert_eq!(answer.value["truncated"], json!(false));
     assert!(answer.value["note"].is_string(), "the data notice");
     assert_eq!(
         code(bill_folder_answer(&f.folders.bills(), &json!({"x": 1}))),

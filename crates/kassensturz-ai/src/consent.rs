@@ -29,6 +29,10 @@ pub enum SentData {
     /// their payees and memos, and Rules (D-170). Never a key, a PIN, a
     /// bank login or a bank link.
     BookData,
+    /// Names and contents (text or page images) of bills from the user's
+    /// bill folder or receipt inbox that the AI asks to read, when a folder
+    /// is configured and those permissions are switched on (D-990, D-991).
+    Bills,
     /// The user's own "Notes for the AI" (US7, #808): what the user wrote
     /// in the AI settings, put into every chat request.
     Notes,
@@ -45,6 +49,7 @@ impl SentData {
         match self {
             Self::Questions => "questions",
             Self::BookData => "book-data",
+            Self::Bills => "bills",
             Self::Notes => "notes",
             Self::Instructions => "instructions",
             Self::Key => "key",
@@ -53,17 +58,18 @@ impl SentData {
 }
 
 /// Everything the statement of what is sent covers.
-pub const STATEMENT: [SentData; 5] = [
+pub const STATEMENT: [SentData; 6] = [
     SentData::Questions,
     SentData::BookData,
+    SentData::Bills,
     SentData::Notes,
     SentData::Instructions,
     SentData::Key,
 ];
 
 /// The version of [`STATEMENT`] and of the app's words for it. Raise it
-/// whenever either covers more, so every user is asked again (D-168).
-pub const STATEMENT_VERSION: u32 = 2;
+/// whenever either covers more, so every user is asked again (D-168, D-991).
+pub const STATEMENT_VERSION: u32 = 3;
 
 /// A consent the user gave: to send to `address` what version `statement`
 /// of the statement names, on `day`.
@@ -170,11 +176,18 @@ mod tests {
     fn the_statement_is_pinned_to_its_version() {
         // Changing what is sent changes this list: raise STATEMENT_VERSION
         // with it, so users are asked again, and then update this test.
-        assert_eq!(STATEMENT_VERSION, 2);
+        assert_eq!(STATEMENT_VERSION, 3);
         let words: Vec<&str> = STATEMENT.iter().map(|data| data.as_word()).collect();
         assert_eq!(
             words,
-            ["questions", "book-data", "notes", "instructions", "key"]
+            [
+                "questions",
+                "book-data",
+                "bills",
+                "notes",
+                "instructions",
+                "key"
+            ]
         );
     }
 
@@ -188,10 +201,11 @@ mod tests {
         assert!(!given.covers(&address("https://api.example.com/v2")));
         assert!(!given.covers(&address("https://other.example.com/v1")));
         let older = ConsentRecord {
-            statement: STATEMENT_VERSION - 1,
+            statement: 2,
             ..given.clone()
         };
         assert!(!older.covers(&cloud));
+        assert!(consent_missing(&cloud, Some(&older)));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # The AI splits a transaction and attaches its bill (US5.1, US5.12, US5.13 design)
 
-> **Status (21 Nov 2026):** Built in US5 (design #764; builds #776, #777 and #778). Th
+> **Status (26 Nov 2026):** Built in US5 (design #764; builds #776, #777 and #778) and extended in US10 (D-990, D-991, #1413–#1416) so both the built-in AI chat and `kassensturz-mcp` offer path-jailed bill listing, `read_bill`, and `attach_bills` (adding `tif`/`tiff` and Consent v3).
 
 Design for #717 (D-737 to D-739). Today an AI can sort a transaction into one category (`categorize`) and change its fields (`edit_transactions`, D-257), but it cannot break a transaction into Parts, it sees a split only as a list of category names, and it has no way to tie a bill to the transaction it paid for. This design adds those three things for the AI the user chose, behind permission cells that start off (D-252), with every change on a check card the user confirms (AGENTS.md §8).
 
@@ -78,22 +78,23 @@ A bill names an order or invoice number; the bank text ("Purpose", D-083) of the
 - **Several bills, one debit:** each reference finds the same transaction. The model then proposes one split with a part per bill, named by its invoice number, and attaches each bill (§3).
 - Read-only, under *Transactions › Read*; nothing is stored.
 
-## 3. The bill folder and the attached bill (US5.13, D-739)
+## 3. The bill folder and the attached bill (US5.13, D-739; revised in US10, D-990, D-991)
 
-**The path (Q-506):** KassenSturz runs no OCR and reads no PDF. The user's own AI tool, outside KassenSturz over MCP, reads the bill itself; KassenSturz only names the folder and stores the link. So no bill text passes through KassenSturz. The in-app chat reading PDFs is a new data-sharing path with a PDF dependency and stays after Gold with #333; in US5 the chat does not get the tools of this section.
+**The path (D-990, revising Q-506 / D-739; preserves D-751):** KassenSturz runs **zero OCR** and parses no bill amounts itself (D-751). Starting in US10 (D-990), both the built-in AI chat and `kassensturz-mcp` offer path-jailed bill listing (`bill_folder`), bill reading (`read_bill`), and `attach_bills` — for both local models (`Place::ThisComputer`) and consented models on another computer (`Place::AnotherComputer`, Consent v3, D-991). For digital PDFs `read_bill` extracts bounded, T-21-cleaned embedded text; for scanned/image-only PDFs (or `as_images: true`) it rasterizes bounded page images; for PNG, JPEG and TIFF photos it returns a bounded PNG/JPEG image. The user's model reads the bill and proposes splits or links, while Rust checks every split sum in exact minor units.
 
 ### The setting
 
 *Settings › AI › Your own AI tools* (hidden while AI is off, D-013) gets **Bill folder**: a *Choose folder…* button and the chosen path, with *Remove*. It is stored per computer as `[AI] BillFolder` in `kassensturzrc`.
 
 - The button opens the system's folder chooser. In the Flatpak this is the **file chooser portal**, which grants the app that one folder; the manifest gets **no new filesystem permission**. This keeps the portal route open for choosing the book's folder (#515, US5.3), and this design decides nothing for it.
-- The path is stored as the chooser returns it (in the Flatpak a document-portal path, which the outside AI can read too, since that mount is on the host).
+- The path is stored as the chooser returns it (in the Flatpak and Snap, the real folder name from the portal is remembered and shown, B-267).
 
-### The tools (MCP only)
+### The tools (built-in chat and MCP, D-990)
 
-- `bill_folder` (read): the folder and the file types taken (`pdf`, `png`, `jpg`, `jpeg`). Offered only when a folder is set and the cell below is on, so a path never goes to a model the user didn't allow.
+- `bill_folder` (read): the folder path, the file types taken (`pdf`, `png`, `jpg`, `jpeg`, `tif`, `tiff`), and a bounded (at most 200), non-recursive, sorted listing of regular bill files directly inside the folder (each with name, size and modified date; subdirectories, symlinks and other extensions are skipped, and names are cleaned under T-21). Offered only when a folder is set and the cell below is on, so a path never goes to a model the user didn't allow.
+- `read_bill` (read): reads one bill (`source: "bill_folder"` or `"inbox"`, relative `file`, optional 1-based `page` and `as_images`) strictly jailed inside the chosen folder (lexical + canonical containment, regular files only, no symlink escape, extension allowlist `pdf`, `png`, `jpg`, `jpeg`, `tif`, `tiff`, file-byte/text/page/pixel/decompression-bomb caps, T-21 untrusted-data framing and IBAN masking, T-72). Digital PDFs return bounded extracted text by default; scanned PDFs (or `as_images: true`) and PNG/JPEG/TIFF images return bounded PNG/JPEG images (multimodal `image_url` in built-in chat, MCP `ContentBlock::image` in `kassensturz-mcp`).
 - `propose_changes` gets `attach_bills` (at most 100): `{"transaction_id", "file", "title"}`. `file` is a path inside the bill folder; `title` is optional (default: the file name).
-  - The file must exist, be a regular file **inside the bill folder** after resolving `..` and links (`ai-tools.bill-outside-folder`), and have one of the four types (`ai-tools.bill-type`); a missing file is `ai-tools.bill-not-found`, no folder set is `ai-tools.no-bill-folder`.
+  - The file must exist, be a regular file **inside the bill folder** after resolving `..` and links (`ai-tools.bill-outside-folder`), and have one of the six allowed types (`pdf`, `png`, `jpg`, `jpeg`, `tif`, `tiff`; `ai-tools.bill-type`); a missing file is `ai-tools.bill-not-found`, no folder set is `ai-tools.no-bill-folder`.
   - The same file on the same transaction twice is `ai-tools.duplicate`. A transaction keeps every bill it has; one more is added after them.
   - Applied in the same set as a split, so one Undo takes back the split and its bills.
 - New cell **Transactions › Attach bills** (`Permission::AttachBills`), off by default, switches *Read* on.
@@ -106,9 +107,9 @@ A bill names an order or invoice number; the bank text ("Purpose", D-083) of the
 
 ## 4. Threats and gates
 
-- **Human gate:** AI data sharing. The parts, their names and the bill folder's path go to the AI the user chose; the AI writes parts and links. Each behind its own cell, off by default, and confirmed on the check card.
-- **Untrusted text:** bill text, invoice numbers and part names are data. A name is stored as text and shown as text, never run.
-- **A link the AI writes can't point anywhere:** only inside the folder the user chose, only four document types, and opening goes through the system's handler for that type.
+- **Human gate:** AI data sharing. The parts, their names, the bill folder's listing and bill contents read via `read_bill` go to the AI the user chose; the AI writes parts and links. Each is behind its own cell, off by default, confirmed on the check card, and covered by **Consent v3** (`SentData::Bills`, `STATEMENT_VERSION = 3`, D-991, T-22) for providers on another computer.
+- **Untrusted text:** bill text, filenames, invoice numbers and part names are data (T-21, T-72). Extracted bill text carries untrusted-data framing and IBAN masking, and a name is stored as text and shown as text, never run.
+- **A link or read can't point anywhere:** strictly jailed inside the folder the user chose (T-62, T-72), only the six allowed document/image types (`pdf`, `png`, `jpg`, `jpeg`, `tif`, `tiff`), bounded against oversized files and decompression bombs, and opening goes through the system's handler for that type.
 - **Money:** the split is checked in integer minor units before the card and again before the write; the account's own amount never changes.
 
 ## 5. Build order and tests
@@ -121,4 +122,4 @@ A bill names an order or invoice number; the bank text ("Purpose", D-083) of the
 
 - **D-737:** the AI splits a transaction through `split_transactions`, behind its own cell, with names as part notes and *Not sorted yet* as a part without category; the account part never changes; the parts must add up exactly in minor units; one part removes the split; `search_transactions` returns `parts` and matches a part's amount.
 - **D-738:** `search_transactions` takes `reference`, compared on letters and digits ignoring case, at least 4 of them; no match says "not found" and is never guessed by amount.
-- **D-739:** a per-computer bill folder chosen through the system's folder chooser (the portal in the Flatpak, no new permission); over MCP only, `bill_folder` and `attach_bills` behind their own cell store a link inside that folder in `attachments`; the transaction page opens and unlinks bills and never touches the files.
+- **D-739 (revised by D-990, D-991):** a per-computer bill folder chosen through the system's folder chooser (the portal in the Flatpak, no new permission); `bill_folder`, `read_bill` and `attach_bills` behind their own cell work in both built-in chat and `kassensturz-mcp` (D-990), supporting `pdf`, `png`, `jpg`, `jpeg`, `tif` and `tiff` under Consent v3 (D-991), storing a link inside that folder in `attachments`; the transaction page opens and unlinks bills and never touches the files.

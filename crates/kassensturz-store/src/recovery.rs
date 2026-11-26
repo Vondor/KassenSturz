@@ -83,6 +83,26 @@ pub(crate) fn finish_cut_short_save(book: &Path) -> Result<Outcome, StoreError> 
         .map_err(|_| StoreError::UnfinishedSave)
 }
 
+/// Opens `book` for taking back a save in place, hardened before anything
+/// in the file or its journal is read (B-245).
+fn open_in_place(book: &Path) -> Result<Connection, StoreError> {
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let (conn, _) = lockless::open_writer(book, flags)?;
+    crate::harden(&conn)?;
+    Ok(conn)
+}
+
+/// Opens the private copy at `copy` for taking back a save, hardened before
+/// anything in the file or its journal is read (B-245).
+fn open_copy(copy: &Path) -> Result<Connection, StoreError> {
+    let conn = Connection::open_with_flags(
+        copy,
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    crate::harden(&conn)?;
+    Ok(conn)
+}
+
 /// Lets SQLite take the save back in the book's folder: a connection that
 /// may write and reads the book does so before anything else.
 fn take_back_in_place(book: &Path) -> Result<(), StoreError> {
@@ -90,8 +110,7 @@ fn take_back_in_place(book: &Path) -> Result<(), StoreError> {
     if IN_PLACE_FAILS.with(std::cell::Cell::get) {
         return Err(StoreError::UnfinishedSave);
     }
-    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-    let (conn, _) = lockless::open_writer(book, flags)?;
+    let conn = open_in_place(book)?;
     // A connection SQLite could only open read-only can't take it back.
     if conn.is_readonly(rusqlite::MAIN_DB)? {
         return Err(StoreError::UnfinishedSave);
@@ -121,10 +140,7 @@ fn take_back_through_copy(book: &Path, journal: &Path) -> Result<PathBuf, StoreE
     copy_part(book, &copy, size_before_the_save(journal)?)?;
     fs::copy(journal, journal_of(&copy))?;
     {
-        let conn = Connection::open_with_flags(
-            &copy,
-            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )?;
+        let conn = open_copy(&copy)?;
         read_schema(&conn)?;
         let check: String = conn.query_row("PRAGMA quick_check(1)", [], |row| row.get(0))?;
         if check != "ok" {

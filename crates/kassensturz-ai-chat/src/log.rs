@@ -32,8 +32,11 @@ pub enum LogEntry {
     Sent {
         /// Which request for this question it was, from 1.
         round: usize,
-        /// The exact body that was sent ([`kassensturz_ai::PreparedRequest::preview`]),
-        /// after the user's redactions.
+        /// The readable view of the body that was sent
+        /// ([`kassensturz_ai::PreparedRequest::display_preview`]), after the
+        /// user's redactions. Matches `preview` verbatim for text-only
+        /// requests, and summarizes attached bill images as
+        /// `[image: <mime>, <size>]`.
         body: String,
     },
     /// The model called a read function, and KassenSturz answered.

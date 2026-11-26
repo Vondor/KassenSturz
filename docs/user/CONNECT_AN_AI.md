@@ -64,6 +64,26 @@ What we found when we tested local models on a made-up household book, asking te
 
 Whatever the model says, check numbers that matter against KassenSturz's own screens. Changes the AI proposes never happen without your **Confirm**.
 
+### Analyzing, attaching and filing bills in the built-in chat
+
+You can let the built-in chat inspect bills and receipts (for example from a fictional shop like "Copper Finch Goods" or "Papierladen Nord"), match them to bank transactions, split a payment across categories, and attach or file the documents — without installing a separate OCR tool or filesystem server.
+
+1. **Choose your folders** in **Settings → AI provider and privacy…**:
+   - **Bill folder**: keeps your bills where they are. KassenSturz only stores a link on the transaction and **never moves, changes or deletes** files in your bill folder.
+   - **Inbox for new bills** and **Archive for filed bills**: drop new receipts into the inbox; once you confirm a change set, KassenSturz copies, verifies and moves each bill into `<Archive>/<Account>/<Category>/` and links it (Undo moves it back).
+   - **Flatpak and Snap folder access (`B-267`):** choosing a folder opens the system's folder chooser portal, granting access only to the folders you pick — no broad filesystem permission is needed. KassenSturz remembers and shows the real folder name returned by the portal.
+2. **Switch on the off-by-default permissions** under **What the AI may do**:
+   - **Attach bills** (for your Bill folder) and/or **File bills from the inbox** (for your Inbox + Archive), plus **Split** or **Tags** if you want the AI to propose splits or tags in the same step. Every cell starts off.
+3. **Supported formats & model requirements:**
+   - Supported file types: **PDF** (digital text or scanned pages), **PNG**, **JPEG** (`jpg`, `jpeg`), and **TIFF** (`tif`, `tiff`).
+   - KassenSturz runs **no OCR** itself. For digital PDFs it hands bounded text to the model; for scanned PDFs and photos (PNG, JPEG, TIFF) it hands bounded page/photo images (up to 2 pages per call for multi-page scans). To read scanned PDFs or photos, pick a **vision-capable model** (multimodal model).
+   - For local models (such as **LM Studio**), keep **Context Length** at **32768 or more** (65536 recommended), especially when working with multi-page PDFs or images.
+4. **Providers on another computer (Consent v3):**
+   - Bill analysis works with models on this computer (`localhost`) and with consented providers on another computer (including a home-LAN LM Studio or Ollama server).
+   - **Consent v3** explicitly names bill filenames and contents (text or page images) in **What leaves this computer** — noting they are sent only if you chose a folder and switched those permissions on. If you previously agreed to an older consent statement for a remote or LAN provider, KassenSturz asks you to agree once more. Before sending, you can still review and redact text in outgoing requests.
+5. **Exact checks & confirmation:**
+   - KassenSturz verifies every proposed split sum and every proposed `bill_total` in exact minor units against the bank transaction (mismatches start unticked). Nothing is attached, split or moved until you press **Confirm and make these changes**, and **Undo** takes the whole set back.
+
 ### If the chat shows an error
 
 The message says what happened and what to do. When the settings can fix it, it has a button **Open the AI settings**.
@@ -109,9 +129,31 @@ This works with Claude Desktop or Claude Code on a Claude subscription, with no 
    **From your distribution, or built from source (Linux)**
 
    - The command is `kassensturz-mcp`, with no arguments. Use it as in the Snap examples above, with `kassensturz-mcp` in place of `kassensturz.mcp`.
+
+   **LM Studio (MCP client)**
+
+   - LM Studio can also connect to `kassensturz-mcp` directly as an MCP server (in LM Studio's **Program → Install → Edit `mcp.json`**). Add a `"kassensturz"` entry under `"mcpServers"` using the command for your install type above — for example on Linux/Windows native installs:
+     ```json
+     {
+       "mcpServers": {
+         "kassensturz": {
+           "command": "kassensturz-mcp"
+         }
+       }
+     }
+     ```
+     (Use `"command": "kassensturz.mcp"` for Snap, or `"command": "flatpak"` with `"args": ["run", "--command=kassensturz-mcp", "io.github.vondor.KassenSturz"]` for Flatpak.)
 3. Ask your AI tool about your accounts. It can read accounts, categories, balances, totals per category, transactions and Rules. It never sees PINs, bank logins or account numbers.
 
 It reads the book KassenSturz opened last. KassenSturz may stay open, and when you open another book there, the AI reads that one from its next answer on.
+
+### Reading, attaching and filing bills over MCP (`read_bill` parity)
+
+When you choose a **Bill folder** or **Inbox + Archive** in **Settings → AI provider and privacy…** and switch on **Attach bills** or **File bills from the inbox**, `kassensturz-mcp` offers `bill_folder` (with a bounded listing of bills directly inside the folder), `inbox`, and `read_bill` — the same path-jailed bill tools as the built-in chat.
+
+- **No separate filesystem MCP server is needed:** `read_bill` reads `pdf`, `png`, `jpg`, `jpeg`, `tif` and `tiff` files strictly inside the folder you chose, returning extracted text for digital PDFs and standard MCP image blocks for scanned PDFs and photos.
+- **Flatpak and Snap portal paths (`B-267`):** because KassenSturz opens your bill folder and inbox through the system's folder chooser portal and remembers the real path, `kassensturz-mcp` reads inside those granted folders without broad filesystem permissions.
+- Every proposed split, attachment or inbox move still appears in KassenSturz's chat sidebar for your **Confirm**, with exact minor-unit checks and full **Undo**.
 
 ### Letting it prepare changes
 

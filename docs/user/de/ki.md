@@ -14,7 +14,7 @@ In KassenSturz ist die KI **aus**, bis Sie sie einschalten. Solange sie aus ist,
 
 ## Was die KI kann und was nicht
 
-- Sie kann Fragen zu Ihrem Buch beantworten und Änderungen vorbereiten, zum Beispiel Kategorien oder Regeln vorschlagen.
+- Sie kann Fragen zu Ihrem Buch beantworten, Belege und Rechnungen aus von Ihnen gewählten Ordnern lesen (PDF, PNG, JPEG oder TIFF) und Änderungen vorbereiten, zum Beispiel Kategorien, Aufteilungen, verknüpfte Belege oder Regeln vorschlagen.
 - **Sie ändert nichts von allein.** Jede Änderung sehen Sie zuerst, und erst Ihr Klick auf **Bestätigen und diese Änderungen vornehmen** führt sie aus. **Rückgängig** nimmt sie zurück.
 - **Die Zahlen kommen von KassenSturz, nicht von der KI.** Die KI fragt KassenSturz nach Ihren Summen und Kontoständen. Prüfen Sie eine Zahl, auf die es ankommt, trotzdem auf den Seiten von KassenSturz selbst.
 - Sie gibt keine Steuer-, Rechts- oder Anlageberatung, auf die Sie sich verlassen sollten.

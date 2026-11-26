@@ -199,10 +199,12 @@ pub enum ToolError {
     /// A bill to attach is not inside the bill folder once `..` and links
     /// are resolved. The path is not repeated back.
     BillOutsideFolder,
-    /// A bill to attach is not a PDF, PNG or JPEG file by its name.
+    /// A bill to attach is not a PDF, PNG, JPEG or TIFF file by its name.
     BillType,
     /// A bill to attach is not a file in the bill folder.
     BillNotFound,
+    /// A bill file could not be read or decoded (corrupt, encrypted or unsupported).
+    BillUnreadable,
     /// No receipt inbox is chosen on this computer, so no bill can be
     /// filed from it (US7, #333).
     NoInbox,
@@ -708,6 +710,7 @@ impl Report for ToolError {
             Self::BillOutsideFolder => ErrorReport::new("ai-tools.bill-outside-folder"),
             Self::BillType => ErrorReport::new("ai-tools.bill-type"),
             Self::BillNotFound => ErrorReport::new("ai-tools.bill-not-found"),
+            Self::BillUnreadable => ErrorReport::new("ai-tools.bill-unreadable"),
             Self::NoInbox => ErrorReport::new("ai-tools.no-inbox"),
             Self::NoArchive => ErrorReport::new("ai-tools.no-archive"),
             Self::BillTooBig => ErrorReport::new("ai-tools.bill-too-big")
@@ -876,6 +879,7 @@ mod tests {
             ToolError::BillOutsideFolder,
             ToolError::BillType,
             ToolError::BillNotFound,
+            ToolError::BillUnreadable,
             ToolError::NoInbox,
             ToolError::NoArchive,
             ToolError::BillTooBig,
@@ -1039,6 +1043,13 @@ mod tests {
                 .map(|&(argument, _)| ToolError::NotAllowed { argument }),
         );
         examples.push(ToolError::NotAllowed { argument: "page" });
+        for argument in [
+            crate::BILL_FOLDER.name,
+            crate::INBOX.name,
+            crate::READ_BILL.name,
+        ] {
+            examples.push(ToolError::NotAllowed { argument });
+        }
         // The place of the item a refusal came from (M6-B191).
         examples.extend(
             crate::changes::SECTIONS
@@ -1145,6 +1156,7 @@ mod tests {
                 .chain(crate::changes::VIEW_ARGUMENTS)
                 .chain(crate::issue::FIELDS)
                 .chain(crate::open_page::FIELDS)
+                .chain(crate::bill_reader::ARGUMENTS)
                 .map(|&argument| ToolError::BadArgument { argument }),
         );
         // A name next to an ID that doesn't fit (D-675).

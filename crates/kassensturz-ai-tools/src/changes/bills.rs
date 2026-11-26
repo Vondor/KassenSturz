@@ -296,6 +296,16 @@ pub fn bill_path(folder: &Path, file: &str) -> Result<PathBuf, ToolError> {
     if !has_bill_type(&named) {
         return Err(ToolError::BillType);
     }
+    // Check each prefix along the path inside `real_folder` before resolving
+    // with `canonicalize`, so a symlink inside the bill folder that points
+    // outside always yields `BillOutsideFolder` whether or not its outside
+    // target exists (eliminating an outside-file existence oracle, B-467).
+    let rel = named
+        .strip_prefix(&chosen)
+        .or_else(|_| named.strip_prefix(&real_folder))
+        .map_err(|_| ToolError::BillOutsideFolder)?;
+    ensure_no_escaping_symlink(&real_folder, rel)?;
+
     let real = joined.canonicalize().map_err(|_| ToolError::BillNotFound)?;
     if !inside(&real, &real_folder) {
         return Err(ToolError::BillOutsideFolder);
@@ -308,6 +318,87 @@ pub fn bill_path(folder: &Path, file: &str) -> Result<PathBuf, ToolError> {
         return Err(ToolError::BillNotFound);
     }
     Ok(real)
+}
+
+/// Walks `rel` under canonical `real_folder` using `symlink_metadata`,
+/// rejecting any symlink (leaf or intermediate directory) whose target escapes
+/// `real_folder` with uniform [`ToolError::BillOutsideFolder`] — even when the
+/// outside target does not exist (B-467).
+fn ensure_no_escaping_symlink(real_folder: &Path, rel: &Path) -> Result<(), ToolError> {
+    const MAX_SYMLINK_HOPS: usize = 16;
+    let mut cur = real_folder.to_path_buf();
+    for component in rel.components() {
+        let Component::Normal(name) = component else {
+            return Err(ToolError::BillOutsideFolder);
+        };
+        cur.push(name);
+        let Ok(meta) = std::fs::symlink_metadata(&cur) else {
+            // Genuine missing entry inside `real_folder` with no escaping link
+            // seen so far.
+            return Ok(());
+        };
+        if !meta.file_type().is_symlink() {
+            continue;
+        }
+        // Follow the symlink chain step by step within `real_folder`. If any
+        // hop escapes `real_folder`, loops, or cannot be read, return
+        // `BillOutsideFolder` uniformly without revealing outside existence.
+        let mut link_path = cur.clone();
+        let mut hops = 0usize;
+        loop {
+            hops += 1;
+            if hops > MAX_SYMLINK_HOPS {
+                return Err(ToolError::BillOutsideFolder);
+            }
+            let target =
+                std::fs::read_link(&link_path).map_err(|_| ToolError::BillOutsideFolder)?;
+            let resolved = if target.is_absolute() {
+                lexical(&target)
+            } else {
+                link_path.parent().and_then(|p| lexical(&p.join(&target)))
+            }
+            .ok_or(ToolError::BillOutsideFolder)?;
+            if !resolved.starts_with(real_folder) {
+                return Err(ToolError::BillOutsideFolder);
+            }
+            match std::fs::symlink_metadata(&resolved) {
+                Ok(next_meta) if next_meta.file_type().is_symlink() => {
+                    link_path = resolved;
+                }
+                Ok(_) => {
+                    // Resolved to an existing non-symlink inside `real_folder`.
+                    cur = resolved;
+                    break;
+                }
+                Err(_) => {
+                    // Target is inside `real_folder` lexically; make sure no
+                    // parent component along `resolved` is itself an escaping
+                    // symlink before reporting `BillNotFound`.
+                    if let Ok(inner_rel) = resolved.strip_prefix(real_folder) {
+                        let mut probe = real_folder.to_path_buf();
+                        for part in inner_rel.components() {
+                            let Component::Normal(seg) = part else {
+                                return Err(ToolError::BillOutsideFolder);
+                            };
+                            probe.push(seg);
+                            if let Ok(pm) = std::fs::symlink_metadata(&probe)
+                                && pm.file_type().is_symlink()
+                            {
+                                let can = probe
+                                    .canonicalize()
+                                    .map_err(|_| ToolError::BillOutsideFolder)?;
+                                if !can.starts_with(real_folder) {
+                                    return Err(ToolError::BillOutsideFolder);
+                                }
+                            }
+                        }
+                    }
+                    return Err(ToolError::BillNotFound);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Whether `path` ends in one of the [`BILL_TYPES`], compared without case.

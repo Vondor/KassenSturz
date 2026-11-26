@@ -150,7 +150,7 @@ pub struct BillText {
 
 /// File extensions allowed for local attachments opened from a book, matching
 /// Threat T-62 (`BILL_TYPES` in `kassensturz-ai-tools`).
-const ALLOWED_BILL_TYPES: [&str; 4] = ["pdf", "png", "jpg", "jpeg"];
+const ALLOWED_BILL_TYPES: [&str; 6] = ["pdf", "png", "jpg", "jpeg", "tif", "tiff"];
 
 /// Whether `link` is a UNC or network share path (`\\server\share`,
 /// `\\?\UNC\...`, `//server/share`). Refused before any filesystem check so
@@ -2354,6 +2354,67 @@ mod tests {
             assert_eq!(bill.url, "", "must not open {:?}", bill.link);
             assert_eq!(bill.folder_url, "", "must not open folder {:?}", bill.link);
             assert!(!bill.missing, "must not probe {:?}", bill.link);
+        }
+    }
+
+    #[test]
+    fn tiff_attachments_are_accepted_as_openable_bills() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        add(
+            &mut book,
+            &paid(&checking, "18,40", "Papierladen Nord", &groceries),
+            &TestLocale,
+        )
+        .expect("added");
+        let id = transaction_at(&book, &checking, true);
+        let folder = crate::test_folder::TestFolder::new();
+        let tif = folder.join("scan-01.tif");
+        let tiff = folder.join("SCAN-02.TIFF");
+        std::fs::write(&tif, b"II*\x00synthetic").unwrap();
+        std::fs::write(&tiff, b"II*\x00synthetic").unwrap();
+        let script = folder.join("run.sh");
+        std::fs::write(&script, b"#!/bin/sh\n").unwrap();
+
+        let mut attachments = vec![
+            kassensturz_core::Attachment {
+                link: tif.to_str().unwrap().to_owned(),
+                title: Some("Scan TIF".into()),
+            },
+            kassensturz_core::Attachment {
+                link: tiff.to_str().unwrap().to_owned(),
+                title: None,
+            },
+        ];
+        #[cfg(unix)]
+        {
+            let disguised = folder.join("disguised.tiff");
+            std::os::unix::fs::symlink(&script, &disguised).unwrap();
+            attachments.push(kassensturz_core::Attachment {
+                link: disguised.to_str().unwrap().to_owned(),
+                title: None,
+            });
+        }
+
+        let stored = find_transaction(&book, find_account(&book, &checking).unwrap().id, &id)
+            .expect("found");
+        book.update_transaction(&stored.with_attachments(attachments))
+            .unwrap();
+
+        let bills = details(&book, &checking, &id, &TestLocale)
+            .expect("details")
+            .bills;
+        assert!(bills[0].url.starts_with("file:///") && bills[0].url.ends_with("/scan-01.tif"));
+        assert!(!bills[0].missing);
+        assert!(bills[1].url.starts_with("file:///") && bills[1].url.ends_with("/SCAN-02.TIFF"));
+        assert!(!bills[1].missing);
+        #[cfg(unix)]
+        {
+            assert_eq!(
+                bills[2].url, "",
+                "symlink to script named .tiff must not open"
+            );
+            assert_eq!(bills[2].folder_url, "");
         }
     }
 

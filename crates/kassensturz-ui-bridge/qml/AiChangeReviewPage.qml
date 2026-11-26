@@ -407,7 +407,7 @@ Kirigami.ScrollablePage {
         case "not-found":
             return i18nContext.i18nc("@info", "it isn't in the inbox any more");
         case "no-folders":
-            return i18nContext.i18nc("@info", "no inbox and archive are chosen under Your own AI tools");
+            return i18nContext.i18nc("@info", "no inbox and archive are chosen in AI settings");
         case "other-inbox":
             return i18nContext.i18nc("@info", "you chose another inbox since");
         case "inbox-gone":

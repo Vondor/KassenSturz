@@ -1133,11 +1133,12 @@ Kirigami.ScrollablePage {
             text: problem === "none" ? page.i18nContext.i18nc("@info", "On this system your AI tools can't prepare changes yet. They can still read the parts of your book you allowed above.") : page.i18nContext.i18nc("@info", "Your AI tools can't prepare changes right now: KassenSturz can't create or open its folder for them in your user data folder. Check that you may write there, for example that the disk isn't full, then switch this off and on again.")
         }
 
-        // The bill folder (US5.13, D-739): the user's own AI tools read a
-        // bill there themselves and may link it to a transaction.
-        // KassenSturz stores only the link and never touches the files.
+        // The bill folder (US5.13, D-739, D-990, D-997): both the built-in
+        // chat and external AI tools can list and read bills here and suggest
+        // linking a bill to its transaction. KassenSturz stores only the link
+        // and never moves, changes or deletes files in this folder.
         Kirigami.Heading {
-            level: 3
+            level: 2
             text: page.i18nContext.i18nc("@title:group", "Bill folder")
         }
 
@@ -1145,7 +1146,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            text: page.i18nContext.i18nc("@info", "Choose a folder where you keep your bills as PDF or picture files. Your AI tools can then read a bill there themselves, find the payment it belongs to and suggest linking it to that transaction, if you allow \"Bills linked to transactions\" above. KassenSturz itself never reads, moves, changes or deletes these files.")
+            text: page.i18nContext.i18nc("@info", "Choose a folder where you keep your bills as PDF or picture files (PDF, PNG, JPEG or TIFF). Both the built-in chat and your external AI tools can read bills there, find the payment a bill belongs to and suggest linking it to that transaction, if you allow \"Bills linked to transactions\" above. KassenSturz never moves, changes or deletes files in this folder.")
         }
 
         Controls.Label {
@@ -1182,12 +1183,13 @@ Kirigami.ScrollablePage {
             }
         }
 
-        // The receipt inbox (US7, #333, D-752): bills dropped into the
-        // inbox are moved into the archive when the user confirms what
-        // their AI tools prepared. Two folders through the system's folder
-        // chooser, shown by their real path (B-267).
+        // The receipt inbox (US7, #333, D-752, D-990, D-997): bills dropped
+        // into the inbox can be read by both the built-in chat and external
+        // AI tools, and are moved into the archive when the user confirms.
+        // Two folders through the system's folder chooser, shown by their
+        // real path (B-267).
         Kirigami.Heading {
-            level: 3
+            level: 2
             text: page.i18nContext.i18nc("@title:group", "Inbox and archive for bills")
         }
 
@@ -1195,7 +1197,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            text: page.i18nContext.i18nc("@info", "Drop bills into the inbox. Your AI reads them, and when you confirm, KassenSturz moves each one into the archive, sorted by account and category. Undo puts it back. This needs \"Bills filed from the inbox\" above.")
+            text: page.i18nContext.i18nc("@info", "Drop bills into the inbox. Both the built-in chat and your external AI tools can read them and propose filing them. When you confirm, KassenSturz moves each one into the archive, sorted by account and category, and Undo puts it back. This needs \"Bills filed from the inbox\" above.")
         }
 
         Repeater {

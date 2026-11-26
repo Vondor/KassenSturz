@@ -1178,6 +1178,7 @@ pub(crate) mod engine {
         };
         let mut conversation = earlier.unwrap_or_else(new_conversation);
         conversation.set_screen(crate::developer_mode::current_screen());
+        conversation.set_folders(configured_folders());
         chat.as_mut().busy_changed();
         let thread = chat.qt_thread();
         std::thread::spawn(move || {
@@ -1199,11 +1200,23 @@ pub(crate) mod engine {
         map([("started", QVariant::from(&true))])
     }
 
+    /// The bill folders currently configured in the user's settings (D-990,
+    /// D-997), shared by the built-in chat and MCP request validation.
+    fn configured_folders() -> kassensturz_ai_tools::Folders {
+        let (inbox, archive) = kassensturz_core::ai_switch::inbox_folders().unzip();
+        kassensturz_ai_tools::Folders {
+            bills: kassensturz_core::ai_switch::bill_folder(),
+            inbox,
+            archive,
+        }
+    }
+
     /// A new conversation in this build, writing to the developer mode's
     /// log while it runs (D-227).
     fn new_conversation() -> ChatSession {
         let conversation =
-            ChatSession::new(BuildInfo::new(app_version(), ai_settings::build_commit()));
+            ChatSession::new(BuildInfo::new(app_version(), ai_settings::build_commit()))
+                .with_folders(configured_folders());
         #[cfg(feature = "debug-log")]
         let conversation = conversation.with_debug_log(crate::developer_mode::log().clone());
         conversation
@@ -1544,12 +1557,7 @@ pub(crate) mod engine {
             let Some(inbox) = inbox.as_mut() else {
                 return;
             };
-            let (inbox_folder, archive) = kassensturz_core::ai_switch::inbox_folders().unzip();
-            let folders = kassensturz_ai_tools::Folders {
-                bills: kassensturz_core::ai_switch::bill_folder(),
-                inbox: inbox_folder,
-                archive,
-            };
+            let folders = configured_folders();
             session::with_book(|book| {
                 take_requests(
                     inbox,

@@ -1042,25 +1042,33 @@ fn redactions_persist_across_tool_rounds_and_follow_up_questions() {
     }
 }
 
-/// A receipt-inbox request in the built-in chat carries the MCP-only guidance
-/// and no-merchant-guessing rule while keeping `bill_folder`, `inbox`,
-/// `attach_bills` and `file_bills` out of the chat's offered tools (#1408).
+/// When bill folders are not configured (or permissions are off), the built-in
+/// chat points the user to Settings › AI, keeps `bill_folder`, `inbox`,
+/// `read_bill`, `attach_bills` and `file_bills` out of offered tools, and
+/// forbids merchant guessing (#1408, #1415, D-990, D-997).
 #[test]
-fn receipt_inbox_request_carries_mcp_guidance_and_keeps_bill_tools_excluded() {
+fn receipt_inbox_request_without_folders_guides_to_settings_and_keeps_bill_tools_excluded() {
     let book = hostile_book();
     let (provider, seen) = Script::provider(
         on(),
         vec![
-            calls(&[("c1", "inbox", "{}"), ("c2", "bill_folder", "{}")]),
+            calls(&[
+                ("c1", "inbox", "{}"),
+                ("c2", "bill_folder", "{}"),
+                (
+                    "c3",
+                    "read_bill",
+                    r#"{"source":"inbox","file":"invoice.pdf"}"#,
+                ),
+            ]),
             says(
-                "This built-in chat cannot read local invoice files or access KassenSturz's \
-                 receipt inbox. Please use an external AI tool with local file access connected \
-                 over MCP under Your own AI tools. Because I cannot read the invoices, I skipped \
-                 the request and prepared no tags.",
+                "Filing bills from the receipt inbox is not set up yet. Please choose both \
+                 folders under Inbox and archive for bills in Settings › AI. Because I cannot \
+                 read the invoices yet, I skipped the request and prepared no tags.",
             ),
         ],
     );
-    let mut chat = session();
+    let mut chat = session().with_folders(kassensturz_ai_tools::Folders::default());
     let answer = chat
         .ask(
             &book,
@@ -1084,8 +1092,8 @@ fn receipt_inbox_request_carries_mcp_guidance_and_keeps_bill_tools_excluded() {
         answer.notes
     );
     assert!(
-        chat.log().contains(&LogEntry::NotOffered { calls: 2 }),
-        "inbox and bill_folder calls must be rejected as not offered"
+        chat.log().contains(&LogEntry::NotOffered { calls: 3 }),
+        "inbox, bill_folder and read_bill calls must be rejected as not offered"
     );
     assert!(
         called(&chat).is_empty(),
@@ -1101,17 +1109,12 @@ fn receipt_inbox_request_carries_mcp_guidance_and_keeps_bill_tools_excluded() {
         .find(|message| message.role == Role::System)
         .expect("system prompt");
     assert!(system.content.contains("Inbox and archive for bills"));
-    assert!(system.content.contains("Your own AI tools"));
-    assert!(
-        system
-            .content
-            .contains("external AI tool with local file access connected over MCP")
-    );
-    assert!(
-        system
-            .content
-            .contains("never guess what was bought from a merchant or payee match alone")
-    );
+    assert!(system.content.contains("Settings › AI"));
+    assert!(!system.content.contains("over MCP"));
+    assert!(system.content.contains(
+        "Never guess what was bought, its category, its items or its total from a filename, \
+         merchant or payee match alone"
+    ));
     assert!(system.content.contains("skip uncertain items"));
     assert!(
         requests[1]
@@ -1125,8 +1128,8 @@ fn receipt_inbox_request_carries_mcp_guidance_and_keeps_bill_tools_excluded() {
             request
                 .offered
                 .iter()
-                .all(|name| name != "inbox" && name != "bill_folder"),
-            "bill read tools must stay excluded from built-in chat"
+                .all(|name| name != "inbox" && name != "bill_folder" && name != "read_bill"),
+            "bill read tools must stay excluded when no folders are configured"
         );
         assert!(
             request

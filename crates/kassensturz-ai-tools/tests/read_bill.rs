@@ -1312,7 +1312,53 @@ fn b467_dir_symlink_dangling_escape_fifo_and_archive_gate() {
             );
         }
 
-        // 4. FIFO / named pipe inside bill folder refused immediately without blocking.
+        // 4. Symlink whose absolute target traverses a symlinked parent
+        //    directory (simulating macOS `/var -> /private/var`) resolves
+        //    accurately for valid files, wrong-type files, and dangling targets.
+        let alias_root = sb.root.join("AliasRoot");
+        std::os::unix::fs::symlink(sb.bills(), &alias_root).unwrap();
+        sb.write("Bills/notes.txt", b"not a bill");
+        std::os::unix::fs::symlink(
+            alias_root.join("real.pdf"),
+            sb.bills().join("via-alias.pdf"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(
+            alias_root.join("notes.txt"),
+            sb.bills().join("via-alias-txt.pdf"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(
+            alias_root.join("missing.pdf"),
+            sb.bills().join("via-alias-dangling.pdf"),
+        )
+        .unwrap();
+        assert_eq!(
+            code(read_bill(
+                &json!({"source": "bill_folder", "file": "via-alias.pdf"}),
+                unlocked(),
+                &sb.folders(),
+            )),
+            "ok"
+        );
+        assert_eq!(
+            code(read_bill(
+                &json!({"source": "bill_folder", "file": "via-alias-txt.pdf"}),
+                unlocked(),
+                &sb.folders(),
+            )),
+            "ai-tools.bill-type"
+        );
+        assert_eq!(
+            code(read_bill(
+                &json!({"source": "bill_folder", "file": "via-alias-dangling.pdf"}),
+                unlocked(),
+                &sb.folders(),
+            )),
+            "ai-tools.bill-not-found"
+        );
+
+        // 5. FIFO / named pipe inside bill folder refused immediately without blocking.
         let fifo = sb.bills().join("pipe.pdf");
         let status = std::process::Command::new("mkfifo").arg(&fifo).status();
         if status.is_ok_and(|s| s.success()) {

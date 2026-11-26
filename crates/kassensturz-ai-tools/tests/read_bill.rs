@@ -1279,11 +1279,11 @@ fn b467_dir_symlink_dangling_escape_fifo_and_archive_gate() {
 
     #[cfg(unix)]
     {
-        // 2. Directory symlink `Inbox/sub -> .` rejected uniformly.
-        std::os::unix::fs::symlink(".", sb.inbox().join("sub")).unwrap();
+        // 2. Directory symlink `Inbox/loopdir -> .` rejected uniformly.
+        std::os::unix::fs::symlink(".", sb.inbox().join("loopdir")).unwrap();
         assert_eq!(
             code(read_bill(
-                &json!({"source": "inbox", "file": "sub/real.pdf"}),
+                &json!({"source": "inbox", "file": "loopdir/real.pdf"}),
                 unlocked(),
                 &sb.folders(),
             )),

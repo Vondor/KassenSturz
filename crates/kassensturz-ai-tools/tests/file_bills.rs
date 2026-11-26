@@ -271,12 +271,12 @@ fn only_a_bill_right_in_the_inbox_is_filed() {
         .unwrap_err();
         assert_eq!(error.kind().report().code, "ai-tools.bill-outside-folder");
 
-        // A directory symlink `Inbox/sub -> .` must not let `sub/RE-0042.pdf`
-        // bypass the flat-inbox rule (B-467).
-        std::os::unix::fs::symlink(".", place.root.join("Inbox/sub")).unwrap();
+        // A directory symlink `Inbox/loopdir -> .` must not let
+        // `loopdir/RE-0042.pdf` bypass the flat-inbox rule (B-467).
+        std::os::unix::fs::symlink(".", place.root.join("Inbox/loopdir")).unwrap();
         let error = prepare(
             &book,
-            &item(id, "sub/RE-0042.pdf", &json!({})),
+            &item(id, "loopdir/RE-0042.pdf", &json!({})),
             unlocked(),
             &folders,
         )

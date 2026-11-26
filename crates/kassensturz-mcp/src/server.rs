@@ -11,7 +11,8 @@ use std::time::Duration;
 
 use kassensturz_ai_tools::requests::RequestFolder;
 use kassensturz_ai_tools::{
-    BILL_FOLDER, Function, INBOX, ToolError, bill_folder_answer, inbox_answer, readable_functions,
+    BILL_FOLDER, Folders, Function, INBOX, READ_BILL, ToolError, bill_folder_answer, inbox_answer,
+    read_bill, read_bill_allowed, readable_functions,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{READ_DEBUG_LOG, read_debug_log};
@@ -335,6 +336,26 @@ impl Server {
             };
             return outcome(result);
         }
+        // Path-jailed bill reading (D-990, D-751, T-72): enforces permissions
+        // and configured folders on every call, never trusting `list_tools`.
+        if name == READ_BILL.name {
+            let permissions = ai_switch::permissions();
+            let folders = configured_folders();
+            return match read_bill(arguments, permissions, &folders) {
+                Ok(result) => {
+                    let mut content = Vec::with_capacity(1 + result.images.len());
+                    content.push(ContentBlock::text(result.text_json));
+                    for image in &result.images {
+                        content.push(ContentBlock::image(image.to_base64(), &image.mime_type));
+                    }
+                    (CallToolResult::success(content), None)
+                }
+                Err(error) => {
+                    let report = error.report();
+                    (error_result(&report, &error), Some(report.code))
+                }
+            };
+        }
         answer(book, name, arguments, today(), ai_switch::permissions())
     }
 
@@ -468,8 +489,20 @@ const LAYOUT_STEPS: &str = "When a tool answers with next_step, the book couldn'
      AI tool started these tools, so the user quits and restarts this AI tool; until then no \
      book is read.";
 
+/// The bill, inbox and archive folders configured in the user's settings
+/// (D-739, D-752, D-990).
+fn configured_folders() -> Folders {
+    let inbox = ai_switch::inbox_folders();
+    Folders {
+        bills: ai_switch::bill_folder(),
+        inbox: inbox.as_ref().map(|(inbox, _)| inbox.clone()),
+        archive: inbox.map(|(_, archive)| archive),
+    }
+}
+
 /// The read functions the user allows reading (D-252) as MCP tools, in their order, then
-/// [`SERVER_INFO`], which reads no book and is always offered (M6-B225), then the one that
+/// [`SERVER_INFO`], which reads no book and is always offered (M6-B225), then the bill tools
+/// while their folders and permissions are on (D-739, D-752, D-990), then the one that
 /// reads the debug log while the AI tool may, and after them the write tools
 /// while they are on.
 fn tools(
@@ -479,13 +512,19 @@ fn tools(
     bill_folder: bool,
     inbox: bool,
 ) -> Vec<Tool> {
+    let folders_present = Folders {
+        bills: bill_folder.then(PathBuf::new),
+        inbox: inbox.then(PathBuf::new),
+        archive: inbox.then(PathBuf::new),
+    };
     let read = readable_functions(permissions)
         .chain([&SERVER_INFO])
         .chain(
             (bill_folder && permissions.allows(ai_switch::Permission::AttachBills))
                 .then_some(&BILL_FOLDER),
         )
-        .chain((inbox && permissions.allows(ai_switch::Permission::FileBills)).then_some(&INBOX));
+        .chain((inbox && permissions.allows(ai_switch::Permission::FileBills)).then_some(&INBOX))
+        .chain(read_bill_allowed(permissions, &folders_present).then_some(&READ_BILL));
     #[cfg(feature = "debug-log")]
     let read = read.chain(log_readable.then_some(&READ_DEBUG_LOG));
     #[cfg(not(feature = "debug-log"))]
@@ -948,6 +987,46 @@ mod tests {
         assert!(file_offered(all, true));
         assert!(!file_offered(all, false));
         assert!(!file_offered(off, true));
+    }
+
+    /// `read_bill` (D-990, T-72) is offered iff `read_bill_allowed` holds:
+    /// at least one of the bill folder (`AttachBills`) or receipt inbox
+    /// (`FileBills`) is both configured and allowed.
+    #[test]
+    fn read_bill_is_offered_only_when_allowed_with_a_configured_folder() {
+        let all = Permissions::all();
+        let attach_only = all.with(ai_switch::Permission::FileBills, false);
+        let file_only = all.with(ai_switch::Permission::AttachBills, false);
+        let neither = attach_only.with(ai_switch::Permission::AttachBills, false);
+
+        for (permissions, bill_folder, inbox, expected) in [
+            (all, true, true, true),
+            (all, true, false, true),
+            (all, false, true, true),
+            (all, false, false, false),
+            (attach_only, true, false, true),
+            (attach_only, false, true, false),
+            (file_only, false, true, true),
+            (file_only, true, false, false),
+            (neither, true, true, false),
+            (Permissions::defaults(), true, true, false),
+        ] {
+            let offered = tools(permissions, None, false, bill_folder, inbox);
+            let tool = offered.iter().find(|t| t.name == READ_BILL.name);
+            assert_eq!(
+                tool.is_some(),
+                expected,
+                "bill_folder={bill_folder} inbox={inbox}"
+            );
+            if let Some(tool) = tool {
+                let annotations = tool.annotations.as_ref().expect("annotated");
+                assert_eq!(annotations.read_only_hint, Some(true));
+                assert_eq!(annotations.destructive_hint, Some(false));
+                assert_eq!(annotations.idempotent_hint, Some(true));
+                assert_eq!(annotations.open_world_hint, Some(false));
+                assert_eq!(tool.input_schema.get("type"), Some(&Value::from("object")));
+            }
+        }
     }
 
     #[test]

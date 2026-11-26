@@ -30,8 +30,9 @@ Item {
         translationDomain: "kassensturz"
     }
 
-    // The request that waits: `address`, `model`, `body`, `leftOut`, what it
-    // holds (`questions`, `bookAnswers`, `functions`) and `canStopAsking`.
+    // The request that waits: `address`, `model`, `body`, `leftOut`, `error`
+    // (empty when the request may be sent), what it holds (`questions`,
+    // `bookAnswers`, `functions`) and `canStopAsking`.
     property var request: ({})
     // Whether the user decided, so that closing the window afterwards is
     // not a second decision.
@@ -92,6 +93,7 @@ Item {
             Kirigami.Action {
                 text: review.i18nContext.i18nc("@action:button send the request that is shown", "Send")
                 icon.name: "mail-send"
+                enabled: (review.request.error ?? "") === ""
                 onTriggered: {
                     ActionLog.taken("AiRequestReview_send")
                     review.decided = true;
@@ -235,6 +237,14 @@ Item {
                 visible: (review.request.leftOut ?? 0) > 0
                 textFormat: Text.PlainText
                 text: review.i18nContext.i18ncp("@info %1 is a number", "Left out in %1 place.", "Left out in %1 places.", review.request.leftOut ?? 0)
+            }
+
+            AiErrorMessage {
+                objectName: "reviewError"
+                Layout.fillWidth: true
+                ai: review.ai
+                visible: review.ai.enabled && (review.request.error ?? "") !== ""
+                result: (review.request.error ?? "") !== "" ? ({ code: review.request.error }) : ({})
             }
 
             // For a provider the user trusts (D-935): not for the fake model.

@@ -97,10 +97,10 @@ QtObject {
     function setWriteTools(value) { return true; }
     function writeToolsProblem() { return ""; }
     function billFolder() { return ""; }
-    function setBillFolder(folder) { return ({}); }
+    function setBillFolder(folder) { return ""; }
     function removeBillFolder() { return true; }
     function receiptFolder(which) { return ""; }
-    function setReceiptFolder(which, folder) { return ({}); }
+    function setReceiptFolder(which, folder) { return ""; }
     function removeReceiptFolder(which) { return true; }
     function serviceKinds() { return []; }
     function serviceKind() { return ""; }

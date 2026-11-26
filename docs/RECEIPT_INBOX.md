@@ -1,16 +1,16 @@
 # The receipt inbox (US7, #333 design)
 
-> **Status (21 Nov 2026):** Built in US7 (#333). Th
+> **Status (26 Nov 2026):** Built in US7 (#333) and extended in US10 (D-990, D-991, #1413–#1416) to work in both built-in AI chat and `kassensturz-mcp`, with `read_bill`, `tif`/`tiff` support, and Consent v3 (preserving D-751 zero OCR).
 
-**Status:** built in US7 (#333), as designed here with the build notes of §12; D-751 and D-752 are Decided (rows on the `docs/us7-p2` ledger branch). Stage: Alpha, so no migration (D-274), and nothing here changes the book's layout, so it is not [format].
+**Status:** built in US7 (#333), as designed here with the build notes of §12, and extended in US10 (D-990, D-991). Nothing here changes the book's layout, so it is not [format].
 
-Human gate: **AI data sharing** (the inbox folder's path and the file names go to the AI the user chose; the AI proposes moves). The gate was given for US5.13 (#333's comment of 2026-11-12); this design does not widen what leaves the machine (see §6).
+Human gate: **AI data sharing** (the inbox folder's path, file names and — via `read_bill` — bounded bill text or page/photo images go to the AI the user chose; the AI proposes moves). Consent v3 (`STATEMENT_VERSION = 3`, `SentData::Bills`, D-991, T-22) discloses bill sharing for providers on another computer.
 
 All examples are invented: the shop "Papierladen Nord", the invoice numbers, the accounts and the amounts.
 
 ## 1. What is new, and what is not
 
-US5.1, US5.12 and US5.13 (`docs/AI_SPLITS.md`, D-737 to D-739) already let the user's own AI, outside KassenSturz over MCP, read a bill, find its transaction, split it and attach the bill as a **link** to a file in a *bill folder*. KassenSturz never moves that file. That stays exactly as it is.
+US5.1, US5.12 and US5.13 (`docs/AI_SPLITS.md`, D-737 to D-739, revised by D-990) let the user's AI — in both the built-in chat and `kassensturz-mcp` — read a bill, find its transaction, split it and attach the bill as a **link** to a file in a *bill folder*. KassenSturz never moves that file. That stays exactly as it is.
 
 The inbox adds, for people who want it:
 
@@ -20,7 +20,7 @@ The inbox adds, for people who want it:
 4. **Undo** puts the file back into the inbox and removes the link.
 5. **On the transaction:** *Open bill* and *Show in folder*.
 
-No OCR engine and no PDF reader in KassenSturz (D-751): the user's own AI reads the document. The in-app chat reading bills stays after Gold with #803. So the inbox, like the bill folder, is **MCP only**.
+**Zero OCR inside KassenSturz (D-751; extended by D-990 in US10):** KassenSturz runs no OCR engine and parses no bill amounts itself. Under D-990, both the built-in AI chat and `kassensturz-mcp` offer `inbox`, `read_bill` (which returns bounded already-embedded PDF text or bounded page/photo images for the user's model to read), and `file_bills`, for local models (`Place::ThisComputer`) and consented LAN/remote models (`Place::AnotherComputer`, Consent v3, D-991). Supported formats are `pdf`, `png`, `jpg`, `jpeg`, `tif` and `tiff`.
 
 **Why a separate tool and cell, not a mode of `attach_bills`:** D-739 promises that attaching a bill never moves a file. A user who switched *Attach bills* on in US5 must not get moves by accident. So moving has its own tool (`file_bills`) and its own cell (*Transactions › File bills from the inbox*, `Permission::FileBills`, off by default). Both folders are new settings keys, so nothing moves until the user has chosen two folders and switched the cell on.
 
@@ -48,20 +48,21 @@ A mismatch is shown, never hidden: "The bill says 23.50 EUR, your bank booked 24
 
 A bill that is no longer in its place: *"This bill isn't where it was: <path>. Put it back there, or remove the link."* (`bill.missing`, as today).
 
-## 3. The tools (MCP only)
+## 3. The tools (built-in chat and MCP, D-990)
 
-- `inbox` (read): the inbox folder and its files that are filable: regular files, type `pdf`, `png`, `jpg` or `jpeg`, at most 200 listed, each with name, size and modified date. Offered only when both folders are set and the cell is on, so no path goes to a model the user didn't allow. Subfolders are not entered; a link in the inbox is not followed and not listed.
+- `inbox` (read): the inbox folder and its files that are filable: regular files, type `pdf`, `png`, `jpg`, `jpeg`, `tif` or `tiff`, at most 200 listed, each with name, size and modified date. Offered only when both folders are set and the cell is on, so no path goes to a model the user didn't allow. Subfolders are not entered; a link in the inbox is not followed and not listed.
+- `read_bill` (read): path-jailed reading of one bill from `inbox` (or `bill_folder`), behind `FileBills` (or `AttachBills`) and configured folders (D-990, D-751, T-72). Digital PDFs return bounded, T-21-cleaned embedded text by default; scanned/image-only PDFs (or `as_images: true`) and PNG/JPEG/TIFF images return bounded PNG/JPEG images (multimodal `image_url` in built-in chat, MCP `ContentBlock::image` in `kassensturz-mcp`).
 - `propose_changes` gets `file_bills` (at most 50 per set), each `{ "transaction_id", "file", "title"?, "bill_total"?, "bill_currency"? }`:
-  - `file` is a path inside the inbox; it must exist, be a regular file inside the inbox after resolving `..` and links (`ai-tools.bill-outside-folder`), have one of the four types (`ai-tools.bill-type`), and be at most 50 MB, 500 MB per set (`ai-tools.bill-too-big`). Missing: `ai-tools.bill-not-found`. A folder not set: `ai-tools.no-inbox`, `ai-tools.no-archive`. A file already linked to any transaction: `ai-tools.bill-already-filed`; the same file twice in one set: `ai-tools.duplicate`.
+  - `file` is a path inside the inbox; it must exist, be a regular file inside the inbox after resolving `..` and links (`ai-tools.bill-outside-folder`), have one of the six allowed types (`pdf`, `png`, `jpg`, `jpeg`, `tif`, `tiff`; `ai-tools.bill-type`), and be at most 50 MB, 500 MB per set (`ai-tools.bill-too-big`). Missing: `ai-tools.bill-not-found`. A folder not set: `ai-tools.no-inbox`, `ai-tools.no-archive`. A file already linked to any transaction: `ai-tools.bill-already-filed`; the same file twice in one set: `ai-tools.duplicate`.
   - `title` is optional text, used as the link's title and as the file name stem; the default is the file's own stem. It is data: sanitised (§5), never run.
   - `bill_total` is exact decimal text of the figure the AI read, `bill_currency` an ISO 4217 code (D-751, §4). Both optional; without them the card says "the AI did not give a total, check the bill yourself".
   - **No destination field exists.** The archive path is built by code from the transaction (§5). Text inside a document cannot choose where a file goes.
   - It combines with `split_transactions` in the same set: one confirmation, one Undo for the split, the link and the move.
-- `attach_bills` and `bill_folder` stay as D-739 has them.
+- `attach_bills` and `bill_folder` work alongside `read_bill` across both built-in chat and MCP (D-739, revised by D-990).
 
 ## 4. Every figure is checked in code (D-751)
 
-KassenSturz reads no bill, so the figures come from the AI and are treated like any figure an AI proposes: as a claim that code checks.
+KassenSturz runs zero OCR and parses no bill amounts itself, so the figures come from the AI and are treated like any figure an AI proposes: as a claim that code checks.
 
 1. **Parts** (D-737, unchanged): the parts of a split add up exactly to the bank total in integer minor units, before the card and again before the write.
 2. **Bill total against the bank:** `bill_total` is parsed with the book's exact parser for the given currency (no floating point, §3.1 rule 1; ISO 4217 decimals; more places than the currency has is a refusal, `ai-tools.amount`), then compared in minor units with the transaction's amount as booked on the account (absolute value, the bank's sign is not the bill's). Equal: a green tick on the card. Different, or in another currency than the transaction: a plain warning, the row **starts unticked**, and nothing is filed unless the user ticks it. The AI cannot tick it; the confirmation is the user's.
@@ -73,7 +74,7 @@ Dates are shown on the card but not checked: a bill's date and the booking date 
 
 `<archive>/<account>/<category>/<YYMMDD>_<name>.<ext>`
 
-- **account:** the transaction's account name. **category:** the category's own name (not the whole tree); for a split, the category of the part with the largest amount (the first on a tie); a part without a category gives `Not sorted yet`. **YYMMDD:** the transaction's date (a calendar date, D-061). **name:** the sanitised title, or the file's own stem. **ext:** the original extension, lower case, one of the four types.
+- **account:** the transaction's account name. **category:** the category's own name (not the whole tree); for a split, the category of the part with the largest amount (the first on a tie); a part without a category gives `Not sorted yet`. **YYMMDD:** the transaction's date (a calendar date, D-061). **name:** the sanitised title, or the file's own stem. **ext:** the original extension, lower case, one of the six allowed types (`pdf`, `png`, `jpg`, `jpeg`, `tif`, `tiff`).
 - **Sanitising**, for every component, one function with property tests: Unicode NFC; control characters, `/ \ : * ? " < > |` and a leading or trailing dot or space removed; Windows' reserved names (`CON`, `NUL`, `COM1` …) get a trailing `_`; empty becomes `bill`; at most 80 characters per component, and the whole path under 240 so it works on Windows. The result never contains `..` and never starts with a separator, so it cannot leave the archive. After building it, the real path of its parent is checked to lie inside the archive.
 - **Never overwrite:** if the name is taken, compared without regard to case so it also works on Windows and macOS, a number is added: `261105_RE-0042-2.pdf`.
 - Missing account or category folders are created. A closed account is no reason to refuse: it keeps its transactions and their bills.
@@ -130,9 +131,9 @@ New row **T-62 extended** (a row of its own is added at build time):
 | A move that loses the only copy | Copy, verify, link saved, only then remove; the journal never deletes the last copy |
 | A figure the AI read is wrong | Checked in code against the bank amount; mismatch unticked (§4) |
 | A user with *Attach bills* on gets moves they never agreed to | Separate cell, off by default, two new folder settings |
-| AI off | `inbox`, `file_bills`, both folder settings and the cell are hidden; the transaction page's *Open bill* and *Show in folder* stay (the user's own links) |
+| AI off | `inbox`, `read_bill`, `file_bills`, both folder settings and the cell are hidden; the transaction page's *Open bill* and *Show in folder* stay (the user's own links) |
 
-**What leaves the machine** is unchanged from D-739: the folder's path, the file names and, when the AI reads a file itself, the file, all to the AI the user chose and none of it by KassenSturz. KassenSturz reads no file's content except to copy and compare bytes.
+**What leaves the machine (D-990, D-991, T-22, T-72):** the folder's path, the file names and — when the model calls `read_bill` — bounded embedded PDF text or bounded page/photo images go to the AI the user chose (local on this computer, or another computer only after **Consent v3**, `STATEMENT_VERSION = 3`, `SentData::Bills`, with request preview and text redaction). KassenSturz still runs zero OCR and never parses bill amounts itself (D-751).
 
 **Flatpak:** no new filesystem permission. **Step 0 of the build, in a real Flatpak (the same open point as #647 and BOOK_FOLDER step 0):** (a) a file can be read, copied out of and removed from an inbox granted by the folder portal, (b) a file can be created, renamed without replacing and `fsync`ed in a separate archive grant, (c) the real paths come back from `GetHostPaths`, (d) *Show in folder* works through the portal. If (a) or (b) fails the build stops and the question goes to the maintainer; it must not fall back to a broad permission.
 
@@ -148,7 +149,7 @@ Docs at build: the new codes in `docs/ERROR_CODES.md`, the keys in the settings 
 ## 11. Decisions
 
 - **D-751 (Decided):** no OCR engine; the user's own AI reads bills and receipts; code checks every figure the AI gives against the bank transaction in exact minor units, and a mismatch is shown and never filed without the user's tick.
-- **D-752 (Decided):** the receipt inbox moves a bill from the inbox into an archive folder once its change set is confirmed. Refined here: its own tool and cell (`file_bills`, *File bills from the inbox*) so D-739's "never moves a bill" stays true for the bill folder; both folders through the folder chooser; the path built by code from the book's names; copy, verify, link saved, then remove; never overwrites; a per-computer journal settles a crash by facts and never deletes the last copy; Undo moves the files back, with "Undo anyway" as the deliberate way out.
+- **D-752 (Decided; extended by D-990, D-991):** the receipt inbox moves a bill from the inbox into an archive folder once its change set is confirmed. Refined here: its own tool and cell (`file_bills`, *File bills from the inbox*) so D-739's "never moves a bill" stays true for the bill folder; both folders through the folder chooser; the path built by code from the book's names; copy, verify, link saved, then remove; never overwrites; a per-computer journal settles a crash by facts and never deletes the last copy; Undo moves the files back, with "Undo anyway" as the deliberate way out. Extended in US10 (D-990, D-991) to work across both built-in chat and `kassensturz-mcp` with `read_bill`, `tif`/`tiff` support, and Consent v3.
 
 ## 12. Build notes (US7, #333)
 
@@ -158,7 +159,7 @@ What the build found and chose where this design left it open; each is marked in
 - **The journal keys on the history's change ID** (`Change::id`, a UUID that the book keeps across restarts), so Undo and Redo find their moves by it. The history line names the bills a change filed ("…, and 3 bills filed from the inbox").
 - **Unicode NFC is not applied** to the names (§5): it needs a new dependency, which is a human gate (AGENTS.md §3.2). Names are still compared without regard to case, so a taken name is never overwritten.
 - **The folder for bills without a category** is named in the user's language ("Not sorted yet", German "Noch nicht zugeordnet"); the window hands the name to the bridge, since Rust writes no text (D-034).
-- **Settling** runs when a book opens. There is no inbox page in the window (the inbox is MCP only), so "whenever the inbox page opens" has no place yet.
+- **Settling** runs when a book opens. There is no dedicated inbox page in the window (both built-in chat and MCP use the inbox tools), so "whenever the inbox page opens" has no place yet.
 - **A bill whose move fails at the confirm** is dropped from the set and reported with its reason (`bill.move-failed`); the rest of the set, which the user confirmed, is made. Moving another inbox than the one the AI read from is refused (`other-inbox`).
 - **Show in folder** opens the folder the bill is in through the system's handler (the OpenURI portal in the Flatpak and the snap); highlighting the file itself needs the file manager's own interface and is left for later.
 - **A bill is checked by its bytes too** (B-284): besides its size and time, a 64-bit FNV-1a checksum of the file is taken when the AI proposes it and compared before the move, so another file of the same size with the old time put back stays in the inbox. It finds any ordinary change; it is no protection against a file made on purpose to collide, which needs a cryptographic hash and so a new dependency (a human gate). The bill total takes no sign, and when every change of a confirmed set was a bill that stayed, the window says nothing was changed instead of showing the success message.

@@ -19,7 +19,7 @@ Before the stable release, the code that deals with money, passwords, bank conne
 - Tags, also as a filter on the dashboards
 - A guided setup for new books; it is optional, and every step can be skipped
 - Plugins: your own additions for importers, exporters, reports, automations, themes and AI providers. Every plugin shows beforehand what it may do.
-- AI help, which is off until you switch it on
+- AI help, which is off until you switch it on (including reading, attaching and filing bills from folders you choose, both in the built-in chat and via MCP)
 
 How all of this works is in the other pages of this [handbook](README.md).
 
@@ -40,7 +40,6 @@ This is planned but not started:
 - An importer for GnuCash books
 - Backups in your own cloud and optional encryption of the book
 - A companion app for Android for taking photos of receipts
-- An inbox for receipts that your own AI can read
 
 ## What KassenSturz is not meant to become
 

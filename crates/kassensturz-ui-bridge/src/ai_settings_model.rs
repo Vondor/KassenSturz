@@ -19,9 +19,7 @@ use cxx_qt::Threading;
 use cxx_qt_lib::{QString, QUrl, QVariant};
 
 use crate::errors::ErrorText;
-use crate::variant::error_object;
-#[cfg(feature = "ai")]
-use crate::variant::{list, map, text};
+use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -301,6 +299,83 @@ pub mod qobject {
         #[cxx_name = "setLocked"]
         fn set_locked(self: &AiSettings, key: &QString, locked: bool) -> bool;
 
+        /// Whether the built-in chat button `word` (`categories`, `month`,
+        /// `rules`, `describe_chart`) is shown (US11.3, #1452, D-1013).
+        /// Defaults to `true` when absent from `kassensturzrc`. Always
+        /// `false` while AI is off (D-013) or in a build without AI (D-039).
+        #[qinvokable]
+        #[cxx_name = "builtinChatButton"]
+        fn builtin_chat_button(self: &AiSettings, word: &QString) -> bool;
+
+        /// Shows or hides the built-in chat button `word`. Returns whether
+        /// that was saved, and emits `chatButtonsChanged`.
+        #[qinvokable]
+        #[cxx_name = "setBuiltinChatButton"]
+        fn set_builtin_chat_button(self: Pin<&mut AiSettings>, word: &QString, shown: bool)
+        -> bool;
+
+        /// The user's custom chat quick-prompt buttons (US11.3, #1452,
+        /// D-1013): a list of `{ id, label, prompt, enabled, insertOnly }`
+        /// in display order. Empty while AI is off (D-013) or in a build
+        /// without AI (D-039).
+        #[qinvokable]
+        #[cxx_name = "customChatButtons"]
+        fn custom_chat_buttons(self: &AiSettings) -> QVariant;
+
+        /// The validation limits for custom chat buttons:
+        /// `{ maxCount, maxLabelChars, maxPromptChars }`.
+        #[qinvokable]
+        #[cxx_name = "chatButtonLimits"]
+        fn chat_button_limits(self: &AiSettings) -> QVariant;
+
+        /// Adds a custom chat quick-prompt button. Returns `{ ok: true, id }`
+        /// on success or `{ ok: false, reason }` otherwise, and emits
+        /// `chatButtonsChanged` when saved.
+        #[qinvokable]
+        #[cxx_name = "addCustomChatButton"]
+        fn add_custom_chat_button(
+            self: Pin<&mut AiSettings>,
+            label: &QString,
+            prompt: &QString,
+            insert_only: bool,
+        ) -> QVariant;
+
+        /// Updates an existing custom chat quick-prompt button by `id`.
+        /// Returns `{ ok: true, id }` or `{ ok: false, reason }`, and emits
+        /// `chatButtonsChanged` when saved.
+        #[qinvokable]
+        #[cxx_name = "updateCustomChatButton"]
+        fn update_custom_chat_button(
+            self: Pin<&mut AiSettings>,
+            id: &QString,
+            label: &QString,
+            prompt: &QString,
+            enabled: bool,
+            insert_only: bool,
+        ) -> QVariant;
+
+        /// Toggles whether custom chat button `id` is shown in the chat.
+        /// Returns whether that was saved, and emits `chatButtonsChanged`.
+        #[qinvokable]
+        #[cxx_name = "setCustomChatButtonEnabled"]
+        fn set_custom_chat_button_enabled(
+            self: Pin<&mut AiSettings>,
+            id: &QString,
+            enabled: bool,
+        ) -> bool;
+
+        /// Moves custom chat button `id` up (`-1`) or down (`+1`). Returns
+        /// whether the new order was saved, and emits `chatButtonsChanged`.
+        #[qinvokable]
+        #[cxx_name = "moveCustomChatButton"]
+        fn move_custom_chat_button(self: Pin<&mut AiSettings>, id: &QString, delta: i32) -> bool;
+
+        /// Removes custom chat button `id`. Returns whether that was saved,
+        /// and emits `chatButtonsChanged`.
+        #[qinvokable]
+        #[cxx_name = "removeCustomChatButton"]
+        fn remove_custom_chat_button(self: Pin<&mut AiSettings>, id: &QString) -> bool;
+
         /// The test ended: an object with `models` (a list of names),
         /// `modelOffered` (whether the saved model is one of them) and what
         /// the model can do: `functions` (`yes`, `no`, `no-model`,
@@ -316,6 +391,12 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "allowsChanged"]
         fn allows_changed(self: Pin<&mut AiSettings>);
+
+        /// Built-in or custom chat buttons changed: the chat panel and
+        /// settings view refresh immediately (US11.3, D-1013).
+        #[qsignal]
+        #[cxx_name = "chatButtonsChanged"]
+        fn chat_buttons_changed(self: Pin<&mut AiSettings>);
     }
 
     impl cxx_qt::Initialize for AiSettings {}
@@ -1003,6 +1084,287 @@ impl qobject::AiSettings {
     fn set_locked(&self, key: &QString, locked: bool) -> bool {
         keep_locked(&crate::settings::Settings::user(), &key.to_string(), locked)
     }
+
+    fn builtin_chat_button(&self, word: &QString) -> bool {
+        builtin_chat_button_in(&crate::settings::Settings::user(), &word.to_string())
+    }
+
+    fn set_builtin_chat_button(self: Pin<&mut Self>, word: &QString, shown: bool) -> bool {
+        let saved =
+            keep_builtin_chat_button(&crate::settings::Settings::user(), &word.to_string(), shown);
+        if saved {
+            self.chat_buttons_changed();
+        }
+        saved
+    }
+
+    fn custom_chat_buttons(&self) -> QVariant {
+        custom_chat_buttons_object(&crate::settings::Settings::user())
+    }
+
+    fn chat_button_limits(&self) -> QVariant {
+        chat_button_limits_object()
+    }
+
+    fn add_custom_chat_button(
+        self: Pin<&mut Self>,
+        label: &QString,
+        prompt: &QString,
+        insert_only: bool,
+    ) -> QVariant {
+        let (saved, result) = add_custom_chat_button_object(
+            &crate::settings::Settings::user(),
+            &label.to_string(),
+            &prompt.to_string(),
+            insert_only,
+        );
+        if saved {
+            self.chat_buttons_changed();
+        }
+        result
+    }
+
+    fn update_custom_chat_button(
+        self: Pin<&mut Self>,
+        id: &QString,
+        label: &QString,
+        prompt: &QString,
+        enabled: bool,
+        insert_only: bool,
+    ) -> QVariant {
+        let (saved, result) = update_custom_chat_button_object(
+            &crate::settings::Settings::user(),
+            &id.to_string(),
+            &label.to_string(),
+            &prompt.to_string(),
+            enabled,
+            insert_only,
+        );
+        if saved {
+            self.chat_buttons_changed();
+        }
+        result
+    }
+
+    fn set_custom_chat_button_enabled(self: Pin<&mut Self>, id: &QString, enabled: bool) -> bool {
+        let saved = keep_custom_chat_button_enabled(
+            &crate::settings::Settings::user(),
+            &id.to_string(),
+            enabled,
+        );
+        if saved {
+            self.chat_buttons_changed();
+        }
+        saved
+    }
+
+    fn move_custom_chat_button(self: Pin<&mut Self>, id: &QString, delta: i32) -> bool {
+        let saved =
+            reorder_custom_chat_button(&crate::settings::Settings::user(), &id.to_string(), delta);
+        if saved {
+            self.chat_buttons_changed();
+        }
+        saved
+    }
+
+    fn remove_custom_chat_button(self: Pin<&mut Self>, id: &QString) -> bool {
+        let saved = delete_custom_chat_button(&crate::settings::Settings::user(), &id.to_string());
+        if saved {
+            self.chat_buttons_changed();
+        }
+        saved
+    }
+}
+
+#[cfg(feature = "ai")]
+fn builtin_chat_button_in(settings: &crate::settings::Settings, word: &str) -> bool {
+    crate::ai_chat_buttons::builtin_chat_button_in(settings, word)
+}
+
+#[cfg(not(feature = "ai"))]
+fn builtin_chat_button_in(_settings: &crate::settings::Settings, _word: &str) -> bool {
+    false
+}
+
+#[cfg(feature = "ai")]
+fn keep_builtin_chat_button(settings: &crate::settings::Settings, word: &str, shown: bool) -> bool {
+    crate::ai_chat_buttons::set_builtin_chat_button_in(settings, word, shown)
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_builtin_chat_button(
+    _settings: &crate::settings::Settings,
+    _word: &str,
+    _shown: bool,
+) -> bool {
+    false
+}
+
+#[cfg(feature = "ai")]
+fn custom_chat_buttons_object(settings: &crate::settings::Settings) -> QVariant {
+    let buttons = crate::ai_chat_buttons::custom_chat_buttons_in(settings);
+    list(buttons.iter().map(|button| {
+        map([
+            ("id", text(&button.id)),
+            ("label", text(&button.label)),
+            ("prompt", text(&button.prompt)),
+            ("enabled", QVariant::from(&button.enabled)),
+            ("insertOnly", QVariant::from(&button.insert_only)),
+        ])
+    }))
+}
+
+#[cfg(not(feature = "ai"))]
+fn custom_chat_buttons_object(_settings: &crate::settings::Settings) -> QVariant {
+    list(std::iter::empty())
+}
+
+#[cfg(feature = "ai")]
+fn chat_button_limits_object() -> QVariant {
+    use kassensturz_core::ai_switch::{
+        MAX_CHAT_BUTTON_LABEL_CHARS, MAX_CHAT_BUTTON_PROMPT_CHARS, MAX_CUSTOM_CHAT_BUTTONS,
+    };
+    map([
+        (
+            "maxCount",
+            QVariant::from(&i32::try_from(MAX_CUSTOM_CHAT_BUTTONS).unwrap_or(i32::MAX)),
+        ),
+        (
+            "maxLabelChars",
+            QVariant::from(&i32::try_from(MAX_CHAT_BUTTON_LABEL_CHARS).unwrap_or(i32::MAX)),
+        ),
+        (
+            "maxPromptChars",
+            QVariant::from(&i32::try_from(MAX_CHAT_BUTTON_PROMPT_CHARS).unwrap_or(i32::MAX)),
+        ),
+    ])
+}
+
+#[cfg(not(feature = "ai"))]
+fn chat_button_limits_object() -> QVariant {
+    map([
+        ("maxCount", QVariant::from(&0i32)),
+        ("maxLabelChars", QVariant::from(&0i32)),
+        ("maxPromptChars", QVariant::from(&0i32)),
+    ])
+}
+
+#[cfg(feature = "ai")]
+fn save_button_result_object(result: crate::ai_chat_buttons::SaveButtonResult) -> (bool, QVariant) {
+    match result {
+        crate::ai_chat_buttons::SaveButtonResult::Saved(id) => (
+            true,
+            map([("ok", QVariant::from(&true)), ("id", text(&id))]),
+        ),
+        crate::ai_chat_buttons::SaveButtonResult::Failed(reason) => (
+            false,
+            map([("ok", QVariant::from(&false)), ("reason", text(reason))]),
+        ),
+    }
+}
+
+#[cfg(feature = "ai")]
+fn add_custom_chat_button_object(
+    settings: &crate::settings::Settings,
+    label: &str,
+    prompt: &str,
+    insert_only: bool,
+) -> (bool, QVariant) {
+    save_button_result_object(crate::ai_chat_buttons::add_custom_chat_button_in(
+        settings,
+        label,
+        prompt,
+        insert_only,
+    ))
+}
+
+#[cfg(not(feature = "ai"))]
+fn add_custom_chat_button_object(
+    _settings: &crate::settings::Settings,
+    _label: &str,
+    _prompt: &str,
+    _insert_only: bool,
+) -> (bool, QVariant) {
+    (
+        false,
+        map([("ok", QVariant::from(&false)), ("reason", text("ai-off"))]),
+    )
+}
+
+#[cfg(feature = "ai")]
+fn update_custom_chat_button_object(
+    settings: &crate::settings::Settings,
+    id: &str,
+    label: &str,
+    prompt: &str,
+    enabled: bool,
+    insert_only: bool,
+) -> (bool, QVariant) {
+    save_button_result_object(crate::ai_chat_buttons::update_custom_chat_button_in(
+        settings,
+        id,
+        label,
+        prompt,
+        enabled,
+        insert_only,
+    ))
+}
+
+#[cfg(not(feature = "ai"))]
+fn update_custom_chat_button_object(
+    _settings: &crate::settings::Settings,
+    _id: &str,
+    _label: &str,
+    _prompt: &str,
+    _enabled: bool,
+    _insert_only: bool,
+) -> (bool, QVariant) {
+    (
+        false,
+        map([("ok", QVariant::from(&false)), ("reason", text("ai-off"))]),
+    )
+}
+
+#[cfg(feature = "ai")]
+fn keep_custom_chat_button_enabled(
+    settings: &crate::settings::Settings,
+    id: &str,
+    enabled: bool,
+) -> bool {
+    crate::ai_chat_buttons::set_custom_chat_button_enabled_in(settings, id, enabled)
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_custom_chat_button_enabled(
+    _settings: &crate::settings::Settings,
+    _id: &str,
+    _enabled: bool,
+) -> bool {
+    false
+}
+
+#[cfg(feature = "ai")]
+fn reorder_custom_chat_button(settings: &crate::settings::Settings, id: &str, delta: i32) -> bool {
+    crate::ai_chat_buttons::move_custom_chat_button_in(settings, id, delta)
+}
+
+#[cfg(not(feature = "ai"))]
+fn reorder_custom_chat_button(
+    _settings: &crate::settings::Settings,
+    _id: &str,
+    _delta: i32,
+) -> bool {
+    false
+}
+
+#[cfg(feature = "ai")]
+fn delete_custom_chat_button(settings: &crate::settings::Settings, id: &str) -> bool {
+    crate::ai_chat_buttons::remove_custom_chat_button_in(settings, id)
+}
+
+#[cfg(not(feature = "ai"))]
+fn delete_custom_chat_button(_settings: &crate::settings::Settings, _id: &str) -> bool {
+    false
 }
 
 /// Whether `settings` lock the field with the settings key `key`: what the

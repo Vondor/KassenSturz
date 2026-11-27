@@ -13,6 +13,7 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, ImageAttachment, ImageMediaType, MAX_ANSWER_TOKENS, Message,
     PreparedRequest, Provider, Role, ToolCall,
 };
+pub use kassensturz_ai_tools::BILL_BUDGET_HINT;
 use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
 use kassensturz_ai_tools::{
     BILL_FOLDER, ChangeSet, DRAFT_ISSUE, EditError, Figures, Folders, Function, INBOX,
@@ -21,7 +22,7 @@ use kassensturz_ai_tools::{
     bill_folder_answer_allowed, check_numbers, description_titles, draft_issue,
     inbox_answer_allowed, label_numbers, open_page_allowed, prepare_named_with_folders,
     propose_spec, propose_view_spec, propose_view_text, read_bill, read_bill_allowed,
-    readable_functions, suggest_note, unique_codes, view_choices,
+    readable_functions, suggest_note, unique_codes, validate_read_bill_call, view_choices,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -120,13 +121,6 @@ pub const MAX_TURN_BILL_IMAGES: usize = 4;
 /// Comfortably allows a 3–5 bill batch (plus an extra page fetch) while stopping
 /// upfront 25-bill dumps even when individual bills are short.
 pub const MAX_TURN_BILL_READS: usize = 6;
-
-/// Fixed English hint returned when `read_bill` hits the per-turn payload
-/// context guard in [`ChatSession::ask`] (US11.4, #1453, D-1014).
-pub const BILL_BUDGET_HINT: &str = "This turn's bill-reading budget is full so the model's \
-    context does not overflow. Do not call read_bill again in this turn. Call propose_changes \
-    now for the bills you already read, and offer to continue with the remaining bills in the \
-    next message.";
 
 /// Per-turn `read_bill` payload accounting in [`ChatSession`] (US11.4, #1453,
 /// D-1014). Reset at the start of every [`ChatSession::ask`] turn.
@@ -1091,7 +1085,6 @@ impl ChatSession {
         let permissions = self.permissions();
         let folders = self.folders();
         let mut view_refused = false;
-        let mut bill_budget_refused = false;
         let mut images: Vec<ImageAttachment> = Vec::new();
         let outcome = if call.name == PROPOSE_VIEW_NAME {
             // The text itself, so a key written twice is seen (D-353).
@@ -1145,12 +1138,15 @@ impl ChatSession {
                         // Read-only, path-jailed bill inspection (D-990, D-751),
                         // bounded per turn so local models cannot overflow context
                         // by dumping dozens of bills in one turn (US11.4, D-1014).
+                        // Zero-disk argument/permission/path pre-validation runs
+                        // before the turn budget so invalid or forbidden calls
+                        // always report their specific error.
                         // Result carries zero authoritative book figures (D-052).
-                        let source_allowed =
-                            read_bill_source_allowed(&arguments, permissions, &folders);
-                        if source_allowed && self.bill_budget.is_exhausted() {
-                            bill_budget_refused = true;
-                            Err(ToolError::BillTooBig)
+                        validate_read_bill_call(&arguments, permissions, &folders)?;
+                        if self.bill_budget.is_exhausted() {
+                            Err(ToolError::BillTurnBudget {
+                                bills_read: self.bill_budget.reads,
+                            })
                         } else {
                             read_bill(&arguments, permissions, &folders).and_then(|read| {
                                 let text_bytes = prompt::data_json(&read.output.value).len();
@@ -1165,8 +1161,9 @@ impl ChatSession {
                                     image_bytes,
                                     image_count,
                                 ) {
-                                    bill_budget_refused = true;
-                                    return Err(ToolError::BillTooBig);
+                                    return Err(ToolError::BillTurnBudget {
+                                        bills_read: self.bill_budget.reads,
+                                    });
                                 }
                                 for image in read.images {
                                     if let Some(media_type) =
@@ -1237,11 +1234,7 @@ impl ChatSession {
                         });
                     }
                 }
-                let answer = if bill_budget_refused {
-                    bill_budget_error_json(self.bill_budget.reads)
-                } else {
-                    tool_error_answer(&call.name, &report, &error)
-                };
+                let answer = tool_error_answer(&call.name, &report, &error);
                 let answer = match round_note {
                     Some(note) => with_round_budget_note(answer, note),
                     None => answer,
@@ -1914,37 +1907,6 @@ fn with_round_budget_note(mut value: Value, note: &str) -> Value {
         object.insert("round_budget_note".into(), json!(note));
     }
     value
-}
-
-/// Whether `arguments.source` names a bill folder that is both permitted and
-/// configured, without touching disk (T-62, T-66, T-72).
-fn read_bill_source_allowed(
-    arguments: &Value,
-    permissions: Permissions,
-    folders: &Folders,
-) -> bool {
-    match arguments.get("source").and_then(Value::as_str) {
-        Some("bill_folder") => {
-            permissions.allows(ai_switch::Permission::AttachBills) && folders.bills.is_some()
-        }
-        Some("inbox") => {
-            permissions.allows(ai_switch::Permission::FileBills)
-                && folders.inbox.is_some()
-                && folders.archive.is_some()
-        }
-        _ => false,
-    }
-}
-
-/// Fixed model-facing refusal JSON when a turn's `read_bill` payload budget is
-/// exhausted (US11.4, #1453, D-1014; X-8: never echoes model text).
-fn bill_budget_error_json(bills_read: usize) -> Value {
-    json!({
-        "error": "ai-tools.bill-too-big",
-        "reason": "turn-budget",
-        "bills_read": bills_read,
-        "hint": BILL_BUDGET_HINT,
-    })
 }
 
 #[cfg(test)]
@@ -2929,5 +2891,453 @@ mod tests {
         assert_eq!(t2["mode"], json!("pdf_text"));
         assert_eq!(t2["file"], json!("big-5.pdf"));
         assert!(t2.get("error").is_none());
+    }
+
+    #[test]
+    fn exhausted_bill_budget_still_reports_validation_permission_and_path_errors() {
+        let dir = TempBillDir::new("budget-precedence");
+        for idx in 1..=MAX_TURN_BILL_READS {
+            dir.write(
+                &format!("Inbox/bill-{idx}.pdf"),
+                &synthetic_pdf(&[&format!("Bill {idx}"), "Total 19.90 EUR"]),
+            );
+        }
+        let (book, _) = unit_test_book();
+
+        // Scenario A: AttachBills permission off, inbox active; exhaust budget
+        // with MAX_TURN_BILL_READS valid inbox reads, then send invalid/forbidden
+        // read_bill calls and verify each returns its specific error rather than
+        // `turn-budget`.
+        let mut round1_calls: Vec<(String, String)> = (1..=MAX_TURN_BILL_READS)
+            .map(|idx| {
+                (
+                    format!("ok{idx}"),
+                    format!(r#"{{"source":"inbox","file":"bill-{idx}.pdf"}}"#),
+                )
+            })
+            .collect();
+        round1_calls.extend([
+            ("bad_missing_file".into(), r#"{"source":"inbox"}"#.into()),
+            (
+                "bad_unknown_arg".into(),
+                r#"{"source":"inbox","file":"bill-1.pdf","extra":true}"#.into(),
+            ),
+            (
+                "bad_traversal".into(),
+                r#"{"source":"inbox","file":"../secret.pdf"}"#.into(),
+            ),
+            (
+                "bad_subdir".into(),
+                r#"{"source":"inbox","file":"sub/bill-1.pdf"}"#.into(),
+            ),
+            (
+                "bad_ext".into(),
+                r#"{"source":"inbox","file":"script.sh"}"#.into(),
+            ),
+            (
+                "bad_perm".into(),
+                r#"{"source":"bill_folder","file":"bill-1.pdf"}"#.into(),
+            ),
+            (
+                "valid_budget_hit".into(),
+                r#"{"source":"inbox","file":"valid-next.pdf"}"#.into(),
+            ),
+        ]);
+        let call_refs: Vec<(&str, &str, &str)> = round1_calls
+            .iter()
+            .map(|(id, args)| (id.as_str(), READ_BILL.name, args.as_str()))
+            .collect();
+
+        let (provider, seen) =
+            scripted_unit_provider(&dir, vec![reply_calls(&call_refs), reply_text("Done.")]);
+        let perms = Permissions::all().with(ai_switch::Permission::AttachBills, false);
+        let mut chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(perms)
+            .with_folders(dir.folders());
+        chat.ask(
+            &book,
+            &provider,
+            None,
+            "Read inbox bills.",
+            Date::constant(2026, 10, 25),
+            &mut NoHooks,
+        )
+        .unwrap();
+
+        let requests = seen.lock().unwrap();
+        let round2 = &requests[1];
+        let tool_json = |id: &str| -> Value {
+            let msg = round2
+                .iter()
+                .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some(id))
+                .unwrap_or_else(|| panic!("missing tool result {id}"));
+            serde_json::from_str(&msg.content).unwrap()
+        };
+        assert_eq!(
+            tool_json("bad_missing_file")["error"],
+            json!("ai-tools.bad-argument")
+        );
+        assert_eq!(tool_json("bad_missing_file")["argument"], json!("file"));
+        assert_eq!(
+            tool_json("bad_unknown_arg")["error"],
+            json!("ai-tools.unknown-argument")
+        );
+        assert_eq!(
+            tool_json("bad_traversal")["error"],
+            json!("ai-tools.bill-outside-folder")
+        );
+        assert_eq!(
+            tool_json("bad_subdir")["error"],
+            json!("ai-tools.bill-outside-folder")
+        );
+        assert_eq!(tool_json("bad_ext")["error"], json!("ai-tools.bill-type"));
+        assert_eq!(
+            tool_json("bad_perm")["error"],
+            json!("ai-tools.not-allowed")
+        );
+        let budget_hit = tool_json("valid_budget_hit");
+        assert_eq!(budget_hit["error"], json!("ai-tools.bill-too-big"));
+        assert_eq!(budget_hit["reason"], json!("turn-budget"));
+        assert_eq!(budget_hit["bills_read"], json!(MAX_TURN_BILL_READS));
+        assert_eq!(budget_hit["hint"], json!(BILL_BUDGET_HINT));
+
+        // Scenario B: AttachBills permission ON, but `folders.bills` is None ->
+        // missing folder (`ai-tools.no-bill-folder`) takes precedence over turn-budget.
+        let mut folders_no_bills = dir.folders();
+        folders_no_bills.bills = None;
+        let mut b_calls: Vec<(String, String)> = (1..=MAX_TURN_BILL_READS)
+            .map(|idx| {
+                (
+                    format!("b{idx}"),
+                    format!(r#"{{"source":"inbox","file":"bill-{idx}.pdf"}}"#),
+                )
+            })
+            .collect();
+        b_calls.push((
+            "missing_folder".into(),
+            r#"{"source":"bill_folder","file":"bill-1.pdf"}"#.into(),
+        ));
+        let b_refs: Vec<(&str, &str, &str)> = b_calls
+            .iter()
+            .map(|(id, args)| (id.as_str(), READ_BILL.name, args.as_str()))
+            .collect();
+        let (provider_b, seen_b) =
+            scripted_unit_provider(&dir, vec![reply_calls(&b_refs), reply_text("Done.")]);
+        let mut chat_b = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(Permissions::all())
+            .with_folders(folders_no_bills);
+        chat_b
+            .ask(
+                &book,
+                &provider_b,
+                None,
+                "Check bills.",
+                Date::constant(2026, 10, 25),
+                &mut NoHooks,
+            )
+            .unwrap();
+        let reqs_b = seen_b.lock().unwrap();
+        let missing_msg = reqs_b[1]
+            .iter()
+            .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some("missing_folder"))
+            .expect("missing_folder tool result");
+        let missing_json: Value = serde_json::from_str(&missing_msg.content).unwrap();
+        assert_eq!(missing_json["error"], json!("ai-tools.no-bill-folder"));
+    }
+
+    #[test]
+    fn failed_read_bill_calls_do_not_consume_turn_budget() {
+        let dir = TempBillDir::new("failed-reads-free");
+        dir.write("Inbox/corrupt.pdf", b"not a valid pdf payload");
+        for idx in 1..=MAX_TURN_BILL_READS + 1 {
+            dir.write(
+                &format!("Inbox/valid-{idx}.pdf"),
+                &synthetic_pdf(&[&format!("Valid Bill {idx}"), "Total 19.90 EUR"]),
+            );
+        }
+        let (book, _) = unit_test_book();
+        let mut calls_vec: Vec<(String, String)> = vec![
+            (
+                "fail_missing".into(),
+                r#"{"source":"inbox","file":"missing.pdf"}"#.into(),
+            ),
+            (
+                "fail_outside".into(),
+                r#"{"source":"inbox","file":"../escape.pdf"}"#.into(),
+            ),
+            (
+                "fail_corrupt".into(),
+                r#"{"source":"inbox","file":"corrupt.pdf"}"#.into(),
+            ),
+        ];
+        for idx in 1..=MAX_TURN_BILL_READS + 1 {
+            calls_vec.push((
+                format!("v{idx}"),
+                format!(r#"{{"source":"inbox","file":"valid-{idx}.pdf"}}"#),
+            ));
+        }
+        let call_refs: Vec<(&str, &str, &str)> = calls_vec
+            .iter()
+            .map(|(id, args)| (id.as_str(), READ_BILL.name, args.as_str()))
+            .collect();
+        let (provider, seen) =
+            scripted_unit_provider(&dir, vec![reply_calls(&call_refs), reply_text("Done.")]);
+        let mut chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(Permissions::all())
+            .with_folders(dir.folders());
+        chat.ask(
+            &book,
+            &provider,
+            None,
+            "Read my inbox.",
+            Date::constant(2026, 10, 25),
+            &mut NoHooks,
+        )
+        .unwrap();
+
+        let requests = seen.lock().unwrap();
+        let round2 = &requests[1];
+        let tool_json = |id: &str| -> Value {
+            let msg = round2
+                .iter()
+                .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some(id))
+                .unwrap_or_else(|| panic!("missing tool result {id}"));
+            serde_json::from_str(&msg.content).unwrap()
+        };
+        assert_eq!(
+            tool_json("fail_missing")["error"],
+            json!("ai-tools.bill-not-found")
+        );
+        assert_eq!(
+            tool_json("fail_outside")["error"],
+            json!("ai-tools.bill-outside-folder")
+        );
+        assert_eq!(
+            tool_json("fail_corrupt")["error"],
+            json!("ai-tools.bill-unreadable")
+        );
+        // All MAX_TURN_BILL_READS valid bills still succeed because failed calls
+        // consumed zero turn budget.
+        for idx in 1..=MAX_TURN_BILL_READS {
+            let val = tool_json(&format!("v{idx}"));
+            assert_eq!(val["mode"], json!("pdf_text"), "v{idx} should succeed");
+            assert!(val.get("error").is_none());
+        }
+        let over = tool_json(&format!("v{}", MAX_TURN_BILL_READS + 1));
+        assert_eq!(over["error"], json!("ai-tools.bill-too-big"));
+        assert_eq!(over["reason"], json!("turn-budget"));
+        assert_eq!(over["bills_read"], json!(MAX_TURN_BILL_READS));
+    }
+
+    #[test]
+    fn ask_resets_bill_budget_and_activity_after_cancelled_turn() {
+        let dir = TempBillDir::new("reset-after-cancel");
+        for idx in 1..=MAX_TURN_BILL_READS {
+            dir.write(
+                &format!("Inbox/bill-{idx}.pdf"),
+                &synthetic_pdf(&[&format!("Bill {idx}"), "Total 19.90 EUR"]),
+            );
+        }
+        let (book, _) = unit_test_book();
+
+        // Hook that cancels right after round 1's bill reads finish (before
+        // round 2), so both `bill_budget` and `bill_or_search_activity` are
+        // actively populated when `ask()` returns `Err(ChatError::Cancelled)`.
+        struct CancelAfterBillReads {
+            called: usize,
+        }
+        impl Hooks for CancelAfterBillReads {
+            fn logged(&mut self, entry: &LogEntry) {
+                if matches!(entry, LogEntry::Called { .. }) {
+                    self.called += 1;
+                }
+            }
+            fn cancelled(&self) -> bool {
+                self.called >= MAX_TURN_BILL_READS
+            }
+        }
+
+        let exhaust_calls: Vec<(String, String)> = (1..=MAX_TURN_BILL_READS)
+            .map(|idx| {
+                (
+                    format!("e{idx}"),
+                    format!(r#"{{"source":"inbox","file":"bill-{idx}.pdf"}}"#),
+                )
+            })
+            .collect();
+        let exhaust_refs: Vec<(&str, &str, &str)> = exhaust_calls
+            .iter()
+            .map(|(id, args)| (id.as_str(), READ_BILL.name, args.as_str()))
+            .collect();
+
+        let (provider, seen) = scripted_unit_provider(
+            &dir,
+            vec![
+                // Turn 1 (cancelled after round 1): exhausts bill budget and sets
+                // `bill_or_search_activity = true`.
+                reply_calls(&exhaust_refs),
+                // Turn 2: 6 non-bill/non-search read rounds -> round 6 must NOT
+                // get `round_budget_note` because `bill_or_search_activity` reset.
+                reply_calls(&[("n1", "list_accounts", "{}")]),
+                reply_calls(&[("n2", "list_categories", "{}")]),
+                reply_calls(&[("n3", "list_rules", "{}")]),
+                reply_calls(&[("n4", "list_budgets", "{}")]),
+                reply_calls(&[("n5", "list_views", "{}")]),
+                reply_calls(&[("n6", "list_tags", "{}")]),
+                reply_text("Listed your book metadata."),
+                // Turn 3: `read_bill` succeeds cleanly because `bill_budget` reset.
+                reply_calls(&[(
+                    "b_after",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"bill-1.pdf"}"#,
+                )]),
+                reply_text("Read bill-1.pdf."),
+            ],
+        );
+
+        let mut chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(Permissions::all())
+            .with_folders(dir.folders());
+        let mut cancel_hook = CancelAfterBillReads { called: 0 };
+        let err = chat
+            .ask(
+                &book,
+                &provider,
+                None,
+                "Read all bills.",
+                Date::constant(2026, 10, 25),
+                &mut cancel_hook,
+            )
+            .unwrap_err();
+        assert!(matches!(err, ChatError::Cancelled));
+        assert!(
+            chat.bill_budget.is_exhausted(),
+            "turn 1 must have exhausted bill_budget before cancelling"
+        );
+        assert!(
+            chat.bill_or_search_activity,
+            "turn 1 must have recorded bill_or_search_activity before cancelling"
+        );
+
+        // Turn 2: non-bill/non-search 6-round turn gets zero round_budget_note.
+        chat.ask(
+            &book,
+            &provider,
+            None,
+            "Show my accounts and categories.",
+            Date::constant(2026, 10, 25),
+            &mut NoHooks,
+        )
+        .unwrap();
+        let requests = seen.lock().unwrap();
+        let turn2_final = requests.last().unwrap();
+        let n6 = turn2_final
+            .iter()
+            .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some("n6"))
+            .expect("round 6 list_tags result");
+        let n6_json: Value = serde_json::from_str(&n6.content).unwrap();
+        assert!(
+            n6_json.get("round_budget_note").is_none(),
+            "bill_or_search_activity must reset after cancelled turn: {n6_json}"
+        );
+        drop(requests);
+
+        // Turn 3: bill_budget was also reset cleanly.
+        chat.ask(
+            &book,
+            &provider,
+            None,
+            "Read bill 1.",
+            Date::constant(2026, 10, 25),
+            &mut NoHooks,
+        )
+        .unwrap();
+        let requests = seen.lock().unwrap();
+        let turn3_final = requests.last().unwrap();
+        let b_after = turn3_final
+            .iter()
+            .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some("b_after"))
+            .expect("turn 3 read_bill result");
+        let b_after_json: Value = serde_json::from_str(&b_after.content).unwrap();
+        assert_eq!(b_after_json["mode"], json!("pdf_text"));
+        assert!(b_after_json.get("error").is_none());
+    }
+
+    #[test]
+    fn ask_emits_final_round_budget_note_on_round_seven() {
+        let dir = TempBillDir::new("final-round-nudge");
+        for idx in 1..=5 {
+            dir.write(
+                &format!("Inbox/bill-{idx}.pdf"),
+                &synthetic_pdf(&[&format!("Bill {idx}"), "Total 19.90 EUR"]),
+            );
+        }
+        let (book, _) = unit_test_book();
+        let (provider, seen) = scripted_unit_provider(
+            &dir,
+            vec![
+                reply_calls(&[("r1", INBOX.name, "{}")]),
+                reply_calls(&[(
+                    "r2",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"bill-1.pdf"}"#,
+                )]),
+                reply_calls(&[(
+                    "r3",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"bill-2.pdf"}"#,
+                )]),
+                reply_calls(&[(
+                    "r4",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"bill-3.pdf"}"#,
+                )]),
+                reply_calls(&[(
+                    "r5",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"bill-4.pdf"}"#,
+                )]),
+                reply_calls(&[("r6", "search_transactions", r#"{"limit":5}"#)]),
+                // Round 7 (MAX_ROUNDS - 1): model calls another read/search tool
+                // instead of propose_changes -> receives FINAL_ROUND_BUDGET_NOTE.
+                reply_calls(&[("r7", "search_transactions", r#"{"limit":10}"#)]),
+                // Round 8 (`ANSWER_NOW`): final plain-text answer.
+                reply_text("I checked four bills and can continue with bill-5.pdf next."),
+            ],
+        );
+        let mut chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(Permissions::all())
+            .with_folders(dir.folders());
+        chat.ask(
+            &book,
+            &provider,
+            None,
+            "Check my inbox bills.",
+            Date::constant(2026, 10, 25),
+            &mut NoHooks,
+        )
+        .unwrap();
+
+        let requests = seen.lock().unwrap();
+        assert_eq!(requests.len(), MAX_ROUNDS);
+        let final_messages = &requests[MAX_ROUNDS - 1];
+        let tool_json = |id: &str| -> Value {
+            let msg = final_messages
+                .iter()
+                .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some(id))
+                .unwrap_or_else(|| panic!("missing tool result {id}"));
+            serde_json::from_str(&msg.content).unwrap()
+        };
+        for early in ["r1", "r2", "r3", "r4", "r5"] {
+            assert!(tool_json(early).get("round_budget_note").is_none());
+        }
+        assert_eq!(
+            tool_json("r6")["round_budget_note"],
+            json!(ROUND_BUDGET_NOTE)
+        );
+        assert_eq!(
+            tool_json("r7")["round_budget_note"],
+            json!(FINAL_ROUND_BUDGET_NOTE)
+        );
     }
 }

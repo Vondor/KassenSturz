@@ -217,14 +217,10 @@ pub fn read_bill_allowed(permissions: Permissions, folders: &Folders) -> bool {
     bills || inbox
 }
 
-/// Executes a [`READ_BILL`] tool call from JSON `arguments`, enforcing
-/// `permissions`, `folders`, strict path jailing, resource limits and T-21
-/// untrusted-data framing (D-990, D-751, T-72).
-pub fn read_bill(
+/// Pure in-memory JSON argument parsing for [`READ_BILL`] (zero disk access).
+fn parse_read_bill_arguments(
     arguments: &Value,
-    permissions: Permissions,
-    folders: &Folders,
-) -> Result<ReadBillResult, ToolError> {
+) -> Result<(BillSource, &str, usize, bool), ToolError> {
     let map = arguments.as_object().ok_or(ToolError::BadArgument {
         argument: "arguments",
     })?;
@@ -274,35 +270,25 @@ pub fn read_bill(
             argument: "as_images",
         })?,
     };
-    read_bill_request(source, file, page, as_images, permissions, folders)
+    Ok((source, file, page, as_images))
 }
 
-/// Typed entry point behind [`read_bill`].
-pub fn read_bill_request(
+/// Checks permission and folder configuration for `source` without touching
+/// disk, so a disallowed model learns nothing about whether a folder is
+/// configured (T-62, T-66, T-72).
+fn validate_bill_folder_access(
     source: BillSource,
-    file: &str,
-    page: usize,
-    as_images: bool,
     permissions: Permissions,
     folders: &Folders,
-) -> Result<ReadBillResult, ToolError> {
-    if !(1..=MAX_BILL_PAGE).contains(&page) {
-        return Err(ToolError::OutOfRange {
-            argument: "page",
-            min: 1,
-            max: MAX_BILL_PAGE as u64,
-        });
-    }
-    // Check permission before touching folders or disk so a disallowed model
-    // learns nothing about whether a folder is configured (T-62, T-66, T-72).
-    let folder = match source {
+) -> Result<&Path, ToolError> {
+    match source {
         BillSource::BillFolder => {
             if !permissions.allows(Permission::AttachBills) {
                 return Err(ToolError::NotAllowed {
                     argument: READ_BILL.name,
                 });
             }
-            folders.bills.as_deref().ok_or(ToolError::NoBillFolder)?
+            folders.bills.as_deref().ok_or(ToolError::NoBillFolder)
         }
         BillSource::Inbox => {
             if !permissions.allows(Permission::FileBills) {
@@ -312,36 +298,14 @@ pub fn read_bill_request(
             }
             let inbox = folders.inbox.as_deref().ok_or(ToolError::NoInbox)?;
             let _archive = folders.archive.as_deref().ok_or(ToolError::NoArchive)?;
-            inbox
+            Ok(inbox)
         }
-    };
-    let path = resolve_jailed_bill(source, folder, file)?;
-    let is_pdf = path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"));
-    let max_bytes = if is_pdf {
-        MAX_BILL_BYTES
-    } else {
-        MAX_BILL_IMAGE_BYTES
-    };
-    let bytes = read_bounded_file(&path, max_bytes)?;
-    let clean_file = for_model(file);
-    if is_pdf {
-        read_pdf_bill(source, &clean_file, &bytes, page, as_images)
-    } else {
-        read_image_bill(source, &clean_file, &bytes, page)
     }
 }
 
-/// Strictly jails `file` as a relative bill path inside `folder` before
-/// delegating canonical containment and file checks to [`bill_path`] or
-/// `inbox_file_path` (T-62, T-66, T-72).
-fn resolve_jailed_bill(
-    source: BillSource,
-    folder: &Path,
-    file: &str,
-) -> Result<PathBuf, ToolError> {
+/// Pure in-memory lexical path-jail and bill extension check for `file` inside
+/// `source`, performing zero disk access (T-62, T-66, T-72).
+fn validate_lexical_bill_path(source: BillSource, file: &str) -> Result<(), ToolError> {
     if file.is_empty() || file.contains('\0') || file.chars().count() > MAX_FILE_ARG_CHARS {
         return Err(ToolError::BadArgument { argument: "file" });
     }
@@ -370,6 +334,91 @@ fn resolve_jailed_bill(
     if !has_bill_type(given) {
         return Err(ToolError::BillType);
     }
+    Ok(())
+}
+
+/// Validates a [`READ_BILL`] tool call completely in memory (zero disk access):
+/// JSON arguments, permission and folder presence, lexical path containment,
+/// and bill file extension allowlist (D-990, D-1014, T-62, T-66, T-72).
+///
+/// Used by `kassensturz-ai-chat` before enforcing per-turn payload budgets so
+/// invalid arguments, missing permissions/folders, path-traversal attempts, and
+/// disallowed extensions always return their specific errors instead of a
+/// turn-budget refusal.
+pub fn validate_read_bill_call(
+    arguments: &Value,
+    permissions: Permissions,
+    folders: &Folders,
+) -> Result<(), ToolError> {
+    let (source, file, page, _as_images) = parse_read_bill_arguments(arguments)?;
+    if !(1..=MAX_BILL_PAGE).contains(&page) {
+        return Err(ToolError::OutOfRange {
+            argument: "page",
+            min: 1,
+            max: MAX_BILL_PAGE as u64,
+        });
+    }
+    let _folder = validate_bill_folder_access(source, permissions, folders)?;
+    validate_lexical_bill_path(source, file)
+}
+
+/// Executes a [`READ_BILL`] tool call from JSON `arguments`, enforcing
+/// `permissions`, `folders`, strict path jailing, resource limits and T-21
+/// untrusted-data framing (D-990, D-751, T-72).
+pub fn read_bill(
+    arguments: &Value,
+    permissions: Permissions,
+    folders: &Folders,
+) -> Result<ReadBillResult, ToolError> {
+    let (source, file, page, as_images) = parse_read_bill_arguments(arguments)?;
+    read_bill_request(source, file, page, as_images, permissions, folders)
+}
+
+/// Typed entry point behind [`read_bill`].
+pub fn read_bill_request(
+    source: BillSource,
+    file: &str,
+    page: usize,
+    as_images: bool,
+    permissions: Permissions,
+    folders: &Folders,
+) -> Result<ReadBillResult, ToolError> {
+    if !(1..=MAX_BILL_PAGE).contains(&page) {
+        return Err(ToolError::OutOfRange {
+            argument: "page",
+            min: 1,
+            max: MAX_BILL_PAGE as u64,
+        });
+    }
+    let folder = validate_bill_folder_access(source, permissions, folders)?;
+    let path = resolve_jailed_bill(source, folder, file)?;
+    let is_pdf = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"));
+    let max_bytes = if is_pdf {
+        MAX_BILL_BYTES
+    } else {
+        MAX_BILL_IMAGE_BYTES
+    };
+    let bytes = read_bounded_file(&path, max_bytes)?;
+    let clean_file = for_model(file);
+    if is_pdf {
+        read_pdf_bill(source, &clean_file, &bytes, page, as_images)
+    } else {
+        read_image_bill(source, &clean_file, &bytes, page)
+    }
+}
+
+/// Strictly jails `file` as a relative bill path inside `folder` before
+/// delegating canonical containment and file checks to [`bill_path`] or
+/// `inbox_file_path` (T-62, T-66, T-72).
+fn resolve_jailed_bill(
+    source: BillSource,
+    folder: &Path,
+    file: &str,
+) -> Result<PathBuf, ToolError> {
+    validate_lexical_bill_path(source, file)?;
     match source {
         BillSource::BillFolder => bill_path(folder, file),
         BillSource::Inbox => inbox_file_path(folder, file),

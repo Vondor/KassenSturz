@@ -84,6 +84,25 @@ impl SecretStorage {
             Self::Nowhere => None,
         }
     }
+
+    /// The keychain that keeps non-secret AI consent seals filed under
+    /// `service` (usually [`crate::APP_ID`]), or `None` when nothing is to be
+    /// saved (B-252, B-470, D-1009).
+    ///
+    /// Real secrets (banking PINs, AI API keys) stay in [`Self::keychain`],
+    /// which uses KeePassXC when chosen. The consent seal is not a secret —
+    /// it only confirms that a consent in the settings file was given in
+    /// KassenSturz's own consent screen — so under [`Self::KeePassXc`] it
+    /// lives in the desktop's [`SystemKeychain`] (just like KeePassXC's own
+    /// association link in [`Self::keychain`]). That way users who only open
+    /// KeePassXC for bank updates are not locked into a re-consent loop on
+    /// every launch. [`Self::Nowhere`] still writes nothing anywhere.
+    pub fn consent_keychain(self, service: &str) -> Option<Box<dyn Keychain>> {
+        match self {
+            Self::System | Self::KeePassXc => Some(Box::new(SystemKeychain::for_service(service))),
+            Self::Nowhere => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -135,5 +154,24 @@ mod tests {
     fn nowhere_has_no_keychain() {
         assert!(SecretStorage::Nowhere.keychain(crate::APP_ID).is_none());
         assert!(SecretStorage::System.keychain(crate::APP_ID).is_some());
+    }
+
+    #[test]
+    fn consent_keychain_uses_system_for_system_and_keepassxc_and_none_for_nowhere() {
+        assert!(
+            SecretStorage::System
+                .consent_keychain(crate::APP_ID)
+                .is_some()
+        );
+        assert!(
+            SecretStorage::KeePassXc
+                .consent_keychain(crate::APP_ID)
+                .is_some()
+        );
+        assert!(
+            SecretStorage::Nowhere
+                .consent_keychain(crate::APP_ID)
+                .is_none()
+        );
     }
 }

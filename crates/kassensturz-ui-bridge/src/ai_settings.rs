@@ -58,11 +58,19 @@ fn with_keys_in<R>(storage: SecretStorage, f: impl FnOnce(&mut ProviderKeys) -> 
     match held.as_mut() {
         Some((place, keys)) => {
             if *place != storage {
-                keys.use_store(storage.keychain(APP_ID));
+                keys.use_stores(storage.keychain(APP_ID), storage.consent_keychain(APP_ID));
                 *place = storage;
             }
         }
-        None => *held = Some((storage, ProviderKeys::new(storage.keychain(APP_ID)))),
+        None => {
+            *held = Some((
+                storage,
+                ProviderKeys::with_consent_store(
+                    storage.keychain(APP_ID),
+                    storage.consent_keychain(APP_ID),
+                ),
+            ));
+        }
     }
     let (_, keys) = held.as_mut().expect("set above");
     f(keys)
@@ -1978,5 +1986,51 @@ mod tests {
         // skip no longer counts: it needs the agreement.
         assert!(!store.withdraw_consent());
         assert!(!store.review_skipped());
+    }
+
+    #[test]
+    fn consent_and_review_off_survive_restart_when_primary_store_is_locked() {
+        // B-470, D-1009: with KeePassXC chosen for secrets and closed at
+        // runtime/restart, the non-secret consent seal lives in the separate
+        // system keychain so consent and request-review-off survive restart.
+        let (_folder, file, mut store) = on();
+        let primary = Arc::new(MemoryKeychain::new());
+        let consent_store = Arc::new(MemoryKeychain::new());
+        primary.fail_with(Some(KeychainError::KeePassXcUnavailable));
+        let own = || {
+            Some(Arc::new(Mutex::new(ProviderKeys::with_consent_store(
+                Some(Box::new(Shared(primary.clone()))),
+                Some(Box::new(Shared(consent_store.clone()))),
+            ))))
+        };
+        store.keys = own();
+        let (_, mut save_keys) = keys();
+        let address = "https://api.example.com/v1";
+        assert_eq!(
+            store.save(&mut save_keys, address, "big", KeyUse::None, None),
+            written(Place::AnotherComputer, true)
+        );
+
+        let (written_ok, seal_err) = store.give_consent_noting(TODAY);
+        assert!(written_ok);
+        assert_eq!(seal_err, None);
+        assert!(store.set_review_off(true));
+        let form = store.form();
+        assert_eq!(form.consent, Consent::Given(TODAY));
+        assert!(form.review_off);
+        assert!(!form.consent_until_close);
+        assert_eq!(form.consent_unconfirmed, None);
+
+        // Fresh Store reload (simulating app restart while KeePassXC stays closed).
+        let mut after = Store::at(&file);
+        after.keys = own();
+        let form = after.form();
+        assert_eq!(form.consent, Consent::Given(TODAY));
+        assert!(form.review_off);
+        assert!(!form.consent_until_close);
+        assert_eq!(form.consent_unconfirmed, None);
+        assert!(after.review_skipped());
+        assert_eq!(primary.len(), 0);
+        assert_eq!(consent_store.len(), 1);
     }
 }

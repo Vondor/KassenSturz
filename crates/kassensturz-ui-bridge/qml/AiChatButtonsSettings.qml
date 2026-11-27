@@ -73,6 +73,13 @@ ColumnLayout {
 
     function reload() {
         if (!ai.enabled) {
+            editorDialog.close();
+            editingId = "";
+            editingEnabled = true;
+            editorError = "";
+            labelField.text = "";
+            promptField.text = "";
+            insertOnlyBox.checked = false;
             builtinStates = ({
                 categories: false,
                 month: false,
@@ -95,6 +102,41 @@ ColumnLayout {
         });
         customButtons = settings.customChatButtons();
         refreshInboxConfigured();
+    }
+
+    // Mutations run in `root`'s context rather than inside a Repeater
+    // delegate: `settings` emits `chatButtonsChanged()` synchronously, which
+    // triggers `reload()` and destroys the delegate before control returns.
+    function toggleBuiltinButton(word: string, shown: bool) {
+        const ok = settings.setBuiltinChatButton(word, shown);
+        saved(ok);
+        if (!ok) {
+            reload();
+        }
+    }
+
+    function toggleCustomButton(id: string, enabled: bool) {
+        const ok = settings.setCustomChatButtonEnabled(id, enabled);
+        saved(ok);
+        if (!ok) {
+            reload();
+        }
+    }
+
+    function moveCustomButton(id: string, delta: int) {
+        const ok = settings.moveCustomChatButton(id, delta);
+        saved(ok);
+        if (!ok) {
+            reload();
+        }
+    }
+
+    function removeCustomButton(id: string) {
+        const ok = settings.removeCustomChatButton(id);
+        saved(ok);
+        if (!ok) {
+            reload();
+        }
     }
 
     function openAddDialog() {
@@ -199,9 +241,7 @@ ColumnLayout {
             checked: root.builtinStates[modelData.word] === true
             onToggled: {
                 ActionLog.taken("AiChatButtonsSettings_toggleBuiltin")
-                const ok = root.settings.setBuiltinChatButton(modelData.word, checked);
-                root.saved(ok);
-                root.reload();
+                root.toggleBuiltinButton(modelData.word, checked)
             }
         }
     }
@@ -249,9 +289,7 @@ ColumnLayout {
                 Accessible.name: Plain.plain(root.i18nContext.i18nc("@option:check %1 is a custom button label", "Show button \"%1\" in the chat", buttonRow.modelData.label))
                 onToggled: {
                     ActionLog.taken("AiChatButtonsSettings_toggleCustom")
-                    const ok = root.settings.setCustomChatButtonEnabled(buttonRow.modelData.id, checked);
-                    root.saved(ok);
-                    root.reload();
+                    root.toggleCustomButton(buttonRow.modelData.id, checked)
                 }
             }
 
@@ -290,9 +328,7 @@ ColumnLayout {
                 Accessible.name: text
                 onClicked: {
                     ActionLog.taken("AiChatButtonsSettings_moveUp")
-                    const ok = root.settings.moveCustomChatButton(buttonRow.modelData.id, -1);
-                    root.saved(ok);
-                    root.reload();
+                    root.moveCustomButton(buttonRow.modelData.id, -1)
                 }
             }
 
@@ -307,9 +343,7 @@ ColumnLayout {
                 Accessible.name: text
                 onClicked: {
                     ActionLog.taken("AiChatButtonsSettings_moveDown")
-                    const ok = root.settings.moveCustomChatButton(buttonRow.modelData.id, 1);
-                    root.saved(ok);
-                    root.reload();
+                    root.moveCustomButton(buttonRow.modelData.id, 1)
                 }
             }
 
@@ -331,9 +365,7 @@ ColumnLayout {
                 text: root.i18nContext.i18nc("@action:button delete a custom chat button", "Delete")
                 onClicked: {
                     ActionLog.taken("AiChatButtonsSettings_deleteCustom")
-                    const ok = root.settings.removeCustomChatButton(buttonRow.modelData.id);
-                    root.saved(ok);
-                    root.reload();
+                    root.removeCustomButton(buttonRow.modelData.id)
                 }
             }
         }
@@ -441,17 +473,22 @@ ColumnLayout {
                 text: root.i18nContext.i18nc("@label:textbox", "Prompt:")
             }
 
-            Controls.TextArea {
-                id: promptField
-                objectName: "customButtonPromptField"
+            Controls.ScrollView {
+                objectName: "customButtonPromptScroll"
 
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 7
-                wrapMode: TextEdit.Wrap
-                textFormat: TextEdit.PlainText
-                placeholderText: root.i18nContext.i18nc("@info:placeholder", "The question or instruction for the AI")
-                Accessible.name: root.i18nContext.i18nc("@label:textbox", "Prompt")
-                onTextChanged: if (length > root.limits.maxPromptChars) remove(root.limits.maxPromptChars, length)
+
+                Controls.TextArea {
+                    id: promptField
+                    objectName: "customButtonPromptField"
+
+                    wrapMode: TextEdit.Wrap
+                    textFormat: TextEdit.PlainText
+                    placeholderText: root.i18nContext.i18nc("@info:placeholder", "The question or instruction for the AI")
+                    Accessible.name: root.i18nContext.i18nc("@label:textbox", "Prompt")
+                    onTextChanged: if (length > root.limits.maxPromptChars) remove(root.limits.maxPromptChars, length)
+                }
             }
 
             Controls.Label {

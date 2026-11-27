@@ -1079,21 +1079,7 @@ impl ChatSession {
                         });
                     }
                 }
-                let prepares = call.name == PROPOSE_CHANGES.name;
-                let answer = if call.name == PROPOSE_VIEW_NAME {
-                    view_error_json(&report)
-                } else if call.name == OPEN_PAGE.name {
-                    with_hint(error_json(&report, false), NOT_OPENED_HINT)
-                } else {
-                    error_json(&report, prepares)
-                };
-                let answer = with_allowed(answer, &error);
-                // A fixed hint of the refusal itself, e.g. a category's ID
-                // sent as a Rule's (#860); a chart has its own (R2-16).
-                let answer = match error.hint() {
-                    Some(hint) if call.name != PROPOSE_VIEW_NAME => with_hint(answer, hint),
-                    _ => answer,
-                };
+                let answer = tool_error_answer(&call.name, &report, &error);
                 (prompt::data_json(&answer), Some(report.code))
             }
         };
@@ -1672,11 +1658,28 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
             object.insert("only_for_show_as".into(), json!(ways));
         }
     }
-    // E.g. a ready-made tile asked for as a chart (R2-16).
+    // A fixed hint of the refusal itself: e.g. a ready-made tile asked for as
+    // a chart (R2-16), a category's ID sent as a Rule's (#860), or an inbox
+    // bill passed to `attach_bills` instead of `file_bills` (B-471).
     match error.hint() {
         Some(hint) => with_hint(answer, hint),
         None => answer,
     }
+}
+
+/// Builds the full error JSON returned to the model for one refused tool call,
+/// combining the function's base error shape with [`with_allowed`] (which
+/// appends any `ToolError::hint` once, B-471).
+fn tool_error_answer(function: &str, report: &ErrorReport, error: &ToolError) -> Value {
+    let prepares = function == PROPOSE_CHANGES.name;
+    let answer = if function == PROPOSE_VIEW_NAME {
+        view_error_json(report)
+    } else if function == OPEN_PAGE.name {
+        with_hint(error_json(report, false), NOT_OPENED_HINT)
+    } else {
+        error_json(report, prepares)
+    };
+    with_allowed(answer, error)
 }
 
 /// The dataset a refused call of `propose_view` named, when it is one the AI
@@ -2077,6 +2080,27 @@ mod tests {
         assert_eq!(answer["reason"], json!("conditions-hidden"));
         assert_eq!(answer["item"], json!(1));
         assert_eq!(answer["hint"], json!(CONDITIONS_HIDDEN_HINT));
+    }
+
+    #[test]
+    fn bill_in_inbox_hint_is_emitted_once_with_use_instead() {
+        // B-471: `attach_bills` wraps `ToolError::BillInInbox` in `InItem`;
+        // `tool_error_answer` must emit `use_instead: "file_bills"` and the
+        // fixed hint exactly once (not duplicated by `run_call` + `with_allowed`).
+        let error = ToolError::BillInInbox.at("attach_bills", 0);
+        let answer = tool_error_answer(PROPOSE_CHANGES.name, &error.model_report(), &error);
+        assert_eq!(answer["error"], json!("ai-tools.bill-not-found"));
+        assert_eq!(answer["list"], json!("attach_bills"));
+        assert_eq!(answer["item"], json!(1));
+        assert_eq!(answer["use_instead"], json!("file_bills"));
+        let hint = answer["hint"].as_str().expect("hint");
+        assert!(hint.contains(NOT_PREPARED_HINT), "{hint}");
+        assert_eq!(
+            hint.matches(kassensturz_ai_tools::BILL_IN_INBOX_HINT)
+                .count(),
+            1,
+            "expected BILL_IN_INBOX_HINT exactly once, got: {hint}"
+        );
     }
 
     #[test]

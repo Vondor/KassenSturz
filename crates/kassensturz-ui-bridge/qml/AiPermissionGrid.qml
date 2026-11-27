@@ -107,10 +107,11 @@ ColumnLayout {
         },
         {
             // Its own row, so allowing sorting never allowed the AI to break
-            // a payment into parts (D-737). The account's own amount stays
-            // and the parts add up to it; it reads the transactions, so it
-            // keeps Transactions › Read on. It needs the Category and Amount
-            // fields unlocked, which the hint below the locks says.
+            // a payment into parts (D-737, D-1010). The account's own amount
+            // stays and the parts add up to it; it reads the transactions, so
+            // it keeps Transactions › Read on. It needs the Category field
+            // unlocked while Amount may stay locked, which the hint below the
+            // locks says.
             name: i18nContext.i18nc("@label a part of the book", "Parts of transactions"),
             readRow: "Transactions",
             cells: [

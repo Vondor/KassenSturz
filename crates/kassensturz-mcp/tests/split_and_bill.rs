@@ -145,7 +145,6 @@ fn the_ai_finds_splits_and_links_a_bill_and_one_undo_takes_it_back() {
     folder.allow(&[
         "AllowSplitTransactions=true",
         "AllowAttachBills=true",
-        "LockAmount=false",
         "LockCategory=false",
         &format!("BillFolder={}", bills.display()),
     ]);

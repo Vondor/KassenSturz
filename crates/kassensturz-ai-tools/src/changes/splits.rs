@@ -116,14 +116,14 @@ impl Known {
             .ok_or(ToolError::BadArgument {
                 argument: "transaction_id",
             })?;
-        // New categories and amounts are what a split writes; a user who
-        // locked either never let the AI divide a payment (D-252).
-        for field in [Field::Category, Field::Amount] {
-            if allowed.locked(field) {
-                return Err(ToolError::FieldLocked {
-                    field: field.name(),
-                });
-            }
+        // Splitting replaces category parts while cloning the account part
+        // untouched and verifying the parts add up to it in exact minor units,
+        // so Amount may stay locked to protect whole-transaction totals
+        // (D-737, D-1010); only a locked Category refuses splitting.
+        if allowed.locked(Field::Category) {
+            return Err(ToolError::FieldLocked {
+                field: Field::Category.name(),
+            });
         }
         let stored = match book.transaction(id) {
             Err(StoreError::UnknownTransaction(_)) => return Err(ToolError::UnknownTransaction),

@@ -418,7 +418,7 @@ A model asked for something from the book that the read functions can't give (D-
 | `ai-tools.no-bill-folder` | | | The AI tried to link a bill, but no bill folder is chosen on this computer, or it is gone. Nothing was prepared; choose one under Settings › AI › Your own AI tools › Bill folder. |
 | `ai-tools.bill-outside-folder` | | | The AI tried to link a file that isn't inside your bill folder. Nothing was prepared; only files in the folder you chose can be linked. |
 | `ai-tools.bill-type` | | | The AI tried to read or link a file that isn't a PDF, PNG, JPEG or TIFF bill. Nothing was prepared. |
-| `ai-tools.bill-not-found` | | | The AI tried to read or link a bill that isn't in your bill folder or inbox. Nothing was prepared; the AI can look at the folder again. |
+| `ai-tools.bill-not-found` | `use_instead?` | `file_bills` | The AI tried to read or link a bill that isn't in your bill folder or inbox. Nothing was prepared; the AI can look at the folder again. When a file passed to `attach_bills` is in the active receipt inbox instead of the bill folder, {use_instead} names `file_bills` (B-471, D-1010). |
 | `ai-tools.bill-unreadable` | | | The bill file could not be read or decoded (it may be damaged, password-protected or not a supported PDF, PNG, JPEG or TIFF). Nothing was prepared; open the bill yourself. |
 | `ai-tools.duplicate` | | | The AI tried to link a bill that this transaction already has, or the same bill twice. Nothing was prepared. |
 | `ai-tools.no-inbox` | | | The AI tried to file a bill from the receipt inbox, but no inbox is chosen on this computer, or it is gone. Nothing was prepared; choose one under Settings › AI › Your own AI tools › Inbox for new bills. |

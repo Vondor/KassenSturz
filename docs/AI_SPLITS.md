@@ -61,7 +61,7 @@ A Rule's mark on a replaced part goes with it; the part is now sorted by the AI 
 
 ### Permission
 
-A new cell **Transactions › Split** (`Permission::SplitTransactions`), its own cell like *Join Transfers* (D-693): a user who allowed sorting never allowed breaking a payment into parts. Off by default; switching it on also switches *Transactions › Read* on. The field locks apply (D-252): a locked **Category** or **Amount** refuses the whole split (`ai-tools.field-locked`, the parts are new amounts and categories); a locked **Note** refuses names, and a split without names still works.
+A new cell **Transactions › Split** (`Permission::SplitTransactions`), its own cell like *Join Transfers* (D-693): a user who allowed sorting never allowed breaking a payment into parts. Off by default; switching it on also switches *Transactions › Read* on. The field locks apply (D-252, revised by D-1010): a locked **Category** refuses the whole split (`ai-tools.field-locked`), while **Amount** may stay locked to protect whole-transaction totals because the account split never changes and the parts must add up to its exact minor units; a locked **Note** refuses names, and a split without names still works.
 
 ### Parts in `search_transactions` (#717 item 4)
 

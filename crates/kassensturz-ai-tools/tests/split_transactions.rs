@@ -211,7 +211,7 @@ fn splitting_is_off_until_its_own_cell_is_on() {
 }
 
 #[test]
-fn a_locked_category_or_amount_leaves_splitting_out_and_a_locked_note_the_names() {
+fn a_locked_category_leaves_splitting_out_while_amount_may_stay_locked_and_note_hides_names() {
     let f = fixture();
     let call = split_call(
         f.debit,
@@ -220,15 +220,37 @@ fn a_locked_category_or_amount_leaves_splitting_out_and_a_locked_note_the_names(
             {"amount": "-7.49"}
         ]),
     );
-    for field in [Field::Category, Field::Amount] {
-        let locked = unlocked().with_lock(field, true);
-        assert_eq!(
-            code(propose(&f.book, &call, locked)),
-            "ai-tools.not-allowed"
-        );
-        let offered = kassensturz_ai_tools::propose_spec(locked).expect("other lists");
-        assert!(!offered.parameters.contains("split_transactions"));
-    }
+    // Category locked refuses splitting and leaves it out of propose_spec.
+    let category_locked = unlocked().with_lock(Field::Category, true);
+    assert_eq!(
+        code(propose(&f.book, &call, category_locked)),
+        "ai-tools.not-allowed"
+    );
+    let offered = kassensturz_ai_tools::propose_spec(category_locked).expect("other lists");
+    assert!(!offered.parameters.contains("split_transactions"));
+
+    // D-1010: Amount may stay locked so whole-transaction totals stay
+    // protected while splitting still works (account split never changes).
+    let amount_locked = unlocked().with_lock(Field::Amount, true);
+    assert!(
+        propose(&f.book, &call, amount_locked).is_ok(),
+        "splitting works with Amount locked"
+    );
+    let offered_amount_locked = kassensturz_ai_tools::propose_spec(amount_locked).expect("offered");
+    assert!(
+        offered_amount_locked
+            .parameters
+            .contains("split_transactions")
+    );
+    // Whole-transaction amount edits are still refused when Amount is locked.
+    let edit_amount = json!({
+        "edit_transactions": [{"transaction_id": f.debit.to_string(), "amount": "-10.00"}]
+    });
+    assert_eq!(
+        code(propose(&f.book, &edit_amount, amount_locked)),
+        "ai-tools.field-locked"
+    );
+
     let no_notes = unlocked().with_lock(Field::Note, true);
     assert!(propose(&f.book, &call, no_notes).is_ok());
     let named = split_call(

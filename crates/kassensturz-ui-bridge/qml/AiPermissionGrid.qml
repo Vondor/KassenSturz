@@ -456,15 +456,17 @@ ColumnLayout {
                 text: grid.i18nContext.i18nc("@info", "The AI writes only the fields switched on, as in the grid above. A field switched off is never written by the AI: not changed on a transaction you already have, and not filled in on one it adds. To add a payment, the account, day and amount must be switched on. A field switched off is still shown to the AI when reading is on.")
             }
 
-            // Breaking a payment into parts writes new categories and
-            // amounts, so it needs both fields (D-737); a name per part is
-            // its note.
-            Controls.Label {
+            // Breaking a payment into parts writes new categories while
+            // keeping the bank total unchanged, so only Category must be
+            // unlocked (D-737, D-1010); a name per part is its note.
+            Kirigami.InlineMessage {
+                id: splitCategoryNotice
+                objectName: "splitCategoryNotice"
+
                 Layout.fillWidth: true
-                visible: grid.isOn("AllowSplitTransactions", grid.revision) && (grid.settings.locked("LockCategory") || grid.settings.locked("LockAmount"))
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: grid.i18nContext.i18nc("@info", "To break transactions into parts, switch on Category and Amount below. The amount the bank booked never changes; the parts must add up to it. With Note on, the AI can also name each part.")
+                visible: grid.isOn("AllowSplitTransactions", grid.revision) && grid.settings.locked("LockCategory")
+                type: Kirigami.MessageType.Warning
+                text: grid.i18nContext.i18nc("@info", "To break transactions into parts, switch on Category below. Amount can stay locked: the amount the bank booked never changes, and the parts must add up to it. With Note on, the AI can also name each part.")
             }
 
             Repeater {

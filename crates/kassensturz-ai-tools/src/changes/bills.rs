@@ -197,14 +197,18 @@ pub struct AttachBill {
 
 impl Known {
     /// Checks one item of [`LIST`] against `book` and the bill folder
-    /// `folder` (none chosen: `ai-tools.no-bill-folder`). `linked` holds
-    /// the bills this set attaches already, so the same one isn't
-    /// attached twice.
+    /// `folder` (none chosen: `ai-tools.no-bill-folder`). `inbox_for_hint` is
+    /// passed only when filing from the receipt inbox is also active, so an
+    /// inbox filename accidentally passed to `attach_bills` returns
+    /// [`ToolError::BillInInbox`] (`use_instead: "file_bills"`) without ever
+    /// probing the inbox when filing is off. `linked` holds the bills this set
+    /// attaches already, so the same one isn't attached twice.
     pub(super) fn attach_bill(
         &self,
         book: &Book,
         value: &Value,
         folder: Option<&Path>,
+        inbox_for_hint: Option<&Path>,
         linked: &mut HashSet<(TransactionId, String)>,
     ) -> Result<AttachBill, ToolError> {
         let item = Object::read(value, KEYS, LIST)?;
@@ -219,7 +223,24 @@ impl Known {
             Err(StoreError::UnknownTransaction(_)) => return Err(ToolError::UnknownTransaction),
             other => other?,
         };
-        let path = bill_path(folder, item.required_string("file")?)?;
+        let file = item.required_string("file")?;
+        let path = match bill_path(folder, file) {
+            Ok(path) => path,
+            Err(ToolError::BillNotFound)
+                if inbox_for_hint.is_some_and(|inbox| {
+                    super::filing::inbox_file_path(inbox, file)
+                        .ok()
+                        .is_some_and(|candidate| {
+                            std::fs::symlink_metadata(&candidate)
+                                .map(|meta| meta.is_file())
+                                .unwrap_or(false)
+                        })
+                }) =>
+            {
+                return Err(ToolError::BillInInbox);
+            }
+            Err(error) => return Err(error),
+        };
         let link = path
             .to_str()
             .ok_or(ToolError::BadArgument { argument: "file" })?

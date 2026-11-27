@@ -42,6 +42,14 @@ list_rules; call list_rules and copy the ID of the Rule.";
 pub const BILL_IN_INBOX_HINT: &str = "This file is in the receipt inbox, not the bill folder. \
 Call propose_changes with file_bills (including bill_total) instead of attach_bills.";
 
+/// What [`ToolError::hint`] tells the model when `read_bill` hits the per-turn
+/// bill-reading context budget (US11.4, #1453, D-1014). Fixed text, never the
+/// call's.
+pub const BILL_BUDGET_HINT: &str = "This turn's bill-reading budget is full so the model's \
+    context does not overflow. Do not call read_bill again in this turn. Call propose_changes \
+    now for the bills you already read, and offer to continue with the remaining bills in the \
+    next message.";
+
 /// What [`ToolError::hint`] tells the model when `split_transactions` is
 /// refused because existing parts carry details the AI cannot replace
 /// (B-472, D-1011). Fixed text, never the call's.
@@ -231,6 +239,13 @@ pub enum ToolError {
     /// A bill to file is larger than [`crate::MAX_BILL_BYTES`], or the
     /// set's bills together are larger than [`crate::MAX_FILED_BYTES`].
     BillTooBig,
+    /// The per-turn `read_bill` payload context budget is full, so further bill
+    /// reads in the same chat turn are refused before overflowing smaller
+    /// local contexts (US11.4, #1453, D-1014).
+    BillTurnBudget {
+        /// How many bills were already read in this turn.
+        bills_read: usize,
+    },
     /// A bill to file is linked to a transaction already.
     BillAlreadyFiled,
     /// The same bill is attached to the same transaction twice.
@@ -569,6 +584,7 @@ impl ToolError {
             }
             Self::CategoryNotRule => Some(CATEGORY_NOT_RULE_HINT),
             Self::BillInInbox => Some(BILL_IN_INBOX_HINT),
+            Self::BillTurnBudget { .. } => Some(BILL_BUDGET_HINT),
             Self::NotEditable {
                 reason: "part-details",
             } => Some(PART_DETAILS_HINT),
@@ -742,6 +758,9 @@ impl Report for ToolError {
             Self::BillTooBig => ErrorReport::new("ai-tools.bill-too-big")
                 .with("max_bytes", bytes(crate::MAX_BILL_BYTES))
                 .with("max_set_bytes", bytes(crate::MAX_FILED_BYTES)),
+            Self::BillTurnBudget { bills_read } => ErrorReport::new("ai-tools.bill-too-big")
+                .with("reason", ErrorParam::Keyword("turn-budget"))
+                .with("bills_read", ErrorParam::count(*bills_read)),
             Self::BillAlreadyFiled => ErrorReport::new("ai-tools.bill-already-filed"),
             Self::Duplicate => ErrorReport::new("ai-tools.duplicate"),
             // The amounts go to the model through [`Self::amounts`]: a
@@ -910,6 +929,7 @@ mod tests {
             ToolError::NoInbox,
             ToolError::NoArchive,
             ToolError::BillTooBig,
+            ToolError::BillTurnBudget { bills_read: 4 },
             ToolError::BillAlreadyFiled,
             ToolError::Duplicate,
             ToolError::PartsDontAddUp {

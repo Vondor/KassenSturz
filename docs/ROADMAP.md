@@ -87,6 +87,22 @@ Goal: let local and home-LAN OpenAI-compatible AI models (in both built-in chat 
 
 Later (named slots, D-992): `#1369` (B-453, 19 indirect duplicate crates — slot: before Gold / next regular dependency upgrade); `#1246` (Microsoft Store listing texts and screenshots — slot: before Gold, maintainer Partner Center step). After-Gold (19) and volunteer translation (16) issues stay out of US10.
 
+### User Sprint 11 (US11)
+
+Goal: polish the Parts editor and KMyMoney split-memo handling, add inline *Change* (`Ändern`) on AI edit/split review cards, make built-in and custom AI chat prompt buttons configurable in `kassensturzrc` (`D-1013`), and guard local-AI multi-round and `read_bill` context usage. Stage: Beta with frozen book format (`D-892`), normal budget (`D-982`), 1 tester (maintainer), started 27 Nov 2026, ends with a beta release (`D-981`). Phase 1 sorting and decisions: `D-1012` and `D-1013` (`Q-757`, `Q-758`). At most 3 open non-gated step PRs at once (`D-823`, `D-919`). One line per step separated by a blank line (`D-577` layout).
+
+- **US11.1** (`#1450`) · `todo` · Full `PartsPage` feature parity (linked bills, transaction note + bank purpose, whole-transaction tags, per-part names, Plan again…) and lossless KMyMoney single-category split-memo preservation in `splits.rs`.
+
+- **US11.2** (`#1451`) · `todo` · Inline *Change* (`Ändern`) on `editTransaction` and `splitTransaction` review cards (including swapping a split part off a proposed `new_category`) plus preserve-existing-note guidance in `edit_transactions`.
+
+- **US11.3** (`#1452`) · `todo` · Individually toggleable built-in chat buttons and user-defined custom chat prompt buttons in `kassensturzrc` (`D-1013`, hidden when AI is off per `D-013`).
+
+- **US11.4** (`#1453`) · `todo` · Local-AI remaining-rounds nudge (`MAX_ROUNDS - 2`) and per-turn `read_bill` payload context guard in `kassensturz-ai-chat`.
+
+- **US11.5** (`#1454`) · `todo` · needs: US11.1, US11.2, US11.3, US11.4 · Phase 3 verification (Challenger audit, `kubuntu-test` & `win11` VM checks) and Beta release.
+
+Later (parked carry-overs, `D-1012`): `#1369` (next regular dependency update before Gold); `#1246` (before Gold).
+
 ## How to pick work
 
 1. If the maintainer or the coordinator named a step, do that step. Otherwise take, in the current Sprint (the last block under "User Sprints"), the lowest step that is still `todo` and whose prerequisites are `done`. Between two Sprints (Nirvana, D-949) there is no step list: the work comes from the coordinator.

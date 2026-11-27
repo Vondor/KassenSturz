@@ -52,6 +52,187 @@ pub const NOTES_KEY: &str = "Notes";
 /// (D-052); about a page of text.
 pub const MAX_NOTES_CHARS: usize = 2000;
 
+/// The key in [`GROUP`] (`[AI]`) of the user's custom chat quick-prompt
+/// buttons (US11.3, #1452, D-1013): kept per computer in `kassensturzrc`,
+/// never in a book (D-892), and ignored while AI is off (D-013).
+pub const CUSTOM_CHAT_BUTTONS_KEY: &str = "CustomChatButtons";
+
+/// Maximum number of user-defined custom chat buttons (D-1013).
+pub const MAX_CUSTOM_CHAT_BUTTONS: usize = 20;
+
+/// Maximum length (in Unicode scalar values) of a custom button's label.
+pub const MAX_CHAT_BUTTON_LABEL_CHARS: usize = 60;
+
+/// Maximum length (in Unicode scalar values) of a custom button's prompt.
+pub const MAX_CHAT_BUTTON_PROMPT_CHARS: usize = 2000;
+
+/// Maximum length (in bytes) of a custom button's ASCII identifier.
+pub const MAX_CHAT_BUTTON_ID_BYTES: usize = 64;
+
+/// One of the four built-in quick-prompt buttons in the AI chat panel
+/// (US11.3, #1452, D-1013). Each is shown by default when its key is absent
+/// from `[AI]` in `kassensturzrc`, and hidden when its key is `false` or
+/// while AI is off (D-013).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BuiltinChatButton {
+    /// "Suggest categories" (`categories`).
+    Categories,
+    /// "Explain this month" (`month`).
+    Month,
+    /// "Prepare Rules" (`rules`).
+    Rules,
+    /// "Describe a chart" (`describe_chart`).
+    DescribeChart,
+}
+
+impl BuiltinChatButton {
+    /// Every built-in chat button, in the order the UI shows them.
+    pub const ALL: [Self; 4] = [
+        Self::Categories,
+        Self::Month,
+        Self::Rules,
+        Self::DescribeChart,
+    ];
+
+    /// The stable identifier used between QML and Rust.
+    pub const fn word(self) -> &'static str {
+        match self {
+            Self::Categories => "categories",
+            Self::Month => "month",
+            Self::Rules => "rules",
+            Self::DescribeChart => "describe_chart",
+        }
+    }
+
+    /// Looks up a built-in chat button by its stable identifier.
+    pub fn from_word(word: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|button| button.word() == word)
+    }
+
+    /// The key of this built-in chat button in [`GROUP`].
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Categories => "ChatButtonCategories",
+            Self::Month => "ChatButtonMonth",
+            Self::Rules => "ChatButtonRules",
+            Self::DescribeChart => "ChatButtonDescribeChart",
+        }
+    }
+
+    /// Whether the button is on when the user never changed it: every
+    /// built-in button starts on so older settings files keep the exact
+    /// previous behavior (D-1013).
+    pub const fn on_by_default(self) -> bool {
+        true
+    }
+}
+
+/// One user-defined custom quick-prompt button for the AI chat panel
+/// (US11.3, #1452, D-1013).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CustomChatButton {
+    /// Stable ASCII identifier (`a-z`, `A-Z`, `0-9`, `-`, `_`).
+    pub id: String,
+    /// Single-line button label (1..=[`MAX_CHAT_BUTTON_LABEL_CHARS`] chars).
+    pub label: String,
+    /// Prompt text sent or inserted into the chat input
+    /// (1..=[`MAX_CHAT_BUTTON_PROMPT_CHARS`] chars).
+    pub prompt: String,
+    /// Whether the button is shown in the chat panel.
+    pub enabled: bool,
+    /// When `false` (default), clicking sends the prompt immediately; when
+    /// `true`, clicking inserts the prompt into the chat input box without
+    /// sending so the user can edit it first (D-1013).
+    pub insert_only: bool,
+}
+
+/// Whether `id` is a safe ASCII identifier for a custom chat button.
+pub fn is_valid_chat_button_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= MAX_CHAT_BUTTON_ID_BYTES
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+}
+
+/// Checks a custom button label typed by the user: single-line, non-empty
+/// after trimming, no NUL or control characters, at most
+/// [`MAX_CHAT_BUTTON_LABEL_CHARS`] characters.
+pub fn validate_chat_button_label(raw: &str) -> Option<String> {
+    if raw.chars().any(|c| c == '\0' || c.is_control()) {
+        return None;
+    }
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > MAX_CHAT_BUTTON_LABEL_CHARS {
+        return None;
+    }
+    Some(trimmed.to_owned())
+}
+
+/// Reads a custom button label from `kassensturzrc`: rejects NULs, drops
+/// control characters (turning line breaks and tabs into spaces), trims,
+/// and caps at [`MAX_CHAT_BUTTON_LABEL_CHARS`]. Returns `None` if empty.
+pub fn sanitize_chat_button_label(raw: &str) -> Option<String> {
+    if raw.contains('\0') {
+        return None;
+    }
+    let mut cleaned = String::with_capacity(raw.len());
+    for c in raw.chars() {
+        if matches!(c, '\n' | '\r' | '\t') {
+            cleaned.push(' ');
+        } else if !c.is_control() {
+            cleaned.push(c);
+        }
+    }
+    let trimmed: String = cleaned
+        .trim()
+        .chars()
+        .take(MAX_CHAT_BUTTON_LABEL_CHARS)
+        .collect();
+    let trimmed = trimmed.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+/// Checks a custom button prompt typed by the user: non-empty after
+/// trimming, no NUL or control characters other than line breaks and tabs,
+/// normalized to `\n`, at most [`MAX_CHAT_BUTTON_PROMPT_CHARS`] characters.
+pub fn validate_chat_button_prompt(raw: &str) -> Option<String> {
+    if raw
+        .chars()
+        .any(|c| c == '\0' || (c.is_control() && !matches!(c, '\n' | '\r' | '\t')))
+    {
+        return None;
+    }
+    let normalized = raw.replace("\r\n", "\n").replace('\r', "\n");
+    let trimmed = normalized.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > MAX_CHAT_BUTTON_PROMPT_CHARS {
+        return None;
+    }
+    Some(trimmed.to_owned())
+}
+
+/// Reads a custom button prompt from `kassensturzrc`: rejects NULs,
+/// normalizes line breaks to `\n`, drops control characters other than
+/// `\n` and `\t`, trims, and caps at [`MAX_CHAT_BUTTON_PROMPT_CHARS`].
+/// Returns `None` if empty.
+pub fn sanitize_chat_button_prompt(raw: &str) -> Option<String> {
+    if raw.contains('\0') {
+        return None;
+    }
+    let normalized = raw.replace("\r\n", "\n").replace('\r', "\n");
+    let cleaned: String = normalized
+        .chars()
+        .filter(|&c| c == '\n' || c == '\t' || !c.is_control())
+        .collect();
+    let capped: String = cleaned
+        .trim()
+        .chars()
+        .take(MAX_CHAT_BUTTON_PROMPT_CHARS)
+        .collect();
+    let trimmed = capped.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
 /// One row of the permission grid in the AI settings (D-252).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Row {
@@ -566,6 +747,14 @@ pub fn enabled_in(text: &str) -> bool {
 /// on. The write tools are off whenever AI is (D-013).
 pub fn write_tools_in(text: &str) -> bool {
     enabled_in(text) && value_in(text, GROUP, WRITE_TOOLS_KEY) == Some(ON)
+}
+
+/// Whether the built-in chat button `button` is enabled in the settings
+/// file's `text` (US11.3, #1452, D-1013). Always `false` while AI is off
+/// (D-013); otherwise `true` unless explicitly set to `false`, so older
+/// settings files keep every built-in button on.
+pub fn builtin_chat_button_in(text: &str, button: BuiltinChatButton) -> bool {
+    enabled_in(text) && value_in(text, GROUP, button.key()) != Some("false")
 }
 
 /// The permissions of the settings file's `text` (D-239, D-252). None while
@@ -1350,6 +1539,106 @@ mod tests {
         assert_eq!(
             read(&"x".repeat(MAX_NOTES_CHARS + 50)).chars().count(),
             MAX_NOTES_CHARS
+        );
+    }
+
+    #[test]
+    fn builtin_chat_buttons_default_on_and_hide_when_ai_is_off() {
+        let on = "[AI]\nEnabled=true\n";
+        for button in BuiltinChatButton::ALL {
+            assert!(button.on_by_default());
+            assert_eq!(BuiltinChatButton::from_word(button.word()), Some(button));
+            assert!(
+                builtin_chat_button_in(on, button),
+                "{button:?} defaults on when absent"
+            );
+            assert!(
+                !builtin_chat_button_in("[AI]\nEnabled=false\n", button),
+                "{button:?} is off when AI is off"
+            );
+            assert!(
+                !builtin_chat_button_in("", button),
+                "{button:?} is off when file is empty"
+            );
+        }
+        assert_eq!(BuiltinChatButton::from_word("unknown"), None);
+        let keys: std::collections::HashSet<_> =
+            BuiltinChatButton::ALL.iter().map(|b| b.key()).collect();
+        assert_eq!(keys.len(), BuiltinChatButton::ALL.len());
+
+        let text = "[AI]\nEnabled=true\nChatButtonCategories=false\nChatButtonMonth=maybe\nChatButtonDescribeChart=false\n";
+        assert!(!builtin_chat_button_in(text, BuiltinChatButton::Categories));
+        assert!(builtin_chat_button_in(text, BuiltinChatButton::Month));
+        assert!(builtin_chat_button_in(text, BuiltinChatButton::Rules));
+        assert!(!builtin_chat_button_in(
+            text,
+            BuiltinChatButton::DescribeChart
+        ));
+    }
+
+    #[test]
+    fn custom_chat_button_validation_and_sanitization_enforce_limits_and_safety() {
+        assert!(is_valid_chat_button_id("btn-1_aZ"));
+        assert!(!is_valid_chat_button_id(""));
+        assert!(!is_valid_chat_button_id("a b"));
+        assert!(!is_valid_chat_button_id("a/b"));
+        assert!(!is_valid_chat_button_id(
+            &"a".repeat(MAX_CHAT_BUTTON_ID_BYTES + 1)
+        ));
+
+        // Labels: single-line, trimmed, no control chars or NULs, max 60 chars.
+        assert_eq!(
+            validate_chat_button_label("  Weekly summary  ").as_deref(),
+            Some("Weekly summary")
+        );
+        assert_eq!(validate_chat_button_label("   "), None);
+        assert_eq!(validate_chat_button_label("two\nlines"), None);
+        assert_eq!(validate_chat_button_label("has\0nul"), None);
+        assert_eq!(validate_chat_button_label("bell\u{7}"), None);
+        assert_eq!(
+            validate_chat_button_label(&"a".repeat(MAX_CHAT_BUTTON_LABEL_CHARS)).map(|s| s.len()),
+            Some(MAX_CHAT_BUTTON_LABEL_CHARS)
+        );
+        assert_eq!(
+            validate_chat_button_label(&"a".repeat(MAX_CHAT_BUTTON_LABEL_CHARS + 1)),
+            None
+        );
+
+        // Label sanitization on read: rejects NUL, cleans control chars, caps length.
+        assert_eq!(sanitize_chat_button_label("has\0nul"), None);
+        assert_eq!(
+            sanitize_chat_button_label("  Line 1\nLine 2\u{7}  ").as_deref(),
+            Some("Line 1 Line 2")
+        );
+        assert_eq!(
+            sanitize_chat_button_label(&"ü".repeat(MAX_CHAT_BUTTON_LABEL_CHARS + 10))
+                .map(|s| s.chars().count()),
+            Some(MAX_CHAT_BUTTON_LABEL_CHARS)
+        );
+
+        // Prompts: multi-line allowed, CRLF normalized, no NUL or other control chars, max 2000 chars.
+        assert_eq!(
+            validate_chat_button_prompt("  Line 1\r\nLine 2\t!  ").as_deref(),
+            Some("Line 1\nLine 2\t!")
+        );
+        assert_eq!(validate_chat_button_prompt("   \n  "), None);
+        assert_eq!(validate_chat_button_prompt("bad\0nul"), None);
+        assert_eq!(validate_chat_button_prompt("bad\u{7}bell"), None);
+        assert_eq!(
+            validate_chat_button_prompt(&"x".repeat(MAX_CHAT_BUTTON_PROMPT_CHARS + 1)),
+            None
+        );
+
+        // Prompt sanitization on read: rejects NUL, strips other control chars, caps length.
+        assert_eq!(sanitize_chat_button_prompt("bad\0nul"), None);
+        assert_eq!(
+            sanitize_chat_button_prompt("a\u{7}b\r\nc").as_deref(),
+            Some("ab\nc")
+        );
+        assert_eq!(
+            sanitize_chat_button_prompt(&"ä".repeat(MAX_CHAT_BUTTON_PROMPT_CHARS + 25))
+                .map(|s| s.chars().count()),
+            Some(MAX_CHAT_BUTTON_PROMPT_CHARS)
         );
     }
 }

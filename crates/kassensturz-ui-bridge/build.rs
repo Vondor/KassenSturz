@@ -57,6 +57,7 @@ fn main() {
                 "qml/AiRulesSortChange.qml",
                 "qml/AiChartCard.qml",
                 "qml/AiChangeReviewPage.qml",
+                "qml/AiChatButtonsSettings.qml",
                 "qml/AiChatLogLine.qml",
                 "qml/AiChatMessage.qml",
                 "qml/AiChatPanel.qml",

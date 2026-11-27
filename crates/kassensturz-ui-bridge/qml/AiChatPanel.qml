@@ -93,24 +93,48 @@ ColumnLayout {
     property bool stopping: false
 
     function refresh() {
+        if (!ai.enabled) {
+            form = ({});
+            features = [];
+            chartAllowed = false;
+            customButtons = [];
+            return;
+        }
         form = settings.load();
-        features = ["categories", "month", "rules"].filter(feature => featureAllowed(feature));
-        chartAllowed = settings.allows("AllowNewViews");
+        features = ["categories", "month", "rules"].filter(
+            feature => featureAllowed(feature) && settings.builtinChatButton(feature)
+        );
+        chartAllowed = settings.allows("AllowNewViews") && settings.builtinChatButton("describe_chart");
+        customButtons = settings.customChatButtons().filter(button => button.enabled === true);
     }
 
-    // A permission switched in Settings while the chat stays open beside
-    // the page shows or hides its buttons at once (B-402).
+    // A permission or chat button switched in Settings while the chat stays
+    // open beside the page shows or hides its buttons at once (B-402, D-1013).
     Connections {
         target: panel.settings
 
         function onAllowsChanged() {
             panel.refresh();
         }
+
+        function onChatButtonsChanged() {
+            panel.refresh();
+        }
     }
 
-    // Whether the user lets the AI prepare charts; the button that asks for
-    // one is hidden, not grayed out, when not (D-239).
+    Connections {
+        target: panel.ai
+
+        function onEnabledChanged() {
+            panel.refresh();
+        }
+    }
+
+    // Whether the user lets the AI prepare charts and kept the button on;
+    // hidden, not grayed out, when not (D-239, D-1013).
     property bool chartAllowed: false
+    // Enabled custom quick-prompt buttons in display order (US11.3, D-1013).
+    property var customButtons: []
 
     // *Describe a chart* (M6c.9, D-355): puts an example into the field for
     // the user to change, and asks nothing yet. The example is never mixed
@@ -218,23 +242,55 @@ ColumnLayout {
         stopping = false;
     }
 
-    function ask() {
-        const question = questionField.text.trim();
+    function sendQuestion(question: string): bool {
         if (question === "" || chat.busy) {
-            return;
+            return false;
         }
         const started = chat.ask(question, keyField.text);
         if (started.started !== true) {
             if (started.code !== undefined) {
                 add({ kind: "error", result: started });
             }
-            return;
+            return false;
         }
         add({ kind: "question", text: question });
-        questionField.text = "";
         keyField.text = "";
+        return true;
+    }
+
+    function ask() {
+        const question = questionField.text.trim();
+        if (!sendQuestion(question)) {
+            return;
+        }
+        questionField.text = "";
         suggestion = "";
         offered = "";
+    }
+
+    // Runs one of the user's own quick-prompt buttons (US11.3, D-1013).
+    // Sends immediately by default (`insertOnly` false), using the exact same
+    // path as typing and clicking Ask; when `insertOnly` is true, places the
+    // prompt into the input box without sending (like Describe a chart, B-386).
+    function runCustomButton(button: var) {
+        if (!ai.enabled || chat.busy || !hasProvider) {
+            return;
+        }
+        const prompt = (button.prompt ?? "").trim();
+        if (prompt === "") {
+            return;
+        }
+        if (button.insertOnly === true) {
+            const typed = questionField.text.trim();
+            if (typed === "" || typed === suggestion) {
+                useSuggestion(prompt);
+            } else {
+                offered = prompt;
+                questionField.forceActiveFocus();
+            }
+            return;
+        }
+        sendQuestion(prompt);
     }
 
     // What the button of a built-in feature (M5.9, D-222) shows in the
@@ -638,14 +694,14 @@ ColumnLayout {
         Accessible.name: panel.i18nContext.i18nc("@label:textbox", "The provider's key for this question")
     }
 
-    // The built-in features: one press asks a fixed question. What they
-    // prepare is reviewed like anything else the AI prepares (D-222).
+    // The built-in and custom quick-prompt buttons (D-222, D-1013).
     Flow {
+        objectName: "chatButtonsBar"
         Layout.fillWidth: true
         Layout.leftMargin: Kirigami.Units.smallSpacing
         Layout.rightMargin: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
-        visible: panel.hasProvider
+        visible: panel.ai.enabled && panel.hasProvider && (panel.features.length > 0 || panel.chartAllowed || panel.customButtons.length > 0)
 
         Repeater {
             model: panel.features
@@ -653,6 +709,7 @@ ColumnLayout {
             Controls.Button {
                 required property string modelData
 
+                objectName: "builtinChatButton_" + modelData
                 flat: true
                 enabled: !panel.chat.busy
                 text: Plain.plain(panel.featureLabel(modelData))
@@ -664,6 +721,7 @@ ColumnLayout {
         }
 
         Controls.Button {
+            objectName: "builtinChatButton_describe_chart"
             flat: true
             visible: panel.chartAllowed
             enabled: !panel.chat.busy
@@ -672,6 +730,23 @@ ColumnLayout {
             onClicked: {
                 ActionLog.taken("AiChatPanel_describeChart")
                 panel.describeChart()
+            }
+        }
+
+        Repeater {
+            model: panel.ai.enabled ? panel.customButtons : []
+
+            Controls.Button {
+                required property var modelData
+
+                objectName: "customChatButton_" + modelData.id
+                flat: true
+                enabled: !panel.chat.busy
+                text: Plain.plain(modelData.label)
+                onClicked: {
+                    ActionLog.taken("AiChatPanel_runCustomButton")
+                    panel.runCustomButton(modelData)
+                }
             }
         }
     }

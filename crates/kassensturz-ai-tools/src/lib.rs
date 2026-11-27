@@ -85,7 +85,7 @@ pub use bill_reader::{
     BILL_DATA_NOTE, BillImage, BillSource, MAX_BILL_DECODE_ALLOC_BYTES, MAX_BILL_DECODE_DIMENSION,
     MAX_BILL_IMAGE_BYTES, MAX_BILL_IMAGE_DIMENSION, MAX_BILL_OUTPUT_IMAGE_BYTES, MAX_BILL_PAGE,
     MAX_BILL_PAGES_PER_CALL, MAX_BILL_TEXT_CHARS, READ_BILL, ReadBillMode, ReadBillResult,
-    read_bill, read_bill_allowed, read_bill_request,
+    read_bill, read_bill_allowed, read_bill_request, validate_read_bill_call,
 };
 #[cfg(feature = "ai")]
 pub use changes::{
@@ -107,7 +107,8 @@ pub use changes::{
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
 #[cfg(feature = "ai")]
 pub use error::{
-    AI_PERMISSIONS, BILL_IN_INBOX_HINT, PART_DETAILS_HINT, READY_MADE_TILE_HINT, Setting, ToolError,
+    AI_PERMISSIONS, BILL_BUDGET_HINT, BILL_IN_INBOX_HINT, PART_DETAILS_HINT, READY_MADE_TILE_HINT,
+    Setting, ToolError,
 };
 #[cfg(feature = "ai")]
 pub use figures::{

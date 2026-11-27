@@ -484,3 +484,105 @@ fn bill_tools_are_refused_when_permissions_are_off() {
     assert!(system.contains("Bills filed from the inbox"));
     assert!(!system.contains("over MCP"));
 }
+
+#[test]
+fn per_turn_bill_image_budget_caps_scanned_pages_and_resets_next_turn() {
+    let sandbox = Sandbox::new("image-budget");
+    for idx in 1..=5 {
+        sandbox.write(&format!("Inbox/scan-{idx}.png"), SYNTHETIC_PNG);
+    }
+
+    let (book, _, _, _) = bill_book();
+    let (provider, seen) = Script::provider(
+        settings(true, None, KeyUse::None),
+        vec![
+            // Turn 1: try to dump 5 scanned receipt PNGs at once; 4 succeed
+            // (`MAX_TURN_BILL_IMAGES`) and the 5th is cleanly refused without
+            // touching disk or attaching an image.
+            calls(&[
+                (
+                    "c1",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"scan-1.png"}"#,
+                ),
+                (
+                    "c2",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"scan-2.png"}"#,
+                ),
+                (
+                    "c3",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"scan-3.png"}"#,
+                ),
+                (
+                    "c4",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"scan-4.png"}"#,
+                ),
+                (
+                    "c5",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"scan-5.png"}"#,
+                ),
+            ]),
+            says("I read the first four scanned bills; say when to continue with scan-5.png."),
+            // Turn 2: budget resets cleanly so scan-5.png succeeds.
+            calls(&[(
+                "c6",
+                READ_BILL.name,
+                r#"{"source":"inbox","file":"scan-5.png"}"#,
+            )]),
+            says("I read scan-5.png."),
+        ],
+    );
+
+    let mut chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc1234"))
+        .with_permissions(Permissions::all())
+        .with_folders(sandbox.folders());
+
+    chat.ask(
+        &book,
+        &provider,
+        None,
+        "Read all my scanned receipts in the inbox.",
+        TODAY,
+        &mut NoHooks,
+    )
+    .unwrap();
+
+    let requests = seen.seen();
+    let round2 = &requests[1].messages;
+    for id in ["c1", "c2", "c3", "c4"] {
+        let msg = round2
+            .iter()
+            .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some(id))
+            .expect("accepted scan tool result");
+        assert_eq!(msg.images.len(), 1, "{id} should carry its scanned image");
+    }
+    let refused = round2
+        .iter()
+        .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some("c5"))
+        .expect("refused 5th scan tool result");
+    assert!(refused.images.is_empty(), "refused call carries no images");
+    let refused_json: Value = serde_json::from_str(&refused.content).unwrap();
+    assert_eq!(refused_json["error"], json!("ai-tools.bill-too-big"));
+    assert_eq!(refused_json["reason"], json!("turn-budget"));
+    assert_eq!(refused_json["bills_read"], json!(4));
+    assert_eq!(
+        refused_json["hint"],
+        json!(kassensturz_ai_chat::BILL_BUDGET_HINT)
+    );
+
+    // Turn 2 resets the per-turn budget cleanly.
+    chat.ask(&book, &provider, None, "Continue.", TODAY, &mut NoHooks)
+        .unwrap();
+    let turn2_requests = seen.seen();
+    let turn2_round2 = &turn2_requests[3].messages;
+    let scan5 = turn2_round2
+        .iter()
+        .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some("c6"))
+        .expect("turn 2 scan-5 result");
+    assert_eq!(scan5.images.len(), 1);
+    assert!(scan5.content.contains("scan-5.png"));
+}

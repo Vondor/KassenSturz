@@ -28677,6 +28677,266 @@ msgctxt "@info %1 is a budget name, %2 and %3 are dates"
 msgid "what the budget %1 has left from %2 to %3"
 msgstr "was vom Budget %1 vom %2 bis zum %3 übrig ist"
 
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:50
+#, kde-format
+msgctxt "@option:check built-in chat button"
+msgid "Suggest categories"
+msgstr "Kategorien vorschlagen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:54
+#, kde-format
+msgctxt "@option:check built-in chat button"
+msgid "Explain this month"
+msgstr "Diesen Monat erklären"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:58
+#, kde-format
+msgctxt "@option:check built-in chat button"
+msgid "Prepare Rules"
+msgstr "Regeln vorbereiten"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:62
+#, kde-format
+msgctxt "@option:check built-in chat button"
+msgid "Describe a chart"
+msgstr "Diagramm beschreiben"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:125
+#, kde-format
+msgctxt "@info %1 is the maximum label length"
+msgid "Please enter a single-line button label (up to %1 characters)."
+msgstr "Bitte geben Sie eine einzeilige Beschriftung ein (bis zu %1 Zeichen)."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:127
+#, kde-format
+msgctxt "@info %1 is the maximum prompt length"
+msgid "Please enter a prompt (up to %1 characters)."
+msgstr "Bitte geben Sie eine Eingabeaufforderung ein (bis zu %1 Zeichen)."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:129
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:378
+#, kde-format
+msgctxt "@info %1 is the maximum number of custom buttons"
+msgid ""
+"You have reached the limit of %1 custom buttons. Delete one before adding "
+"another."
+msgstr ""
+"Sie haben die Grenze von %1 eigenen Schaltflächen erreicht. Löschen Sie "
+"zuerst eine, bevor Sie eine weitere hinzufügen."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:131
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The button couldn't be saved. Check that your settings folder can be written "
+"to, then try again."
+msgstr ""
+"Die Schaltfläche konnte nicht gespeichert werden. Prüfen Sie, ob in Ihren "
+"Einstellungsordner geschrieben werden kann, und versuchen Sie es erneut."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:151
+#, kde-format
+msgctxt "@action:button default label for the inbox filing quick button"
+msgid "File 5 inbox bills"
+msgstr "5 Eingangsrechnungen ablegen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:152
+#, kde-format
+msgctxt "@info default prompt for the inbox filing quick button"
+msgid ""
+"Check my receipt inbox and prepare filing proposals for up to 5 bills. Match "
+"each bill to its transaction, suggest splitting if a bill covers more than "
+"one category, and keep any existing notes."
+msgstr ""
+"Prüfe meinen Eingangsordner für Rechnungen und bereite Ablagevorschläge für "
+"bis zu 5 Rechnungen vor. Ordne jede Rechnung ihrer Buchung zu, schlage eine "
+"Aufteilung vor, wenn eine Rechnung mehrere Kategorien betrifft, und behalte "
+"vorhandene Notizen bei."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:182
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Choose which built-in buttons appear in the chat, and add your own quick-"
+"prompt buttons. These buttons are kept on this computer only, never in your "
+"book."
+msgstr ""
+"Wählen Sie, welche eingebauten Schaltflächen im Chat erscheinen, und fügen "
+"Sie eigene Schnellstart-Schaltflächen hinzu. Diese Schaltflächen werden nur "
+"auf diesem Computer gespeichert, nie in Ihrem Buch."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:188
+#, kde-format
+msgctxt "@title:group"
+msgid "Built-in buttons"
+msgstr "Eingebaute Schaltflächen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:214
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Built-in buttons only appear in the chat when the permissions above also "
+"allow them."
+msgstr ""
+"Eingebaute Schaltflächen erscheinen im Chat nur, wenn die Berechtigungen "
+"oben sie ebenfalls erlauben."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:221
+#, kde-format
+msgctxt "@title:group"
+msgid "Your own buttons"
+msgstr "Eigene Schaltflächen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:230
+#, kde-format
+msgctxt "@info"
+msgid ""
+"No custom buttons yet. Add one for a question you ask often, or for a "
+"template you edit before sending."
+msgstr ""
+"Noch keine eigenen Schaltflächen. Fügen Sie eine für eine häufige Frage "
+"hinzu oder für eine Vorlage, die Sie vor dem Absenden bearbeiten."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:249
+#, kde-format
+msgctxt "@option:check %1 is a custom button label"
+msgid "Show button \"%1\" in the chat"
+msgstr "Schaltfläche „%1“ im Chat anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:277
+#, kde-format
+msgctxt "@info %1 is the prompt text"
+msgid "Inserts into input box — %1"
+msgstr "Ins Eingabefeld einfügen — %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:278
+#, kde-format
+msgctxt "@info %1 is the prompt text"
+msgid "Sends immediately — %1"
+msgstr "Sofort senden — %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:287
+#, kde-format
+msgctxt "@action:button move custom chat button up"
+msgid "Move up"
+msgstr "Nach oben"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:304
+#, kde-format
+msgctxt "@action:button move custom chat button down"
+msgid "Move down"
+msgstr "Nach unten"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:320
+#, kde-format
+msgctxt "@action:button edit a custom chat button"
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:331
+#, kde-format
+msgctxt "@action:button delete a custom chat button"
+msgid "Delete"
+msgstr "Löschen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:351
+#, kde-format
+msgctxt "@action:button add a custom chat quick-prompt button"
+msgid "Add button…"
+msgstr "Schaltfläche hinzufügen …"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:364
+#, kde-format
+msgctxt ""
+"@action:button add a ready-made button for filing bills from the receipt "
+"inbox"
+msgid "Add inbox filing button"
+msgstr "Schaltfläche für Eingangsrechnungen hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:386
+#, kde-format
+msgctxt "@title:window"
+msgid "Add chat button"
+msgstr "Chat-Schaltfläche hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:387
+#, kde-format
+msgctxt "@title:window"
+msgid "Edit chat button"
+msgstr "Chat-Schaltfläche bearbeiten"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:393
+#, kde-format
+msgctxt "@action:button save custom chat button"
+msgid "Save"
+msgstr "Speichern"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:402
+#, kde-format
+msgctxt "@action:button cancel custom chat button edit"
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:417
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Button label:"
+msgstr "Beschriftung:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:425
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "For example: Weekly spending summary"
+msgstr "Zum Beispiel: Wochenübersicht der Ausgaben"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:426
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Button label"
+msgstr "Beschriftung"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:441
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Prompt:"
+msgstr "Eingabeaufforderung:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:452
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "The question or instruction for the AI"
+msgstr "Die Frage oder Anweisung für die KI"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:453
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Prompt"
+msgstr "Eingabeaufforderung"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:470
+#, kde-format
+msgctxt "@option:check"
+msgid "Insert into input box instead of sending"
+msgstr "Statt zu senden ins Eingabefeld einfügen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatButtonsSettings.qml:481
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Useful for templates where you want to fill in a date, shop, or category "
+"before sending. Buttons stay on this computer only; write no passwords or "
+"PINs."
+msgstr ""
+"Nützlich für Vorlagen, in denen Sie vor dem Senden ein Datum, ein Geschäft "
+"oder eine Kategorie ergänzen möchten. Schaltflächen bleiben nur auf diesem "
+"Computer; schreiben Sie keine Passwörter oder PINs hinein."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1032
+#, kde-format
+msgctxt "@title:group"
+msgid "Chat buttons"
+msgstr "Chat-Schaltflächen"
+
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "What this part was for (optional)"

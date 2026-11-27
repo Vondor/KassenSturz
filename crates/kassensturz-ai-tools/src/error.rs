@@ -42,6 +42,14 @@ list_rules; call list_rules and copy the ID of the Rule.";
 pub const BILL_IN_INBOX_HINT: &str = "This file is in the receipt inbox, not the bill folder. \
 Call propose_changes with file_bills (including bill_total) instead of attach_bills.";
 
+/// What [`ToolError::hint`] tells the model when `split_transactions` is
+/// refused because existing parts carry details the AI cannot replace
+/// (B-472, D-1011). Fixed text, never the call's.
+pub const PART_DETAILS_HINT: &str = "This transaction's existing parts carry extra details \
+(per-part tags, a cheque number, or imported data) that the AI cannot replace. Do not call \
+split_transactions for this transaction again; tell the user plainly to split it themselves \
+on KassenSturz's Parts page.";
+
 /// What a refused length of a trend or a daily balance tells the model
 /// (US7, #1036, D-794): which data take it. Fixed text, never the call's.
 pub const LENGTH_HINT: &str = "trend_length is only for data moving_average and macd; \
@@ -561,6 +569,9 @@ impl ToolError {
             }
             Self::CategoryNotRule => Some(CATEGORY_NOT_RULE_HINT),
             Self::BillInInbox => Some(BILL_IN_INBOX_HINT),
+            Self::NotEditable {
+                reason: "part-details",
+            } => Some(PART_DETAILS_HINT),
             _ => None,
         }
     }

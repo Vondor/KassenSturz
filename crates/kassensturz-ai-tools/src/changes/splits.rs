@@ -17,9 +17,17 @@
 //! up are refused with the total, their sum and the difference, so the
 //! model corrects them. [`Transaction::new`] checks the balance once more.
 //!
-//! The parts it replaces must hold nothing the user would lose: no tag,
-//! cheque number, checked status, foreign amount, rate or amount from a
-//! replaced currency. Such a transaction is the user's to split on the
+//! The parts it replaces must hold nothing the user would lose: no cheque
+//! number, imported bank details, foreign amount, rate or amount from a
+//! replaced currency, and on an already-split transaction no per-part tags
+//! (B-472, D-1011). Category-split `status` (`Cleared`/`Reconciled` imported
+//! from KMyMoney) is not shown or edited on categories in KassenSturz, while
+//! the bank account split keeps its own status intact. On an unsplit
+//! transaction whose sole category split carries tags, those tags are
+//! promoted onto the whole transaction (deduplicated with any existing
+//! transaction tags, within `MAX_TAGS_ON_TRANSACTION`), so every new part
+//! keeps them under D-713 and Undo restores the exact original transaction.
+//! Any other transaction with part details is the user's to split on the
 //! Parts page. A tag on the whole transaction stays and counts for every
 //! new part (D-713).
 //!
@@ -29,7 +37,9 @@
 //! takes the whole set back.
 
 use kassensturz_core::ai_switch::{Field, Permissions};
-use kassensturz_core::{AccountId, Date, Money, Split, Transaction, TransactionId};
+use kassensturz_core::{
+    AccountId, Date, MAX_TAGS_ON_TRANSACTION, Money, Split, TagId, Transaction, TransactionId,
+};
 use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
 
@@ -53,7 +63,7 @@ const MAX_PARTS: usize = 50;
 const KEYS: &[&str] = &["transaction_id", "parts"];
 
 /// The keys a part takes.
-const PART_KEYS: &[&str] = &["category_id", "amount", "name"];
+const PART_KEYS: &[&str] = &["category_id", "new_category", "amount", "name"];
 
 /// One new part of a split, as the user reviews it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -129,7 +139,7 @@ impl Known {
             Err(StoreError::UnknownTransaction(_)) => return Err(ToolError::UnknownTransaction),
             other => other?,
         };
-        let own = self.own_part(&stored)?;
+        let (own, carried_tags) = self.own_part(&stored)?;
         let own_split = &stored.splits()[own];
         let currency = stored.currency();
         let digits = book.currency_minor_digits(currency)?;
@@ -218,7 +228,7 @@ impl Known {
         if before == parts {
             return Err(ToolError::BadArgument { argument: "parts" });
         }
-        let edited = Transaction::new(
+        let mut edited = Transaction::new(
             id,
             stored.booking_date(),
             stored.payee().map(str::to_owned),
@@ -226,6 +236,11 @@ impl Known {
         )
         .map_err(|_| ToolError::BadArgument { argument: "parts" })?
         .with_details_of(&stored);
+        if !carried_tags.is_empty() {
+            let mut tags = stored.tags().to_vec();
+            tags.extend(carried_tags);
+            edited = edited.with_tags(tags);
+        }
         let account = own_split
             .account
             .and_then(|id| self.accounts.get(&id))
@@ -244,14 +259,16 @@ impl Known {
         })
     }
 
-    /// The place of the one part in an open account of the user, when the
-    /// other parts can be replaced: categories or none, in the
-    /// transaction's currency, carrying nothing the user would lose.
-    /// Otherwise why not, as `ai-tools.not-editable`.
-    fn own_part(&self, transaction: &Transaction) -> Result<usize, ToolError> {
+    /// The place of the one part in an open account of the user, and any tags
+    /// carried by a sole non-account part to promote onto the whole
+    /// transaction so splitting an unsplit entry loses no tag (B-472, D-1011,
+    /// D-713). Otherwise why not, as `ai-tools.not-editable`.
+    fn own_part(&self, transaction: &Transaction) -> Result<(usize, Vec<TagId>), ToolError> {
         let not_editable = |reason| ToolError::NotEditable { reason };
         let account_of = |split: &Split| split.account.and_then(|id| self.accounts.get(&id));
         let mut own = None;
+        let mut other_count = 0usize;
+        let mut carried_tags: Vec<TagId> = Vec::new();
         for (at, split) in transaction.splits().iter().enumerate() {
             match account_of(split) {
                 Some(account) if account.kind.is_account() => {
@@ -272,34 +289,71 @@ impl Known {
                     return Err(not_editable("transfer"));
                 }
                 _ => {
+                    other_count += 1;
                     if split.foreign.is_some() || split.original.is_some() {
                         return Err(not_editable("other-currency"));
                     }
-                    if !split.tags.is_empty()
-                        || split.number.is_some()
-                        || split.status.is_some()
-                        || split.imported.is_some()
-                    {
+                    // Category-split `status` (`Cleared`/`Reconciled`, e.g.
+                    // from KMyMoney imports) is not shown or edited on
+                    // categories in KassenSturz; the bank account split keeps
+                    // its own status untouched. Only `number`, `imported`, and
+                    // per-part `tags` on an already-split transaction block
+                    // splitting (D-1011).
+                    if split.number.is_some() || split.imported.is_some() {
                         return Err(not_editable("part-details"));
+                    }
+                    if !split.tags.is_empty() {
+                        carried_tags.extend_from_slice(&split.tags);
                     }
                 }
             }
         }
-        own.ok_or(not_editable("split"))
+        let own = own.ok_or(not_editable("split"))?;
+        if !carried_tags.is_empty() {
+            // Already-split transactions with per-part tags stay on the Parts
+            // page so per-part tag distinctions are never flattened.
+            if other_count != 1 {
+                return Err(not_editable("part-details"));
+            }
+            let mut merged = transaction.tags().to_vec();
+            for &tag in &carried_tags {
+                if !merged.contains(&tag) {
+                    merged.push(tag);
+                }
+            }
+            if merged.len() > MAX_TAGS_ON_TRANSACTION {
+                return Err(not_editable("part-details"));
+            }
+        }
+        Ok((own, carried_tags))
     }
 
-    /// The category a part books to, by `category_id`: an open category
-    /// of the book, or none for *Not sorted yet*.
+    /// The category a part books to, by `category_id` (an open category of the
+    /// book) or `new_category` (a key in `new_categories` of the same call,
+    /// B-472, D-1011), or none for *Not sorted yet*. Giving both is refused
+    /// like `categorize`.
     fn part_category(&self, part: &Object<'_>) -> Result<Option<AccountId>, ToolError> {
-        part.id("category_id")?
-            .map(|id| {
-                self.accounts
-                    .get(&id)
-                    .filter(|category| category.kind.is_category() && !category.closed)
-                    .map(|_| id)
-                    .ok_or(ToolError::UnknownCategory)
-            })
-            .transpose()
+        match (part.id("category_id")?, part.string("new_category")?) {
+            (None, None) => Ok(None),
+            (Some(id), None) => self
+                .accounts
+                .get(&id)
+                .filter(|category| category.kind.is_category() && !category.closed)
+                .map(|_| Some(id))
+                .ok_or(ToolError::UnknownCategory),
+            (None, Some(key)) => {
+                self.keys
+                    .get(key)
+                    .copied()
+                    .map(Some)
+                    .ok_or(ToolError::BadArgument {
+                        argument: "new_category",
+                    })
+            }
+            (Some(_), Some(_)) => Err(ToolError::BadArgument {
+                argument: "category_id",
+            }),
+        }
     }
 }
 

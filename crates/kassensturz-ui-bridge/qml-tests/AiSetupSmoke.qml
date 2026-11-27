@@ -110,6 +110,41 @@ Kirigami.ApplicationWindow {
             page.save();
             window.check(settings.calls.indexOf("consent") < 0, "no agreement without the box");
 
+            // B-470: a saved remote provider whose consent seal could not be
+            // confirmed shows the unconfirmed-consent notice inside the one
+            // setup screen, and an agreement kept only until close shows the
+            // warning prominently near Save / Test connection.
+            const unconfirmedNotice = window.find(page, "consentUnconfirmedNotice");
+            const untilCloseWarning = window.find(page, "consentUntilCloseWarning");
+            window.check(unconfirmedNotice !== null && untilCloseWarning !== null, "consent notices are found");
+            if (unconfirmedNotice !== null && untilCloseWarning !== null) {
+                settings.form = ({
+                    address: "https://192.168.1.21/v1",
+                    model: "chat-small",
+                    keyUse: "none",
+                    place: "other",
+                    network: "home",
+                    consent: "missing",
+                    consentUnconfirmedDay: "27.11.2026",
+                    consentUntilClose: false
+                });
+                page.reload();
+                window.check(page.oneScreen, "an unconfirmed remote consent shows the one setup screen");
+                window.check(unconfirmedNotice.visible, "the unconfirmed-consent notice is visible inside oneScreen");
+                window.check(!untilCloseWarning.visible, "the until-close warning is hidden while consent is missing");
+
+                settings.form = Object.assign({}, settings.form, {
+                    consent: "given",
+                    consentDay: "27.11.2026",
+                    consentUnconfirmedDay: "",
+                    consentUntilClose: true
+                });
+                page.reload();
+                window.check(!page.oneScreen, "a given consent hides the one setup screen");
+                window.check(!unconfirmedNotice.visible, "the unconfirmed-consent notice hides once agreed");
+                window.check(untilCloseWarning.visible, "the until-close warning is visible when seal is not saved");
+            }
+
             // B-408: after "Save and test" without a model, the model chosen
             // from the list is saved with the agreement kept, without
             // agreeing again.

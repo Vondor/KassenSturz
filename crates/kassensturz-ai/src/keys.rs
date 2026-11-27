@@ -44,6 +44,11 @@ pub struct ProviderKeys {
     /// seal, whether or not it could also be saved (B-252, B-259).
     sealed: HashMap<String, ConsentRecord>,
     store: Option<Box<dyn Keychain>>,
+    /// Separate store for non-secret consent seals (B-470, D-1009), e.g. the
+    /// desktop's system keychain while real secrets go to KeePassXC. When
+    /// `None`, consent seals fall back to `store` so [`Self::new`] keeps
+    /// identical behavior.
+    consent_store: Option<Box<dyn Keychain>>,
 }
 
 impl std::fmt::Debug for ProviderKeys {
@@ -61,15 +66,50 @@ impl ProviderKeys {
             remembered: HashMap::new(),
             sealed: HashMap::new(),
             store,
+            consent_store: None,
+        }
+    }
+
+    /// Keys over `store` for provider API keys and a separate `consent_store`
+    /// for non-secret AI consent seals (`SecretStorage::consent_keychain`,
+    /// B-470, D-1009).
+    pub fn with_consent_store(
+        store: Option<Box<dyn Keychain>>,
+        consent_store: Option<Box<dyn Keychain>>,
+    ) -> Self {
+        Self {
+            remembered: HashMap::new(),
+            sealed: HashMap::new(),
+            store,
+            consent_store,
         }
     }
 
     /// Changes the place saved keys go to, e.g. after the Password storage
     /// setting changed (D-163). The keys remembered in memory stay; keys
     /// saved in the old place stay there, as for a PIN they are neither
-    /// copied nor read from it any more.
+    /// copied nor read from it any more. Clears any separate consent store so
+    /// callers using `use_store` keep identical behavior.
     pub fn use_store(&mut self, store: Option<Box<dyn Keychain>>) {
         self.store = store;
+        self.consent_store = None;
+    }
+
+    /// Changes both the API-key store and the separate consent-seal store
+    /// (B-470, D-1009), keeping keys and seals remembered in memory.
+    pub fn use_stores(
+        &mut self,
+        store: Option<Box<dyn Keychain>>,
+        consent_store: Option<Box<dyn Keychain>>,
+    ) {
+        self.store = store;
+        self.consent_store = consent_store;
+    }
+
+    /// The keychain used for consent seals: `consent_store` when set, else
+    /// `store`.
+    fn consent_store(&self) -> Option<&dyn Keychain> {
+        self.consent_store.as_deref().or(self.store.as_deref())
     }
 
     fn key(address: &ProviderAddress) -> Result<SecretKey, AiError> {
@@ -162,7 +202,7 @@ impl ProviderKeys {
     pub fn seal_consent(&mut self, consent: &ConsentRecord) -> Result<(), AiError> {
         self.sealed
             .insert(consent.address.origin(), consent.clone());
-        match &self.store {
+        match self.consent_store() {
             Some(store) => store
                 .store(
                     &Self::consent_key(&consent.address)?,
@@ -179,18 +219,18 @@ impl ProviderKeys {
         if let Some(sealed) = self.sealed.get(&address.origin()) {
             return Some(sealed.clone());
         }
-        let store = self.store.as_ref()?;
+        let store = self.consent_store()?;
         let secret = store.read(&Self::consent_key(address).ok()?).ok()??;
         ConsentRecord::from_seal_text(secret.expose())
     }
 
-    /// Whether the seal of `consent` is saved where secrets are saved, so
-    /// the consent still counts after KassenSturz restarts (B-324). False
-    /// with nowhere to save secrets, when the keychain refused it (B-259)
-    /// and when the keychain can't be read now: then the consent counts
-    /// only until KassenSturz closes, and the screen says so.
+    /// Whether the seal of `consent` is saved where consent seals are kept, so
+    /// the consent still counts after KassenSturz restarts (B-324, B-470).
+    /// False with nowhere to save secrets, when the keychain refused it
+    /// (B-259) and when the keychain can't be read now: then the consent
+    /// counts only until KassenSturz closes, and the screen says so.
     pub fn consent_seal_saved(&self, consent: &ConsentRecord) -> bool {
-        let Some(store) = &self.store else {
+        let Some(store) = self.consent_store() else {
             return false;
         };
         let Ok(key) = Self::consent_key(&consent.address) else {
@@ -206,7 +246,7 @@ impl ProviderKeys {
     /// was saved: the user took the consent back.
     pub fn unseal_consent(&mut self, address: &ProviderAddress) -> Result<(), AiError> {
         self.sealed.remove(&address.origin());
-        match &self.store {
+        match self.consent_store() {
             Some(store) => store
                 .delete(&Self::consent_key(address)?)
                 .map_err(keychain_error),
@@ -433,5 +473,107 @@ mod tests {
         memory.fail_with(Some(KeychainError::KeePassXcUnavailable));
         assert_eq!(keys.get(&cloud, KeyUse::Saved), Err(AiError::KeePassXc));
         assert_eq!(format!("{keys:?}"), "ProviderKeys");
+    }
+
+    #[test]
+    fn consent_seal_uses_separate_store_while_api_keys_stay_in_primary_store() {
+        // B-470, D-1009: when Password storage is KeePassXC and KeePassXC is
+        // closed, consent seals still save/read/verify/delete via the system
+        // keychain while API keys continue using the primary store exclusively.
+        let primary = Arc::new(MemoryKeychain::new());
+        let consent_store = Arc::new(MemoryKeychain::new());
+        primary.fail_with(Some(KeychainError::KeePassXcUnavailable));
+
+        let mut keys = ProviderKeys::with_consent_store(
+            Some(Box::new(Shared(primary.clone()))),
+            Some(Box::new(Shared(consent_store.clone()))),
+        );
+        let cloud = address("https://api.example.com/v1");
+        let consent = ConsentRecord::give(&cloud, jiff::civil::date(2026, 11, 27));
+
+        // Sealing and verifying consent succeed without touching primary.
+        keys.seal_consent(&consent).unwrap();
+        assert_eq!(consent_store.len(), 1);
+        assert_eq!(primary.len(), 0);
+        assert!(keys.consent_seal_saved(&consent));
+        assert_eq!(keys.sealed_consent(&cloud), Some(consent.clone()));
+
+        // A fresh instance (restart) still reads and verifies the seal while
+        // primary remains closed/unavailable.
+        let fresh = ProviderKeys::with_consent_store(
+            Some(Box::new(Shared(primary.clone()))),
+            Some(Box::new(Shared(consent_store.clone()))),
+        );
+        assert_eq!(fresh.sealed_consent(&cloud), Some(consent.clone()));
+        assert!(fresh.consent_seal_saved(&consent));
+
+        // API keys still go strictly to primary and fail while it is closed.
+        assert_eq!(
+            keys.keep(&cloud, KeyUse::Saved, secret("test-key-b470")),
+            Err(AiError::KeePassXc)
+        );
+        assert_eq!(keys.get(&cloud, KeyUse::Saved), Err(AiError::KeePassXc));
+        assert_eq!(
+            consent_store.len(),
+            1,
+            "no API key written to consent store"
+        );
+
+        // Once primary is unlocked, API keys are stored in primary only.
+        primary.fail_with(None);
+        keys.keep(&cloud, KeyUse::Saved, secret("test-key-b470"))
+            .unwrap();
+        assert_eq!(primary.len(), 1);
+        assert_eq!(consent_store.len(), 1);
+        assert_eq!(
+            keys.get(&cloud, KeyUse::Saved).unwrap(),
+            Some(secret("test-key-b470"))
+        );
+
+        // Unsealing removes from consent_store even when primary is locked again.
+        primary.fail_with(Some(KeychainError::KeePassXcUnavailable));
+        keys.unseal_consent(&cloud).unwrap();
+        assert_eq!(consent_store.len(), 0);
+        assert_eq!(
+            primary.len(),
+            1,
+            "unsealing consent leaves API key untouched"
+        );
+        assert_eq!(keys.sealed_consent(&cloud), None);
+        assert!(!keys.consent_seal_saved(&consent));
+
+        // Switching stores via use_stores updates both; use_store clears
+        // consent_store so legacy callers keep identical behavior.
+        let other_consent = Arc::new(MemoryKeychain::new());
+        keys.use_stores(
+            Some(Box::new(Shared(primary.clone()))),
+            Some(Box::new(Shared(other_consent.clone()))),
+        );
+        keys.seal_consent(&consent).unwrap();
+        assert_eq!(other_consent.len(), 1);
+        assert_eq!(consent_store.len(), 0);
+
+        keys.use_store(Some(Box::new(Shared(primary.clone()))));
+        assert_eq!(
+            keys.seal_consent(&consent),
+            Err(AiError::KeePassXc),
+            "use_store falls back to primary again"
+        );
+    }
+
+    #[test]
+    fn with_nowhere_to_save_consent_seal_stays_in_memory_only() {
+        // B-470: SecretStorage::Nowhere passes (None, None) and writes nothing.
+        let mut keys = ProviderKeys::with_consent_store(None, None);
+        let cloud = address("https://api.example.com/v1");
+        let consent = ConsentRecord::give(&cloud, jiff::civil::date(2026, 11, 27));
+
+        keys.seal_consent(&consent).unwrap();
+        assert_eq!(keys.sealed_consent(&cloud), Some(consent.clone()));
+        assert!(!keys.consent_seal_saved(&consent));
+
+        let next_start = ProviderKeys::with_consent_store(None, None);
+        assert_eq!(next_start.sealed_consent(&cloud), None);
+        assert!(!next_start.consent_seal_saved(&consent));
     }
 }

@@ -552,6 +552,18 @@ Kirigami.ScrollablePage {
                     text: page.i18nContext.i18nc("@title:group", "What leaves this computer")
                 }
 
+                // B-470: a consent in the file whose seal couldn't be
+                // confirmed used to explain itself only in the `!oneScreen`
+                // section below, which is hidden while consent is missing.
+                Kirigami.InlineMessage {
+                    objectName: "consentUnconfirmedNotice"
+                    Layout.fillWidth: true
+                    type: Kirigami.MessageType.Warning
+                    visible: (page.form.consentUnconfirmedDay ?? "") !== ""
+                        && addressField.text.trim() === (page.form.address ?? "")
+                    text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a date", "You agreed on %1, but KassenSturz can't confirm that agreement any more: it was kept only until KassenSturz closed, or it wasn't given in KassenSturz. Nothing is sent to this provider until you read what is sent and agree again.", page.form.consentUnconfirmedDay)) : ""
+                }
+
                 AiConsentStatement {
                     Layout.fillWidth: true
                     ai: page.ai
@@ -641,6 +653,19 @@ Kirigami.ScrollablePage {
                     running: page.settings.testing
                     visible: running
                 }
+            }
+
+            // An agreement whose seal couldn't be saved holds only until
+            // KassenSturz closes (B-259, B-324, B-470): shown right below
+            // Save / Test connection so the user learns it now instead of
+            // below the fold or after the next start.
+            Kirigami.InlineMessage {
+                objectName: "consentUntilCloseWarning"
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.hasServer && page.form.consent === "given" && page.form.consentUntilClose === true
+                type: Kirigami.MessageType.Warning
+                text: page.i18nContext.i18nc("@info", "This agreement holds only until KassenSturz closes: it couldn't be kept where KassenSturz saves PINs and keys. To keep it, choose a place under Settings → Advanced → Password storage, check that it is unlocked, and agree again.")
             }
 
             Controls.Button {
@@ -852,16 +877,6 @@ Kirigami.ScrollablePage {
                     return page.i18nContext.i18nc("@info", "This provider is on this computer, so what you ask never leaves it and there is nothing to agree to.");
                 }
             }
-        }
-
-        // An agreement whose seal couldn't be saved holds only until
-        // KassenSturz closes (B-259, B-324): the user learns it now, not
-        // after the next start.
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            visible: page.hasProvider && page.form.consent === "given" && page.form.consentUntilClose === true
-            type: Kirigami.MessageType.Warning
-            text: page.i18nContext.i18nc("@info", "This agreement holds only until KassenSturz closes: it couldn't be kept where KassenSturz saves PINs and keys. To keep it, choose a place under Settings → Advanced → Password storage, check that it is unlocked, and agree again.")
         }
 
         RowLayout {

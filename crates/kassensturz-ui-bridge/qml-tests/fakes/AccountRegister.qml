@@ -26,6 +26,7 @@ QtObject {
     property int previews: 0
     property var lastForm: null
     property var savedParts: []
+    property string partsNote: "Initial whole note"
     property var partsBills: [
         {
             link: "/home/sam/Bills/receipt-42.pdf",
@@ -113,7 +114,7 @@ QtObject {
             deliveredName: "EXAMPLE SHOP GMBH",
             purpose: "Card payment 42",
             date: "2026-11-02",
-            note: "Initial whole note",
+            note: partsNote,
             tags: [{ id: "garden", name: "Garden party" }],
             bills: partsBills,
             totalFixed: false,

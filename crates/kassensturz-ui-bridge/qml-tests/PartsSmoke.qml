@@ -168,6 +168,18 @@ Kirigami.ApplicationWindow {
         page.refresh();
         check(sumLine() === "The parts add up to 12,00 €, which is 2,00 € more than the total.", "over sum line, got: " + sumLine());
 
+        // A >512-char imported note loads untruncated, and shortening it via
+        // keepTyped() updates noteLimit back to 512.
+        const longNote = "x".repeat(600);
+        fake.partsNote = longNote;
+        const longPage = pageStack.push(partsComponent);
+        const longNoteAreas = findAll(longPage, item => item instanceof Controls.TextArea, []);
+        check(longNoteAreas.length === 1 && longNoteAreas[0].text.length === 600, "long imported note loaded untruncated, got " + (longNoteAreas[0]?.text.length ?? -1));
+        check(longPage.noteLimit === 600, "noteLimit starts at 600 for long imported note, got " + longPage.noteLimit);
+        longNoteAreas[0].text = "Short note";
+        check(longPage.keepTyped(), "keepTyped saves shortened note");
+        check(longPage.noteLimit === 512, "noteLimit updates to 512 after keepTyped shortens note, got " + longPage.noteLimit);
+
         console.log(failed ? "parts page: FAILED" : "parts page: all checks passed");
         Qt.exit(failed ? 1 : 0);
     }

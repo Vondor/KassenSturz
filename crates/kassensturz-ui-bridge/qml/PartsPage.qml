@@ -47,7 +47,7 @@ Kirigami.ScrollablePage {
     // The note as loaded, so a save sends it only when changed (D-703, D-1015):
     // a long imported memo stays untouched if not edited.
     property string loadedNote: ""
-    readonly property int noteLimit: register.noteLimit(entry.note ?? "")
+    readonly property int noteLimit: register.noteLimit(loadedNote)
     // The whole-transaction tags as loaded, so a save sends them only when changed.
     property string loadedTags: "[]"
     // Snapshot of the loaded/saved form state, so "Plan this again…" saves
@@ -83,8 +83,8 @@ Kirigami.ScrollablePage {
         totalField.text = entry.total;
         otherPartyField.text = entry.otherParty;
         dateField.text = entry.date;
-        noteField.text = entry.note ?? "";
-        loadedNote = noteField.text;
+        loadedNote = entry.note ?? "";
+        noteField.text = loadedNote;
         tagField.tags = entry.tags ?? [];
         loadedTags = tagsText();
         bills = entry.bills ?? [];

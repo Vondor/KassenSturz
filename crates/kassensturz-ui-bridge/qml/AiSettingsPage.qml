@@ -1025,6 +1025,22 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // Which buttons appear in the chat panel (US11.3, #1452, D-1013).
+        // Kept on this computer, hidden while AI is off (D-013).
+        Kirigami.Heading {
+            level: 2
+            text: page.i18nContext.i18nc("@title:group", "Chat buttons")
+        }
+
+        AiChatButtonsSettings {
+            id: chatButtonsSettings
+
+            Layout.fillWidth: true
+            ai: page.ai
+            settings: page.settings
+            onSaved: ok => page.notWritten = !ok
+        }
+
         // The user's own notes for the AI (US7, #808): kept on this
         // computer, put into every chat as the user's own words. Nothing
         // is copied into them by itself; the AI can only suggest a line.
@@ -1288,6 +1304,7 @@ Kirigami.ScrollablePage {
                             page.notWritten = !page.settings.removeReceiptFolder(receiptRow.modelData.which);
                             receiptRow.refused = "";
                             receiptRow.folder = page.settings.receiptFolder(receiptRow.modelData.which);
+                            chatButtonsSettings.refreshInboxConfigured();
                         }
                     }
                 }
@@ -1302,6 +1319,7 @@ Kirigami.ScrollablePage {
                         ActionLog.taken("AiSettingsPage_receiptFolderChosen")
                         receiptRow.refused = page.settings.setReceiptFolder(receiptRow.modelData.which, selectedFolder);
                         receiptRow.folder = page.settings.receiptFolder(receiptRow.modelData.which);
+                        chatButtonsSettings.refreshInboxConfigured();
                     }
                 }
             }

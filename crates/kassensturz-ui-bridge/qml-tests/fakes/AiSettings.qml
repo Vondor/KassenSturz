@@ -99,12 +99,113 @@ QtObject {
     function billFolder() { return ""; }
     function setBillFolder(folder) { return ""; }
     function removeBillFolder() { return true; }
-    function receiptFolder(which) { return ""; }
+    property var receiptFolders: ({ inbox: "", archive: "" })
+    function receiptFolder(which) { return receiptFolders[which] ?? ""; }
     function setReceiptFolder(which, folder) { return ""; }
     function removeReceiptFolder(which) { return true; }
     function serviceKinds() { return []; }
     function serviceKind() { return ""; }
     function setServiceKind(id) { return true; }
+
+    // Configurable built-in and custom chat buttons (US11.3, D-1013).
+    property var builtinButtons: ({ categories: true, month: true, rules: true, describe_chart: true })
+    property var customButtonsList: []
+    property int nextButtonId: 1
+    signal chatButtonsChanged()
+
+    function builtinChatButton(word) { return builtinButtons[word] !== false; }
+    function setBuiltinChatButton(word, shown) {
+        const next = Object.assign({}, builtinButtons);
+        next[word] = shown;
+        builtinButtons = next;
+        chatButtonsChanged();
+        return true;
+    }
+    function customChatButtons() { return customButtonsList.slice(); }
+    function chatButtonLimits() { return ({ maxCount: 20, maxLabelChars: 60, maxPromptChars: 2000 }); }
+    function addCustomChatButton(label, prompt, insertOnly) {
+        const cleanLabel = label.trim();
+        const cleanPrompt = prompt.trim();
+        if (cleanLabel === "" || cleanLabel.indexOf("\n") >= 0) {
+            return ({ ok: false, reason: "invalid-label" });
+        }
+        if (cleanPrompt === "") {
+            return ({ ok: false, reason: "invalid-prompt" });
+        }
+        if (customButtonsList.length >= 20) {
+            return ({ ok: false, reason: "limit" });
+        }
+        const id = "btn-" + nextButtonId;
+        nextButtonId += 1;
+        customButtonsList = customButtonsList.concat([{
+            id: id,
+            label: cleanLabel,
+            prompt: cleanPrompt,
+            enabled: true,
+            insertOnly: insertOnly === true
+        }]);
+        chatButtonsChanged();
+        return ({ ok: true, id: id });
+    }
+    function updateCustomChatButton(id, label, prompt, enabled, insertOnly) {
+        const cleanLabel = label.trim();
+        const cleanPrompt = prompt.trim();
+        if (cleanLabel === "" || cleanLabel.indexOf("\n") >= 0) {
+            return ({ ok: false, reason: "invalid-label" });
+        }
+        if (cleanPrompt === "") {
+            return ({ ok: false, reason: "invalid-prompt" });
+        }
+        const next = customButtonsList.slice();
+        for (let i = 0; i < next.length; ++i) {
+            if (next[i].id === id) {
+                next[i] = { id: id, label: cleanLabel, prompt: cleanPrompt, enabled: enabled === true, insertOnly: insertOnly === true };
+                customButtonsList = next;
+                chatButtonsChanged();
+                return ({ ok: true, id: id });
+            }
+        }
+        return ({ ok: false, reason: "not-found" });
+    }
+    function setCustomChatButtonEnabled(id, enabled) {
+        const next = customButtonsList.slice();
+        for (let i = 0; i < next.length; ++i) {
+            if (next[i].id === id) {
+                next[i] = Object.assign({}, next[i], { enabled: enabled === true });
+                customButtonsList = next;
+                chatButtonsChanged();
+                return true;
+            }
+        }
+        return false;
+    }
+    function moveCustomChatButton(id, delta) {
+        const next = customButtonsList.slice();
+        for (let i = 0; i < next.length; ++i) {
+            if (next[i].id === id) {
+                const target = i + delta;
+                if (target < 0 || target >= next.length) {
+                    return false;
+                }
+                const moved = next[i];
+                next[i] = next[target];
+                next[target] = moved;
+                customButtonsList = next;
+                chatButtonsChanged();
+                return true;
+            }
+        }
+        return false;
+    }
+    function removeCustomChatButton(id) {
+        const next = customButtonsList.filter(item => item.id !== id);
+        if (next.length === customButtonsList.length) {
+            return false;
+        }
+        customButtonsList = next;
+        chatButtonsChanged();
+        return true;
+    }
 
     function locked(key) { return lockedKeys[key] === true; }
     function setLocked(key, value) {

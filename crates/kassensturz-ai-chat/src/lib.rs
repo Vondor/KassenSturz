@@ -55,7 +55,9 @@ pub use log::{LogEntry, MAX_ARGUMENT_CHARS};
 pub use notes::AnswerNote;
 pub use prompt::{BuildInfo, DATA_END, DATA_START};
 pub use session::{
-    ANSWER_NOW, Answer, CHART_NOT_PREPARED, Cancel, ChartFailed, ChatSession, EMPTY_ANSWER, Hooks,
-    MAX_ROUNDS, MAX_VIEW_CORRECTIONS, Mode, NOT_OFFERED, NoHooks, Outcome, SHORTENED_RESULT,
-    looks_cut, sample_request,
+    ANSWER_NOW, Answer, BILL_BUDGET_HINT, CHART_NOT_PREPARED, Cancel, ChartFailed, ChatSession,
+    EMPTY_ANSWER, FINAL_ROUND_BUDGET_NOTE, Hooks, MAX_ROUNDS, MAX_TURN_BILL_IMAGE_BYTES,
+    MAX_TURN_BILL_IMAGES, MAX_TURN_BILL_READS, MAX_TURN_BILL_TEXT_BYTES, MAX_VIEW_CORRECTIONS,
+    Mode, NOT_OFFERED, NoHooks, Outcome, ROUND_BUDGET_NOTE, SHORTENED_RESULT, looks_cut,
+    sample_request,
 };

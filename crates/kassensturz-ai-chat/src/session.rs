@@ -71,6 +71,116 @@ pub const ANSWER_NOW: &str = "KassenSturz: you already have the results you need
     Answer the user's question now, in plain words, from those results. No function \
     can be called any more.";
 
+/// Fixed English notice attached to read, search, and bill-list tool results
+/// once a turn with bill reads or searches reaches round `MAX_ROUNDS - 2`
+/// (round 6 of 8), leaving one tool round before [`ANSWER_NOW`] removes all
+/// functions (US11.4, #1453, D-1014).
+pub const ROUND_BUDGET_NOTE: &str = "KassenSturz: only 2 rounds remain in this turn (your next \
+    reply is the last chance to call functions before you must answer in plain words). Call \
+    propose_changes now for any already-matched bills instead of starting another read_bill \
+    batch, and offer to continue with any remaining bills in the next message.";
+
+/// Fixed English notice attached to read, search, and bill-list tool results
+/// on round `MAX_ROUNDS - 1` (round 7 of 8) if a turn with bill reads or
+/// searches is still reading instead of wrapping up (US11.4, #1453, D-1014).
+pub const FINAL_ROUND_BUDGET_NOTE: &str = "KassenSturz: no tool rounds remain after this step; \
+    your next reply must answer the user in plain words without calling functions. Summarize the \
+    bills you already checked and offer to continue with any remaining bills in the next message.";
+
+/// Maximum accumulated UTF-8 JSON bytes returned by `read_bill` across one
+/// [`ChatSession::ask`] turn before subsequent `read_bill` calls are refused
+/// (US11.4, #1453, D-1014).
+///
+/// One digital PDF bill caps extracted text at 24,000 chars (`MAX_BILL_TEXT_CHARS`)
+/// and typically produces 2–15 KiB of JSON. 96 KiB (~20–24k tokens in German or
+/// English prose) comfortably fits a 3–5 digital-PDF batch inside 32k local
+/// contexts while stopping upfront multi-bill dumps before context overflow.
+pub const MAX_TURN_BILL_TEXT_BYTES: usize = 96 * 1024;
+
+/// Maximum accumulated base64-encoded image bytes returned by `read_bill` across
+/// one [`ChatSession::ask`] turn (US11.4, #1453, D-1014).
+///
+/// One scanned PDF page or receipt photo is typically 150–700 KiB as base64
+/// (capped at 2 MiB raw / ~2.67 MiB base64 per call). 3 MiB comfortably fits
+/// ~3–4 scanned pages while staying well under `MAX_MULTIMODAL_REQUEST_BYTES`
+/// (6 MiB) and preventing multimodal context overflow.
+pub const MAX_TURN_BILL_IMAGE_BYTES: usize = 3 * 1024 * 1024;
+
+/// Maximum rendered/raster bill page images returned by `read_bill` across one
+/// [`ChatSession::ask`] turn (US11.4, #1453, D-1014).
+///
+/// Each page image costs ~1,000–2,500 vision tokens even when tightly compressed;
+/// capping at 4 pages per turn (e.g. two 2-page scanned PDFs or four single-page
+/// photos) keeps multimodal turns inside 16k–32k local VLM contexts.
+pub const MAX_TURN_BILL_IMAGES: usize = 4;
+
+/// Maximum successful `read_bill` calls across one [`ChatSession::ask`] turn
+/// (US11.4, #1453, D-1014).
+///
+/// Comfortably allows a 3–5 bill batch (plus an extra page fetch) while stopping
+/// upfront 25-bill dumps even when individual bills are short.
+pub const MAX_TURN_BILL_READS: usize = 6;
+
+/// Fixed English hint returned when `read_bill` hits the per-turn payload
+/// context guard in [`ChatSession::ask`] (US11.4, #1453, D-1014).
+pub const BILL_BUDGET_HINT: &str = "This turn's bill-reading budget is full so the model's \
+    context does not overflow. Do not call read_bill again in this turn. Call propose_changes \
+    now for the bills you already read, and offer to continue with the remaining bills in the \
+    next message.";
+
+/// Per-turn `read_bill` payload accounting in [`ChatSession`] (US11.4, #1453,
+/// D-1014). Reset at the start of every [`ChatSession::ask`] turn.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct TurnBillBudget {
+    reads: usize,
+    text_bytes: usize,
+    image_bytes: usize,
+    images: usize,
+    exhausted: bool,
+}
+
+impl TurnBillBudget {
+    /// Whether another `read_bill` call in this turn must be refused before
+    /// touching disk. Always `false` before the first bill of the turn is read,
+    /// so a single valid large bill is never spuriously rejected.
+    fn is_exhausted(&self) -> bool {
+        self.reads > 0
+            && (self.exhausted
+                || self.reads >= MAX_TURN_BILL_READS
+                || self.text_bytes >= MAX_TURN_BILL_TEXT_BYTES
+                || self.image_bytes >= MAX_TURN_BILL_IMAGE_BYTES
+                || self.images >= MAX_TURN_BILL_IMAGES)
+    }
+
+    /// Attempts to account for one completed `read_bill` payload of
+    /// `text_bytes` UTF-8 JSON bytes, `image_bytes` base64-encoded image bytes,
+    /// and `images` image attachments.
+    ///
+    /// Always accepts the first bill of a turn (`reads == 0`) so a single valid
+    /// large bill succeeds; for subsequent bills, returns `false` (and marks
+    /// the budget exhausted) if adding this bill would exceed any per-turn cap.
+    fn try_record(&mut self, text_bytes: usize, image_bytes: usize, images: usize) -> bool {
+        let next_reads = self.reads.saturating_add(1);
+        let next_text = self.text_bytes.saturating_add(text_bytes);
+        let next_image_bytes = self.image_bytes.saturating_add(image_bytes);
+        let next_images = self.images.saturating_add(images);
+        if self.reads > 0
+            && (next_reads > MAX_TURN_BILL_READS
+                || next_text > MAX_TURN_BILL_TEXT_BYTES
+                || next_image_bytes > MAX_TURN_BILL_IMAGE_BYTES
+                || next_images > MAX_TURN_BILL_IMAGES)
+        {
+            self.exhausted = true;
+            return false;
+        }
+        self.reads = next_reads;
+        self.text_bytes = next_text;
+        self.image_bytes = next_image_bytes;
+        self.images = next_images;
+        true
+    }
+}
+
 /// Said to the model once when it answered with nothing at all (no text,
 /// no call), so the user doesn't have to ask again (#196, D-248).
 pub const EMPTY_ANSWER: &str = "KassenSturz: your last reply was empty. Answer the user's \
@@ -405,6 +515,14 @@ pub struct ChatSession {
     /// Phrases the user redacted during request review, re-applied to later
     /// rounds and questions of this session (#1396, threat T-22).
     redacted_phrases: Vec<String>,
+    /// Whether the question under way has performed bill reads, bill folder
+    /// listings, or transaction searches (`read_bill`, `inbox`, `bill_folder`,
+    /// `search_transactions`), enabling the remaining-rounds nudge at
+    /// `MAX_ROUNDS - 2` (US11.4, #1453, D-1014).
+    bill_or_search_activity: bool,
+    /// Per-turn `read_bill` payload accounting, reset at the start of every
+    /// [`Self::ask`] turn (US11.4, #1453, D-1014).
+    bill_budget: TurnBillBudget,
 }
 
 impl ChatSession {
@@ -442,6 +560,8 @@ impl ChatSession {
             whole_totals: Figures::new(),
             category_figures: Figures::new(),
             redacted_phrases: Vec::new(),
+            bill_or_search_activity: false,
+            bill_budget: TurnBillBudget::default(),
         }
     }
 
@@ -627,6 +747,8 @@ impl ChatSession {
         self.category_question = names_a_category(book, question);
         self.whole_totals = Figures::new();
         self.category_figures = Figures::new();
+        self.bill_or_search_activity = false;
+        self.bill_budget = TurnBillBudget::default();
         // The whole question's time limit, when the provider has one
         // (M6-B172, D-595).
         let deadline = provider
@@ -914,7 +1036,7 @@ impl ChatSession {
                     continue;
                 }
                 repeated |= made.contains(&key);
-                let message = self.run_call(book, call, today, hooks);
+                let message = self.run_call(book, call, round, today, hooks);
                 this_reply.push((key, message.content.clone()));
                 self.history.push(message);
             }
@@ -950,9 +1072,11 @@ impl ChatSession {
         &mut self,
         book: &Book,
         call: &ToolCall,
+        round: usize,
         today: Date,
         hooks: &mut dyn Hooks,
     ) -> Message {
+        self.bill_or_search_activity |= is_bill_or_search_tool(&call.name);
         let views = self
             .proposed
             .iter()
@@ -967,6 +1091,7 @@ impl ChatSession {
         let permissions = self.permissions();
         let folders = self.folders();
         let mut view_refused = false;
+        let mut bill_budget_refused = false;
         let mut images: Vec<ImageAttachment> = Vec::new();
         let outcome = if call.name == PROPOSE_VIEW_NAME {
             // The text itself, so a key written twice is seen (D-353).
@@ -1017,18 +1142,42 @@ impl ChatSession {
                     } else if call.name == INBOX.name {
                         inbox_answer_allowed(&folders, &arguments, permissions)
                     } else if call.name == READ_BILL.name {
-                        // Read-only, path-jailed bill inspection (D-990, D-751).
+                        // Read-only, path-jailed bill inspection (D-990, D-751),
+                        // bounded per turn so local models cannot overflow context
+                        // by dumping dozens of bills in one turn (US11.4, D-1014).
                         // Result carries zero authoritative book figures (D-052).
-                        read_bill(&arguments, permissions, &folders).map(|read| {
-                            for image in read.images {
-                                if let Some(media_type) =
-                                    ImageMediaType::from_mime(&image.mime_type)
-                                {
-                                    images.push(ImageAttachment::new(media_type, image.bytes));
+                        let source_allowed =
+                            read_bill_source_allowed(&arguments, permissions, &folders);
+                        if source_allowed && self.bill_budget.is_exhausted() {
+                            bill_budget_refused = true;
+                            Err(ToolError::BillTooBig)
+                        } else {
+                            read_bill(&arguments, permissions, &folders).and_then(|read| {
+                                let text_bytes = prompt::data_json(&read.output.value).len();
+                                let image_bytes: usize = read
+                                    .images
+                                    .iter()
+                                    .map(|image| image.bytes.len().div_ceil(3).saturating_mul(4))
+                                    .fold(0usize, usize::saturating_add);
+                                let image_count = read.images.len();
+                                if !self.bill_budget.try_record(
+                                    text_bytes,
+                                    image_bytes,
+                                    image_count,
+                                ) {
+                                    bill_budget_refused = true;
+                                    return Err(ToolError::BillTooBig);
                                 }
-                            }
-                            read.output
-                        })
+                                for image in read.images {
+                                    if let Some(media_type) =
+                                        ImageMediaType::from_mime(&image.mime_type)
+                                    {
+                                        images.push(ImageAttachment::new(media_type, image.bytes));
+                                    }
+                                }
+                                Ok(read.output)
+                            })
+                        }
                     } else if call.name == DRAFT_ISSUE.name {
                         // Shown to the user, never sent from here (T-33).
                         draft_issue(book, &arguments, &self.issue_context()).map(
@@ -1059,12 +1208,21 @@ impl ChatSession {
         if call.name == PROPOSE_CHANGES.name || call.name == PROPOSE_VIEW_NAME {
             self.last_change_refused = outcome.is_err();
         }
+        let round_note = if self.bill_or_search_activity && is_round_nudge_tool(&call.name) {
+            round_budget_note(round)
+        } else {
+            None
+        };
         let (result, error) = match outcome {
             Ok(output) => {
                 self.figures.extend(&output.figures);
                 self.note_totals(call, &output);
                 notes::collect_names(&output.value, &mut self.names_by_id);
-                (prompt::data_json(&output.value), None)
+                let value = match round_note {
+                    Some(note) => with_round_budget_note(output.value, note),
+                    None => output.value,
+                };
+                (prompt::data_json(&value), None)
             }
             Err(error) => {
                 // The code of the cause, with the list and place of the
@@ -1079,7 +1237,15 @@ impl ChatSession {
                         });
                     }
                 }
-                let answer = tool_error_answer(&call.name, &report, &error);
+                let answer = if bill_budget_refused {
+                    bill_budget_error_json(self.bill_budget.reads)
+                } else {
+                    tool_error_answer(&call.name, &report, &error)
+                };
+                let answer = match round_note {
+                    Some(note) => with_round_budget_note(answer, note),
+                    None => answer,
+                };
                 (prompt::data_json(&answer), Some(report.code))
             }
         };
@@ -1708,6 +1874,79 @@ fn view_error_json(report: &ErrorReport) -> Value {
     out
 }
 
+/// Whether `name` is one of the bill or transaction-search functions that
+/// activate the remaining-rounds wrap-up nudge (US11.4, #1453, D-1014).
+fn is_bill_or_search_tool(name: &str) -> bool {
+    name == READ_BILL.name
+        || name == INBOX.name
+        || name == BILL_FOLDER.name
+        || name == "search_transactions"
+}
+
+/// Whether `name` is a read, search, or bill-list function eligible to carry
+/// `"round_budget_note"` once the turn reaches `MAX_ROUNDS - 2`. Never true for
+/// `propose_changes`, `propose_view`, `open_page`, `draft_issue`, or
+/// `suggest_note` (US11.4, #1453, D-1014).
+fn is_round_nudge_tool(name: &str) -> bool {
+    is_bill_or_search_tool(name)
+        || kassensturz_ai_tools::FUNCTIONS
+            .iter()
+            .any(|function| function.name == name)
+}
+
+/// Returns the fixed English remaining-rounds notice for `round`, or `None`
+/// before `MAX_ROUNDS - 2` (US11.4, #1453, D-1014).
+fn round_budget_note(round: usize) -> Option<&'static str> {
+    let threshold = MAX_ROUNDS.saturating_sub(2);
+    if round < threshold {
+        None
+    } else if round == threshold {
+        Some(ROUND_BUDGET_NOTE)
+    } else {
+        Some(FINAL_ROUND_BUDGET_NOTE)
+    }
+}
+
+/// Attaches `"round_budget_note"` to a tool result JSON object without altering
+/// existing fields or `Figures` verification (US11.4, #1453, D-1014).
+fn with_round_budget_note(mut value: Value, note: &str) -> Value {
+    if let Value::Object(object) = &mut value {
+        object.insert("round_budget_note".into(), json!(note));
+    }
+    value
+}
+
+/// Whether `arguments.source` names a bill folder that is both permitted and
+/// configured, without touching disk (T-62, T-66, T-72).
+fn read_bill_source_allowed(
+    arguments: &Value,
+    permissions: Permissions,
+    folders: &Folders,
+) -> bool {
+    match arguments.get("source").and_then(Value::as_str) {
+        Some("bill_folder") => {
+            permissions.allows(ai_switch::Permission::AttachBills) && folders.bills.is_some()
+        }
+        Some("inbox") => {
+            permissions.allows(ai_switch::Permission::FileBills)
+                && folders.inbox.is_some()
+                && folders.archive.is_some()
+        }
+        _ => false,
+    }
+}
+
+/// Fixed model-facing refusal JSON when a turn's `read_bill` payload budget is
+/// exhausted (US11.4, #1453, D-1014; X-8: never echoes model text).
+fn bill_budget_error_json(bills_read: usize) -> Value {
+    json!({
+        "error": "ai-tools.bill-too-big",
+        "reason": "turn-budget",
+        "bills_read": bills_read,
+        "hint": BILL_BUDGET_HINT,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2133,5 +2372,562 @@ mod tests {
         assert!(!other.cancelled());
         cancel.cancel();
         assert!(other.cancelled());
+    }
+
+    #[test]
+    fn round_budget_note_only_triggers_at_max_rounds_minus_two_for_read_and_search_tools() {
+        for round in 1..MAX_ROUNDS - 2 {
+            assert_eq!(round_budget_note(round), None, "round {round}");
+        }
+        assert_eq!(round_budget_note(MAX_ROUNDS - 2), Some(ROUND_BUDGET_NOTE));
+        assert_eq!(
+            round_budget_note(MAX_ROUNDS - 1),
+            Some(FINAL_ROUND_BUDGET_NOTE)
+        );
+
+        assert!(is_bill_or_search_tool(READ_BILL.name));
+        assert!(is_bill_or_search_tool(INBOX.name));
+        assert!(is_bill_or_search_tool(BILL_FOLDER.name));
+        assert!(is_bill_or_search_tool("search_transactions"));
+        assert!(!is_bill_or_search_tool(PROPOSE_CHANGES.name));
+        assert!(!is_bill_or_search_tool(PROPOSE_VIEW_NAME));
+        assert!(!is_bill_or_search_tool("list_accounts"));
+
+        assert!(is_round_nudge_tool(READ_BILL.name));
+        assert!(is_round_nudge_tool(INBOX.name));
+        assert!(is_round_nudge_tool(BILL_FOLDER.name));
+        assert!(is_round_nudge_tool("search_transactions"));
+        assert!(is_round_nudge_tool("list_categories"));
+        assert!(!is_round_nudge_tool(PROPOSE_CHANGES.name));
+        assert!(!is_round_nudge_tool(PROPOSE_VIEW_NAME));
+        assert!(!is_round_nudge_tool(OPEN_PAGE.name));
+        assert!(!is_round_nudge_tool(DRAFT_ISSUE.name));
+        assert!(!is_round_nudge_tool(SUGGEST_NOTE.name));
+
+        let original = json!({"source": "inbox", "file": "bill-1.pdf", "text": "Total 12.50 EUR"});
+        let annotated = with_round_budget_note(original, ROUND_BUDGET_NOTE);
+        assert_eq!(annotated["source"], json!("inbox"));
+        assert_eq!(annotated["file"], json!("bill-1.pdf"));
+        assert_eq!(annotated["text"], json!("Total 12.50 EUR"));
+        assert_eq!(annotated["round_budget_note"], json!(ROUND_BUDGET_NOTE));
+    }
+
+    #[test]
+    fn turn_bill_budget_allows_small_batch_and_stops_excessive_reads_until_reset() {
+        // 1. A single valid large bill is never spuriously rejected on read #1,
+        //    and exhausts the turn immediately for any subsequent read.
+        let mut single_large = TurnBillBudget::default();
+        assert!(!single_large.is_exhausted());
+        assert!(single_large.try_record(
+            MAX_TURN_BILL_TEXT_BYTES + 4_096,
+            MAX_TURN_BILL_IMAGE_BYTES + 1_024,
+            MAX_TURN_BILL_IMAGES + 1,
+        ));
+        assert!(single_large.is_exhausted());
+
+        // 2. A normal small batch of 5 digital PDFs (15 KiB each) succeeds;
+        //    a 6th bill that would push past MAX_TURN_BILL_TEXT_BYTES is refused.
+        let mut text_batch = TurnBillBudget::default();
+        for _ in 0..5 {
+            assert!(!text_batch.is_exhausted());
+            assert!(text_batch.try_record(15 * 1024, 0, 0));
+        }
+        assert!(!text_batch.is_exhausted());
+        assert!(!text_batch.try_record(24 * 1024, 0, 0));
+        assert!(text_batch.is_exhausted());
+        assert_eq!(text_batch.reads, 5);
+
+        // 3. Up to MAX_TURN_BILL_IMAGES (4) scanned pages succeed; a 5th is
+        //    blocked pre-read.
+        let mut image_batch = TurnBillBudget::default();
+        for _ in 0..MAX_TURN_BILL_IMAGES {
+            assert!(!image_batch.is_exhausted());
+            assert!(image_batch.try_record(512, 400 * 1024, 1));
+        }
+        assert!(image_batch.is_exhausted());
+
+        // 4. Image base64 byte cap stops huge scanned pages before overflow.
+        let mut heavy_images = TurnBillBudget::default();
+        assert!(heavy_images.try_record(512, 2 * 1024 * 1024, 1));
+        assert!(!heavy_images.is_exhausted());
+        assert!(!heavy_images.try_record(512, 2 * 1024 * 1024, 1));
+        assert!(heavy_images.is_exhausted());
+
+        // 5. Even tiny bills stop at MAX_TURN_BILL_READS (preventing 25-bill dumps).
+        let mut many_tiny = TurnBillBudget::default();
+        for _ in 0..MAX_TURN_BILL_READS {
+            assert!(!many_tiny.is_exhausted());
+            assert!(many_tiny.try_record(1_024, 0, 0));
+        }
+        assert!(many_tiny.is_exhausted());
+        assert_eq!(many_tiny.reads, MAX_TURN_BILL_READS);
+
+        // 6. Resetting clears all turn counters cleanly.
+        many_tiny = TurnBillBudget::default();
+        assert!(!many_tiny.is_exhausted());
+        assert!(many_tiny.try_record(1_024, 0, 0));
+    }
+
+    struct TempBillDir {
+        root: std::path::PathBuf,
+    }
+
+    impl TempBillDir {
+        fn new(tag: &str) -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "kassensturz-session-us11-4-{tag}-{}",
+                kassensturz_core::TransactionId::generate()
+            ));
+            for sub in ["Bills", "Inbox", "Archive"] {
+                std::fs::create_dir_all(root.join(sub)).unwrap();
+            }
+            Self { root }
+        }
+
+        fn folders(&self) -> Folders {
+            Folders {
+                bills: Some(self.root.join("Bills")),
+                inbox: Some(self.root.join("Inbox")),
+                archive: Some(self.root.join("Archive")),
+            }
+        }
+
+        fn write(&self, rel: &str, bytes: &[u8]) {
+            std::fs::write(self.root.join(rel), bytes).unwrap();
+        }
+    }
+
+    impl Drop for TempBillDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    /// Minimal valid PDF 1.4 with embedded Helvetica text lines (synthetic fixture).
+    fn synthetic_pdf(lines: &[&str]) -> Vec<u8> {
+        let escape = |text: &str| {
+            text.replace('\\', "\\\\")
+                .replace('(', "\\(")
+                .replace(')', "\\)")
+        };
+        let mut stream = String::from("BT\n/F1 12 Tf\n72 760 Td\n16 TL\n");
+        for (idx, line) in lines.iter().enumerate() {
+            if idx > 0 {
+                stream.push_str("T*\n");
+            }
+            stream.push_str(&format!("({}) Tj\n", escape(line)));
+        }
+        stream.push_str("ET\n");
+        let stream_bytes = stream.into_bytes();
+        let mut content_obj =
+            format!("<< /Length {} >>\nstream\n", stream_bytes.len()).into_bytes();
+        content_obj.extend_from_slice(&stream_bytes);
+        content_obj.extend_from_slice(b"endstream");
+        let objects: Vec<Vec<u8>> = vec![
+            b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+            b"<< /Type /Pages /Kids [ 4 0 R ] /Count 1 >>".to_vec(),
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_vec(),
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] \
+               /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>"
+                .to_vec(),
+            content_obj,
+        ];
+        let mut out = Vec::new();
+        out.extend_from_slice(b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+        let mut offsets = Vec::with_capacity(objects.len());
+        for (idx, body) in objects.iter().enumerate() {
+            offsets.push(out.len());
+            out.extend_from_slice(format!("{} 0 obj\n", idx + 1).as_bytes());
+            out.extend_from_slice(body);
+            out.extend_from_slice(b"\nendobj\n");
+        }
+        let xref_offset = out.len();
+        out.extend_from_slice(format!("xref\n0 {}\n", objects.len() + 1).as_bytes());
+        out.extend_from_slice(b"0000000000 65535 f \n");
+        for offset in offsets {
+            out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+        }
+        out.extend_from_slice(
+            format!(
+                "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n",
+                objects.len() + 1
+            )
+            .as_bytes(),
+        );
+        out
+    }
+
+    fn unit_test_book() -> (Book, kassensturz_core::TransactionId) {
+        use kassensturz_core::{
+            Account, AccountId, AccountKind, AccountType, CurrencyCode, Money, Split, Transaction,
+            TransactionId,
+        };
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let checking = Account {
+            id: AccountId::generate(),
+            name: "Everyday Checking".into(),
+            kind: AccountKind::Asset,
+            currency: eur,
+            account_type: Some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let supplies = Account {
+            id: AccountId::generate(),
+            name: "Supplies".into(),
+            kind: AccountKind::Expense,
+            account_type: None,
+            ..checking.clone()
+        };
+        book.add_account(&checking).unwrap();
+        book.add_account(&supplies).unwrap();
+        let tx = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 10, 20),
+            Some("Nordlicht Buchhandlung".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-1_990, eur)),
+                Split::new(supplies.id, Money::from_minor_units(1_990, eur)),
+            ],
+        )
+        .unwrap();
+        let tx_id = tx.id();
+        book.add_transaction(&tx).unwrap();
+        (book, tx_id)
+    }
+
+    fn scripted_unit_provider(
+        dir: &TempBillDir,
+        replies: Vec<Value>,
+    ) -> (
+        kassensturz_ai::ScriptedProvider,
+        Arc<std::sync::Mutex<Vec<Vec<Message>>>>,
+    ) {
+        let cfg_path = dir.root.join("kassensturzrc");
+        std::fs::write(&cfg_path, "[AI]\nEnabled=true\n").unwrap();
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let seen_clone = seen.clone();
+        let queue = std::sync::Mutex::new(std::collections::VecDeque::from(replies));
+        let provider = kassensturz_ai::ScriptedProvider::new(
+            kassensturz_ai::ConfigFile::at(cfg_path),
+            move |messages, _offered| {
+                seen_clone.lock().unwrap().push(messages.to_vec());
+                let mut guard = queue.lock().unwrap();
+                let next = if guard.len() > 1 {
+                    guard.pop_front().unwrap()
+                } else {
+                    guard.front().unwrap().clone()
+                };
+                Ok(next.to_string())
+            },
+        );
+        (provider, seen)
+    }
+
+    fn reply_calls(items: &[(&str, &str, &str)]) -> Value {
+        let calls: Vec<Value> = items
+            .iter()
+            .map(|(id, name, arguments)| {
+                json!({
+                    "id": id,
+                    "type": "function",
+                    "function": {"name": name, "arguments": arguments}
+                })
+            })
+            .collect();
+        json!({
+            "choices": [{
+                "finish_reason": "tool_calls",
+                "message": {"role": "assistant", "content": null, "tool_calls": calls}
+            }]
+        })
+    }
+
+    fn reply_text(text: &str) -> Value {
+        json!({
+            "choices": [{
+                "finish_reason": "stop",
+                "message": {"role": "assistant", "content": text}
+            }]
+        })
+    }
+
+    #[test]
+    fn ask_emits_round_budget_note_at_round_six_and_never_on_early_or_propose_calls() {
+        let dir = TempBillDir::new("round-nudge");
+        for idx in 1..=5 {
+            dir.write(
+                &format!("Inbox/receipt-{idx}.pdf"),
+                &synthetic_pdf(&[
+                    "Nordlicht Buchhandlung",
+                    &format!("Ref 8800{idx}"),
+                    "Total 19.90 EUR",
+                ]),
+            );
+        }
+        let (book, tx_id) = unit_test_book();
+        let propose_args = json!({
+            "file_bills": [{
+                "transaction_id": tx_id.to_string(),
+                "file": "receipt-1.pdf",
+                "bill_total": "19.90",
+                "bill_currency": "EUR",
+            }]
+        })
+        .to_string();
+
+        // 1. Normal 2-round chat (rounds 1-2): never gets `round_budget_note`.
+        let (short_provider, short_seen) = scripted_unit_provider(
+            &dir,
+            vec![
+                reply_calls(&[("s1", INBOX.name, "{}")]),
+                reply_calls(&[(
+                    "s2",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"receipt-1.pdf"}"#,
+                )]),
+                reply_text("Checked one receipt."),
+            ],
+        );
+        let mut short_chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(Permissions::all())
+            .with_folders(dir.folders());
+        short_chat
+            .ask(
+                &book,
+                &short_provider,
+                None,
+                "Check receipt 1.",
+                Date::constant(2026, 10, 25),
+                &mut NoHooks,
+            )
+            .unwrap();
+        for req in short_seen.lock().unwrap().iter() {
+            for msg in req.iter().filter(|m| m.role == Role::Tool) {
+                assert!(
+                    !msg.content.contains("round_budget_note"),
+                    "normal 1-5 round chat must not attach round_budget_note: {}",
+                    msg.content
+                );
+            }
+        }
+
+        // 2. Multi-round bill session reaching round 6 (MAX_ROUNDS - 2):
+        //    rounds 1..5 have NO notice; round 6 (`read_bill` + `search_transactions`)
+        //    carries `ROUND_BUDGET_NOTE`; round 7 (`propose_changes`) carries NO notice;
+        //    round 8 answers cleanly with changes prepared and `Figures` intact.
+        let (long_provider, long_seen) = scripted_unit_provider(
+            &dir,
+            vec![
+                reply_calls(&[("r1", INBOX.name, "{}")]),
+                reply_calls(&[(
+                    "r2",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"receipt-1.pdf"}"#,
+                )]),
+                reply_calls(&[(
+                    "r3",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"receipt-2.pdf"}"#,
+                )]),
+                reply_calls(&[("r4", "search_transactions", r#"{"limit":5}"#)]),
+                reply_calls(&[(
+                    "r5",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"receipt-3.pdf"}"#,
+                )]),
+                // Round 6 (MAX_ROUNDS - 2): both `read_bill` and `search_transactions`
+                // receive `ROUND_BUDGET_NOTE`.
+                reply_calls(&[
+                    (
+                        "r6a",
+                        READ_BILL.name,
+                        r#"{"source":"inbox","file":"receipt-4.pdf"}"#,
+                    ),
+                    ("r6b", "search_transactions", r#"{"limit":10}"#),
+                ]),
+                // Round 7: model wraps up with `propose_changes` (never gets nudge).
+                reply_calls(&[("r7", PROPOSE_CHANGES.name, &propose_args)]),
+                // Round 8 (`ANSWER_NOW`): final answer citing bill-only ref 88001.
+                reply_text(
+                    "I prepared filing receipt-1.pdf (ref 88001) and can continue with the rest.",
+                ),
+            ],
+        );
+        let mut long_chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(Permissions::all())
+            .with_folders(dir.folders());
+        let answer = long_chat
+            .ask(
+                &book,
+                &long_provider,
+                None,
+                "Check my inbox and file matching bills.",
+                Date::constant(2026, 10, 25),
+                &mut NoHooks,
+            )
+            .unwrap();
+        assert_eq!(answer.changes.len(), 1);
+        assert!(
+            answer.unverified.iter().any(|u| u.text == "88001"),
+            "bill-only number must remain unverified: {:?}",
+            answer.unverified
+        );
+
+        let requests = long_seen.lock().unwrap();
+        assert_eq!(requests.len(), MAX_ROUNDS);
+        let final_messages = &requests[MAX_ROUNDS - 1];
+        let tool_json = |id: &str| -> Value {
+            let msg = final_messages
+                .iter()
+                .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some(id))
+                .unwrap_or_else(|| panic!("missing tool result {id}"));
+            serde_json::from_str(&msg.content).unwrap()
+        };
+        for early in ["r1", "r2", "r3", "r4", "r5"] {
+            assert!(
+                tool_json(early).get("round_budget_note").is_none(),
+                "{early} must not carry round_budget_note"
+            );
+        }
+        assert_eq!(
+            tool_json("r6a")["round_budget_note"],
+            json!(ROUND_BUDGET_NOTE)
+        );
+        assert_eq!(
+            tool_json("r6b")["round_budget_note"],
+            json!(ROUND_BUDGET_NOTE)
+        );
+        assert!(
+            tool_json("r7").get("round_budget_note").is_none(),
+            "propose_changes must never carry round_budget_note"
+        );
+    }
+
+    #[test]
+    fn ask_enforces_per_turn_read_bill_budget_and_resets_on_next_turn() {
+        let dir = TempBillDir::new("bill-budget");
+        // Write 5 large digital PDFs (~21 KiB extracted text each) so bills 1..4
+        // fit within MAX_TURN_BILL_TEXT_BYTES (96 KiB) and bill 5 exceeds it,
+        // plus a 6th call pointing to a nonexistent file to prove zero disk read
+        // once the budget is exhausted.
+        let chunk = "Item line Nordlicht Supplies 19.90 EUR ".repeat(540);
+        assert!(chunk.len() > 20_000 && chunk.len() < 23_000);
+        for idx in 1..=5 {
+            dir.write(
+                &format!("Inbox/big-{idx}.pdf"),
+                &synthetic_pdf(&[&format!("Bill {idx}"), &chunk]),
+            );
+        }
+        let (book, _) = unit_test_book();
+        let (provider, seen) = scripted_unit_provider(
+            &dir,
+            vec![
+                // Turn 1: model tries to read 5 huge PDFs + a 6th missing file.
+                reply_calls(&[
+                    (
+                        "b1",
+                        READ_BILL.name,
+                        r#"{"source":"inbox","file":"big-1.pdf"}"#,
+                    ),
+                    (
+                        "b2",
+                        READ_BILL.name,
+                        r#"{"source":"inbox","file":"big-2.pdf"}"#,
+                    ),
+                    (
+                        "b3",
+                        READ_BILL.name,
+                        r#"{"source":"inbox","file":"big-3.pdf"}"#,
+                    ),
+                    (
+                        "b4",
+                        READ_BILL.name,
+                        r#"{"source":"inbox","file":"big-4.pdf"}"#,
+                    ),
+                    (
+                        "b5",
+                        READ_BILL.name,
+                        r#"{"source":"inbox","file":"big-5.pdf"}"#,
+                    ),
+                    (
+                        "b6",
+                        READ_BILL.name,
+                        r#"{"source":"inbox","file":"does-not-exist.pdf"}"#,
+                    ),
+                ]),
+                reply_text("I read the first four bills; say when to continue with big-5.pdf."),
+                // Turn 2: budget resets cleanly so big-5.pdf reads without refusal.
+                reply_calls(&[(
+                    "t2",
+                    READ_BILL.name,
+                    r#"{"source":"inbox","file":"big-5.pdf"}"#,
+                )]),
+                reply_text("I read big-5.pdf."),
+            ],
+        );
+
+        let mut chat = ChatSession::new(BuildInfo::new("0.261127.0", "abc"))
+            .with_permissions(Permissions::all())
+            .with_folders(dir.folders());
+        chat.ask(
+            &book,
+            &provider,
+            None,
+            "Read all five large bills in my inbox.",
+            Date::constant(2026, 10, 25),
+            &mut NoHooks,
+        )
+        .unwrap();
+
+        let requests = seen.lock().unwrap();
+        let round2 = &requests[1];
+        let tool_json = |messages: &[Message], id: &str| -> Value {
+            let msg = messages
+                .iter()
+                .find(|m| m.role == Role::Tool && m.call_id.as_deref() == Some(id))
+                .unwrap_or_else(|| panic!("missing tool result {id}"));
+            serde_json::from_str(&msg.content).unwrap()
+        };
+        for ok_id in ["b1", "b2", "b3", "b4"] {
+            let val = tool_json(round2, ok_id);
+            assert_eq!(val["mode"], json!("pdf_text"), "{ok_id} should succeed");
+            assert!(val.get("error").is_none());
+        }
+        // b5 exceeded MAX_TURN_BILL_TEXT_BYTES -> refused with actionable hint.
+        let b5 = tool_json(round2, "b5");
+        assert_eq!(b5["error"], json!("ai-tools.bill-too-big"));
+        assert_eq!(b5["reason"], json!("turn-budget"));
+        assert_eq!(b5["bills_read"], json!(4));
+        assert_eq!(b5["hint"], json!(BILL_BUDGET_HINT));
+        // b6 named a nonexistent file, yet got `turn-budget` (not `bill-not-found`),
+        // proving the file was refused pre-read without touching disk.
+        let b6 = tool_json(round2, "b6");
+        assert_eq!(b6["error"], json!("ai-tools.bill-too-big"));
+        assert_eq!(b6["reason"], json!("turn-budget"));
+        assert_eq!(b6["bills_read"], json!(4));
+        drop(requests);
+
+        // Turn 2: budget resets cleanly at the start of `ask()`.
+        chat.ask(
+            &book,
+            &provider,
+            None,
+            "Continue with big-5.pdf.",
+            Date::constant(2026, 10, 25),
+            &mut NoHooks,
+        )
+        .unwrap();
+        let requests = seen.lock().unwrap();
+        let turn2_round2 = &requests[3];
+        let t2 = tool_json(turn2_round2, "t2");
+        assert_eq!(t2["mode"], json!("pdf_text"));
+        assert_eq!(t2["file"], json!("big-5.pdf"));
+        assert!(t2.get("error").is_none());
     }
 }

@@ -719,6 +719,29 @@ mod tests {
     }
 
     #[test]
+    fn part_details_refusal_emits_hint_once() {
+        // B-472 / D-1011: MCP `error_result` emits `PART_DETAILS_HINT` once.
+        let error = ToolError::NotEditable {
+            reason: "part-details",
+        }
+        .at("split_transactions", 0);
+        let result =
+            serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
+        let text = result["content"][0]["text"].as_str().expect("text");
+        let answer: Value = serde_json::from_str(text).expect("JSON text");
+        assert_eq!(
+            answer,
+            serde_json::json!({
+                "error": "ai-tools.not-editable",
+                "reason": "part-details",
+                "list": "split_transactions",
+                "item": 1,
+                "hint": kassensturz_ai_tools::PART_DETAILS_HINT,
+            })
+        );
+    }
+
+    #[test]
     fn a_new_tag_with_a_taken_name_is_answered_with_the_tag_to_use() {
         // D-830: the model hears the ID list_tags gives, never the name.
         let tag = kassensturz_core::TagId::generate();

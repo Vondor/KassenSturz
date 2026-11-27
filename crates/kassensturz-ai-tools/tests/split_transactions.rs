@@ -17,11 +17,14 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use kassensturz_ai_tools::{Confirmed, ProposedChange, ToolError, call, propose};
+use kassensturz_ai_tools::{
+    Confirmed, EditError, PART_DETAILS_HINT, ProposedChange, Slot, ToolError, call, propose,
+};
 use kassensturz_core::ai_switch::{Field, Permission, Permissions};
 use kassensturz_core::{
-    Account, AccountId, AccountKind, AccountType, CurrencyCode, Date, Money, Report as _, Split,
-    Tag, TagId, Transaction, TransactionId,
+    Account, AccountId, AccountKind, AccountType, CurrencyCode, Date, ImportedDetails,
+    MAX_TAGS_ON_TRANSACTION, Money, PartStatus, Report as _, Split, Tag, TagId, Transaction,
+    TransactionId,
 };
 use kassensturz_import::{
     Camt053, Csv, CsvSettings, Imported, Importer, KmySqlite, Limits, Mt940, Ofx, currency, import,
@@ -425,14 +428,18 @@ fn what_the_model_cannot_split_is_refused_and_nothing_is_prepared() {
             Split::new(savings, money(5_000)),
         ],
     );
-    let tagged = add(
+    // An already-split transaction with per-part tags must stay on the Parts
+    // page (D-1011), unlike an unsplit transaction whose sole category tag is
+    // promoted to the whole transaction.
+    let tagged_already_split = add(
         &mut f.book,
         vec![
             Split::new(f.checking, money(-3_000)),
             Split {
                 tags: vec![tag],
-                ..Split::new(f.office, money(3_000))
+                ..Split::new(f.office, money(2_000))
             },
+            Split::new(f.food, money(1_000)),
         ],
     );
     let numbered = add(
@@ -441,6 +448,19 @@ fn what_the_model_cannot_split_is_refused_and_nothing_is_prepared() {
             Split::new(f.checking, money(-3_000)),
             Split {
                 number: Some("1042".into()),
+                ..Split::new(f.office, money(3_000))
+            },
+        ],
+    );
+    let imported_category = add(
+        &mut f.book,
+        vec![
+            Split::new(f.checking, money(-3_000)),
+            Split {
+                imported: Some(ImportedDetails {
+                    bank_id: Some("EXT-1".into()),
+                    ..ImportedDetails::default()
+                }),
                 ..Split::new(f.office, money(3_000))
             },
         ],
@@ -464,14 +484,14 @@ fn what_the_model_cannot_split_is_refused_and_nothing_is_prepared() {
         refused(&f.book, one(transfer, "-50.00")),
         ("ai-tools.not-editable", Some("transfer"))
     );
-    assert_eq!(
-        refused(&f.book, one(tagged, "-30.00")),
-        ("ai-tools.not-editable", Some("part-details"))
-    );
-    assert_eq!(
-        refused(&f.book, one(numbered, "-30.00")),
-        ("ai-tools.not-editable", Some("part-details"))
-    );
+    for blocked in [tagged_already_split, numbered, imported_category] {
+        let error = propose(&f.book, &one(blocked, "-30.00"), unlocked()).expect_err("refused");
+        assert_eq!(
+            refused(&f.book, one(blocked, "-30.00")),
+            ("ai-tools.not-editable", Some("part-details"))
+        );
+        assert_eq!(error.hint(), Some(PART_DETAILS_HINT));
+    }
     let cases = [
         // More decimal places than the currency has, and zero.
         (one(f.debit, "-19.990"), "ai-tools.bad-argument"),
@@ -530,6 +550,321 @@ fn what_the_model_cannot_split_is_refused_and_nothing_is_prepared() {
     );
     // The book is as it was.
     assert_eq!(f.book.transaction(f.debit).unwrap().splits().len(), 2);
+}
+
+#[test]
+fn split_parts_can_use_new_category_created_in_same_call_and_undo_removes_both() {
+    let mut f = fixture();
+    let call = json!({
+        "new_categories": [
+            {"key": "paper", "name": "Printer paper", "parent_id": f.office.to_string()},
+            {"key": "snacks", "name": "Snacks", "parent_id": f.food.to_string()},
+        ],
+        "split_transactions": [{
+            "transaction_id": f.debit.to_string(),
+            "parts": [
+                {"new_category": "paper", "amount": "-12.50", "name": "Invoice RE-0042"},
+                {"new_category": "snacks", "amount": "-7.49", "name": "Coffee break"},
+            ],
+        }],
+    });
+    let proposal = propose(&f.book, &call, unlocked()).expect("prepared");
+    assert_eq!(proposal.changes.changes().len(), 3);
+    let ProposedChange::NewCategory(paper) = &proposal.changes.changes()[0] else {
+        panic!("new category 0");
+    };
+    let ProposedChange::NewCategory(snacks) = &proposal.changes.changes()[1] else {
+        panic!("new category 1");
+    };
+    let ProposedChange::SplitTransaction(split) = &proposal.changes.changes()[2] else {
+        panic!("split");
+    };
+    assert_eq!(
+        split.parts[0].category,
+        Some(vec!["Office supplies".into(), "Printer paper".into()])
+    );
+    assert_eq!(
+        split.parts[1].category,
+        Some(vec!["Food".into(), "Snacks".into()])
+    );
+    let paper_id = paper.id;
+    let snacks_id = snacks.id;
+
+    // Leaving out a referenced new_category is refused as InUse; leaving out
+    // the split first lets the new category be left out cleanly.
+    let err = proposal
+        .changes
+        .leave_out(
+            &f.book,
+            Slot::parse("new_categories/0").unwrap(),
+            unlocked(),
+        )
+        .expect_err("referenced by split");
+    assert!(matches!(err, EditError::InUse));
+    let without_split = proposal
+        .changes
+        .leave_out(
+            &f.book,
+            Slot::parse("split_transactions/0").unwrap(),
+            unlocked(),
+        )
+        .expect("split left out");
+    assert!(
+        without_split
+            .leave_out(
+                &f.book,
+                Slot::parse("new_categories/0").unwrap(),
+                unlocked()
+            )
+            .is_ok()
+    );
+
+    // Confirming creates both categories and applies the split in one Undo action.
+    let before_tx = f.book.transaction(f.debit).unwrap();
+    let history = f.book.history().unwrap().len();
+    proposal
+        .changes
+        .apply(&mut f.book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(f.book.account(paper_id).unwrap().name, "Printer paper");
+    assert_eq!(f.book.account(snacks_id).unwrap().name, "Snacks");
+    let after = f.book.transaction(f.debit).unwrap();
+    assert_eq!(after.splits().len(), 3);
+    assert!(
+        after
+            .splits()
+            .iter()
+            .any(|s| s.account == Some(paper_id) && s.amount == money(1_250))
+    );
+    assert!(
+        after
+            .splits()
+            .iter()
+            .any(|s| s.account == Some(snacks_id) && s.amount == money(749))
+    );
+    let entries = f.book.history().unwrap();
+    assert_eq!(entries.len(), history + 1);
+    assert_eq!(entries[0].action, Action::ApplyAiChanges);
+
+    // One Undo takes back both the split and the new categories.
+    f.book.undo().unwrap().expect("undone");
+    assert_eq!(f.book.transaction(f.debit).unwrap(), before_tx);
+    assert!(f.book.account(paper_id).is_err());
+    assert!(f.book.account(snacks_id).is_err());
+}
+
+#[test]
+fn split_new_category_validation_and_schema_stripping() {
+    let f = fixture();
+    // Both category_id and new_category on the same part is refused.
+    let both = json!({
+        "new_categories": [{"key": "paper", "name": "Paper"}],
+        "split_transactions": [{
+            "transaction_id": f.debit.to_string(),
+            "parts": [{
+                "category_id": f.office.to_string(),
+                "new_category": "paper",
+                "amount": "-19.99",
+            }],
+        }],
+    });
+    assert_eq!(
+        code(propose(&f.book, &both, unlocked())),
+        "ai-tools.bad-argument"
+    );
+
+    // Unknown new_category key is refused.
+    let unknown = split_call(
+        f.debit,
+        json!([{"new_category": "missing", "amount": "-19.99"}]),
+    );
+    assert_eq!(
+        code(propose(&f.book, &unknown, unlocked())),
+        "ai-tools.bad-argument"
+    );
+
+    // new_category in a different currency is refused with other-currency.
+    let other_currency = json!({
+        "new_categories": [{"key": "usd_cat", "name": "US Trips", "currency": "USD"}],
+        "split_transactions": [{
+            "transaction_id": f.debit.to_string(),
+            "parts": [{"new_category": "usd_cat", "amount": "-19.99"}],
+        }],
+    });
+    assert_eq!(
+        code(propose(&f.book, &other_currency, unlocked())),
+        "ai-tools.other-currency"
+    );
+
+    // propose_spec strips new_category from split_transactions when
+    // Permission::NewCategories is off, and includes it when on.
+    let with_new = kassensturz_ai_tools::propose_spec(unlocked()).expect("offered");
+    let with_params: Value = serde_json::from_str(&with_new.parameters).unwrap();
+    let part_with = &with_params["properties"]["split_transactions"]["items"]["properties"]["parts"]
+        ["items"]["properties"];
+    assert!(part_with.get("new_category").is_some());
+
+    let without_new =
+        kassensturz_ai_tools::propose_spec(unlocked().with(Permission::NewCategories, false))
+            .expect("offered");
+    assert!(!without_new.parameters.contains("new_category"));
+    let without_params: Value = serde_json::from_str(&without_new.parameters).unwrap();
+    let part_without = &without_params["properties"]["split_transactions"]["items"]["properties"]["parts"]
+        ["items"]["properties"];
+    assert!(part_without.get("new_category").is_none());
+    assert!(part_without.get("category_id").is_some());
+}
+
+#[test]
+fn kmymoney_category_status_and_unsplit_tags_do_not_block_splitting() {
+    let mut f = fixture();
+    let tax = TagId::generate();
+    let work = TagId::generate();
+    let shared = TagId::generate();
+    for (id, name) in [(tax, "Tax"), (work, "Work"), (shared, "Shared")] {
+        f.book
+            .add_tag(&Tag {
+                id,
+                name: name.into(),
+            })
+            .unwrap();
+    }
+
+    // 1. Category split with Cleared / Reconciled status (as imported from
+    // KMyMoney) is allowed; the bank account split keeps its own status intact.
+    for status in [PartStatus::Cleared, PartStatus::Reconciled] {
+        let id = TransactionId::generate();
+        let tx = Transaction::new(
+            id,
+            DAY,
+            Some("Stationery Depot".into()),
+            vec![
+                Split {
+                    status: Some(PartStatus::Reconciled),
+                    ..Split::new(f.checking, money(-2_000))
+                },
+                Split {
+                    status: Some(status),
+                    ..Split::new(f.office, money(2_000))
+                },
+            ],
+        )
+        .unwrap();
+        f.book.add_transaction(&tx).unwrap();
+        let before = f.book.transaction(id).unwrap();
+        let call = split_call(
+            id,
+            json!([
+                {"category_id": f.office.to_string(), "amount": "-12.00"},
+                {"category_id": f.food.to_string(), "amount": "-8.00"},
+            ]),
+        );
+        propose(&f.book, &call, unlocked())
+            .expect("category status should not block split")
+            .changes
+            .apply(&mut f.book, Confirmed::by_the_user())
+            .unwrap();
+        let after = f.book.transaction(id).unwrap();
+        assert_eq!(
+            own_part(&after, f.checking).status,
+            Some(PartStatus::Reconciled)
+        );
+        assert_eq!(after.splits().len(), 3);
+        f.book.undo().unwrap().expect("undone");
+        assert_eq!(f.book.transaction(id).unwrap(), before);
+    }
+
+    // 2. Unsplit transaction whose sole category split carries tags (plus an
+    // overlapping whole-transaction tag) succeeds, promotes tags cleanly to
+    // the whole transaction (D-713), and Undo restores the exact original.
+    let tagged_id = TransactionId::generate();
+    let tagged_tx = Transaction::new(
+        tagged_id,
+        DAY,
+        Some("Papierladen Nord".into()),
+        vec![
+            Split {
+                status: Some(PartStatus::Cleared),
+                ..Split::new(f.checking, money(-3_000))
+            },
+            Split {
+                status: Some(PartStatus::Cleared),
+                tags: vec![shared, tax, work],
+                ..Split::new(f.office, money(3_000))
+            },
+        ],
+    )
+    .unwrap()
+    .with_tags(vec![shared]);
+    f.book.add_transaction(&tagged_tx).unwrap();
+    let before = f.book.transaction(tagged_id).unwrap();
+    let call = split_call(
+        tagged_id,
+        json!([
+            {"category_id": f.office.to_string(), "amount": "-18.00", "name": "Paper"},
+            {"category_id": f.food.to_string(), "amount": "-12.00", "name": "Snacks"},
+        ]),
+    );
+    propose(&f.book, &call, unlocked())
+        .expect("unsplit category tags should be promoted")
+        .changes
+        .apply(&mut f.book, Confirmed::by_the_user())
+        .unwrap();
+    let after = f.book.transaction(tagged_id).unwrap();
+    assert_eq!(after.tags(), &[shared, tax, work]);
+    for split in after.splits() {
+        assert_eq!(after.tags_of(split), vec![shared, tax, work]);
+    }
+    f.book.undo().unwrap().expect("undone");
+    assert_eq!(
+        f.book.transaction(tagged_id).unwrap(),
+        before,
+        "Undo restores exact original transaction with split-level tags"
+    );
+
+    // 3. If promoting the sole category split's tags would exceed
+    // MAX_TAGS_ON_TRANSACTION, splitting is still refused with part-details.
+    let mut tx_tags = Vec::new();
+    for i in 0..MAX_TAGS_ON_TRANSACTION {
+        let id = TagId::generate();
+        f.book
+            .add_tag(&Tag {
+                id,
+                name: format!("LimitTag{i}"),
+            })
+            .unwrap();
+        tx_tags.push(id);
+    }
+    let overflow_id = TransactionId::generate();
+    let overflow_tx = Transaction::new(
+        overflow_id,
+        DAY,
+        Some("Overflow Shop".into()),
+        vec![
+            Split::new(f.checking, money(-1_000)),
+            Split {
+                tags: vec![tax],
+                ..Split::new(f.office, money(1_000))
+            },
+        ],
+    )
+    .unwrap()
+    .with_tags(tx_tags);
+    f.book.add_transaction(&overflow_tx).unwrap();
+    let err = propose(
+        &f.book,
+        &split_call(
+            overflow_id,
+            json!([
+                {"category_id": f.office.to_string(), "amount": "-5.00"},
+                {"category_id": f.food.to_string(), "amount": "-5.00"},
+            ]),
+        ),
+        unlocked(),
+    )
+    .expect_err("would exceed MAX_TAGS_ON_TRANSACTION");
+    assert_eq!(err.kind().report().code, "ai-tools.not-editable");
+    assert_eq!(err.hint(), Some(PART_DETAILS_HINT));
 }
 
 #[test]

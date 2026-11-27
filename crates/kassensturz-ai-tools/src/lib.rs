@@ -106,7 +106,9 @@ pub use changes::{
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
 #[cfg(feature = "ai")]
-pub use error::{AI_PERMISSIONS, BILL_IN_INBOX_HINT, READY_MADE_TILE_HINT, Setting, ToolError};
+pub use error::{
+    AI_PERMISSIONS, BILL_IN_INBOX_HINT, PART_DETAILS_HINT, READY_MADE_TILE_HINT, Setting, ToolError,
+};
 #[cfg(feature = "ai")]
 pub use figures::{
     FigureLabel, Figures, LabelKind, Labelled, Unverified, check_numbers, label_numbers,

@@ -3448,6 +3448,40 @@ mod tests {
         assert_eq!(text_of(&parts[1], "category"), "");
         assert_eq!(text_of(&parts[1], "name"), "");
         assert!(list_of(change, "fields").is_empty());
+
+        // B-472 / D-1011: a split part pointing at a new_category in the same
+        // call renders the new category's full path on the check card.
+        let with_new = propose(
+            &book,
+            &serde_json::json!({
+                "new_categories": [{
+                    "key": "paper",
+                    "name": "Printer paper",
+                    "parent_id": office.id.to_string(),
+                }],
+                "split_transactions": [{
+                    "transaction_id": transaction.id().to_string(),
+                    "parts": [
+                        {"new_category": "paper", "amount": "-12.50", "name": "Invoice RE-0042"},
+                        {"amount": "-7.49"},
+                    ],
+                }],
+            }),
+            unlocked,
+        )
+        .unwrap();
+        let rows = rows_of(&book, &with_new.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 2);
+        let split_card = &items[1];
+        assert_eq!(text_of(split_card, "kind"), "splitTransaction");
+        let split_parts = list_of(split_card, "parts");
+        assert_eq!(split_parts.len(), 2);
+        assert_eq!(
+            text_of(&split_parts[0], "category"),
+            "<b>Office</b> › Printer paper"
+        );
     }
 
     #[test]

@@ -2104,6 +2104,29 @@ mod tests {
     }
 
     #[test]
+    fn part_details_hint_is_emitted_once() {
+        // B-472 / D-1011: `split_transactions` wraps `NotEditable { reason: "part-details" }`
+        // in `InItem`; `tool_error_answer` emits `PART_DETAILS_HINT` exactly once.
+        let error = ToolError::NotEditable {
+            reason: "part-details",
+        }
+        .at("split_transactions", 0);
+        let answer = tool_error_answer(PROPOSE_CHANGES.name, &error.model_report(), &error);
+        assert_eq!(answer["error"], json!("ai-tools.not-editable"));
+        assert_eq!(answer["reason"], json!("part-details"));
+        assert_eq!(answer["list"], json!("split_transactions"));
+        assert_eq!(answer["item"], json!(1));
+        let hint = answer["hint"].as_str().expect("hint");
+        assert!(hint.contains(NOT_PREPARED_HINT), "{hint}");
+        assert_eq!(
+            hint.matches(kassensturz_ai_tools::PART_DETAILS_HINT)
+                .count(),
+            1,
+            "expected PART_DETAILS_HINT exactly once, got: {hint}"
+        );
+    }
+
+    #[test]
     fn a_cancel_is_shared_by_its_clones() {
         let cancel = Cancel::new();
         let other = cancel.clone();

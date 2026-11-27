@@ -171,7 +171,7 @@ fn has_allowed_bill_type(path: &std::path::Path) -> bool {
 }
 
 /// How the page shows each document linked to `transaction`.
-fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
+pub(crate) fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
     transaction
         .attachments()
         .iter()
@@ -725,7 +725,7 @@ pub(crate) fn typed_amount(
 /// and so is a note longer than [`MAX_NOTE_CHARS`] or than `stored`, the
 /// note it replaces, whichever is longer, so a long imported note can be
 /// changed without being cut.
-fn read_note(
+pub(crate) fn read_note(
     typed: Option<&str>,
     stored: Option<&str>,
 ) -> Result<Option<Option<String>>, EntryError> {

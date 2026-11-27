@@ -868,6 +868,131 @@ fn kmymoney_category_status_and_unsplit_tags_do_not_block_splitting() {
 }
 
 #[test]
+fn splitting_unsplit_transaction_preserves_category_split_memo_without_overwriting_existing_note() {
+    let mut f = fixture();
+
+    // 1. Unsplit transaction with empty transaction.note and non-empty category
+    // split.note (e.g. KMyMoney category memo): preserved onto transaction.note
+    // even when Field::Note is locked (lossless preservation, D-1015), and Undo
+    // restores the exact original transaction.
+    let memo_id = TransactionId::generate();
+    let memo_tx = Transaction::new(
+        memo_id,
+        DAY,
+        Some("Hardware Corner".into()),
+        vec![
+            Split::new(f.checking, money(-4_500)),
+            Split {
+                note: Some("Receipt 2026-11-03 paint and brushes".into()),
+                ..Split::new(f.office, money(4_500))
+            },
+        ],
+    )
+    .unwrap();
+    f.book.add_transaction(&memo_tx).unwrap();
+    let before = f.book.transaction(memo_id).unwrap();
+    assert_eq!(before.note(), None);
+
+    let call = split_call(
+        memo_id,
+        json!([
+            {"category_id": f.office.to_string(), "amount": "-30.00"},
+            {"category_id": f.food.to_string(), "amount": "-15.00"},
+        ]),
+    );
+    let note_locked = unlocked().with_lock(Field::Note, true);
+    propose(&f.book, &call, note_locked)
+        .expect("lossless memo preservation succeeds even with Note locked")
+        .changes
+        .apply(&mut f.book, Confirmed::by_the_user())
+        .unwrap();
+    let after = f.book.transaction(memo_id).unwrap();
+    assert_eq!(after.note(), Some("Receipt 2026-11-03 paint and brushes"));
+    assert_eq!(after.splits().len(), 3);
+    f.book.undo().unwrap().expect("undone");
+    assert_eq!(
+        f.book.transaction(memo_id).unwrap(),
+        before,
+        "Undo restores exact original transaction with category split note"
+    );
+
+    // 2. When transaction.note is already present, splitting never overwrites it.
+    let kept_id = TransactionId::generate();
+    let kept_tx = Transaction::new(
+        kept_id,
+        DAY,
+        Some("Hardware Corner".into()),
+        vec![
+            Split::new(f.checking, money(-4_500)),
+            Split {
+                note: Some("Category-only memo".into()),
+                ..Split::new(f.office, money(4_500))
+            },
+        ],
+    )
+    .unwrap()
+    .with_note(Some("Whole-transaction note".into()));
+    f.book.add_transaction(&kept_tx).unwrap();
+    propose(
+        &f.book,
+        &split_call(
+            kept_id,
+            json!([
+                {"category_id": f.office.to_string(), "amount": "-25.00"},
+                {"category_id": f.food.to_string(), "amount": "-20.00"},
+            ]),
+        ),
+        unlocked(),
+    )
+    .unwrap()
+    .changes
+    .apply(&mut f.book, Confirmed::by_the_user())
+    .unwrap();
+    assert_eq!(
+        f.book.transaction(kept_id).unwrap().note(),
+        Some("Whole-transaction note")
+    );
+
+    // 3. An already-split transaction (2+ non-account splits) does not promote
+    // a part note onto transaction.note.
+    let multi_id = TransactionId::generate();
+    let multi_tx = Transaction::new(
+        multi_id,
+        DAY,
+        Some("Corner Grocery".into()),
+        vec![
+            Split::new(f.checking, money(-3_000)),
+            Split {
+                note: Some("Part 1 memo".into()),
+                ..Split::new(f.office, money(2_000))
+            },
+            Split {
+                note: Some("Part 2 memo".into()),
+                ..Split::new(f.food, money(1_000))
+            },
+        ],
+    )
+    .unwrap();
+    f.book.add_transaction(&multi_tx).unwrap();
+    propose(
+        &f.book,
+        &split_call(
+            multi_id,
+            json!([
+                {"category_id": f.office.to_string(), "amount": "-15.00", "name": "New part 1"},
+                {"category_id": f.food.to_string(), "amount": "-15.00", "name": "New part 2"},
+            ]),
+        ),
+        unlocked(),
+    )
+    .unwrap()
+    .changes
+    .apply(&mut f.book, Confirmed::by_the_user())
+    .unwrap();
+    assert_eq!(f.book.transaction(multi_id).unwrap().note(), None);
+}
+
+#[test]
 fn the_search_shows_the_parts_and_finds_a_split_by_one_part() {
     let mut f = fixture();
     let split = split_call(

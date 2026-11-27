@@ -2395,6 +2395,7 @@ Kirigami.ApplicationWindow {
 
         PartsPage {
             register: accountRegister
+            plans: plannedPayments
             onDone: root.pageStack.pop()
         }
     }

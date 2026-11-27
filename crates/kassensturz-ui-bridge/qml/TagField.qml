@@ -37,6 +37,8 @@ ColumnLayout {
     property bool canCreate: true
     // What the box is called for a screen reader.
     property string accessibleName: i18nContext.i18nc("@label:textbox", "Tags:")
+    // Optional placeholder shown while empty and below `limit`.
+    property string placeholder: ""
 
     // The user added or took away a tag.
     signal edited()
@@ -172,7 +174,7 @@ ColumnLayout {
         enabled: field.tags.length < field.limit
         maximumLength: field.nameLimit
         placeholderText: enabled
-            ? field.i18nContext.i18nc("@info:placeholder", "Add a tag, for example Holiday")
+            ? (field.placeholder !== "" ? field.placeholder : field.i18nContext.i18nc("@info:placeholder", "Add a tag, for example Holiday"))
             : field.i18nContext.i18nc("@info:placeholder %1 is a number", "At most %1 tags", field.limit)
         Accessible.name: field.accessibleName
         Accessible.description: field.canCreate

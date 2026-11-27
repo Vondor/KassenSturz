@@ -28,13 +28,13 @@ use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::monthly_moves::{self, LooksMonthly, MoveText, OfferText};
 use crate::number_format::app_locale;
-use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
+use crate::parts_entry::{self, PartInput, PartsError, PartsForm, PartsInput};
 use crate::register::{RegisterRow, Sort, SortKey, register_view_searching};
 use crate::register_columns::{Column, Columns};
 use crate::session;
 use crate::settings::Settings;
 use crate::tags::{self, TagChoice, TagInput, TagText};
-use crate::transaction_entry::{self, EntryError, EntryForm, NewEntry, RemovalNotice};
+use crate::transaction_entry::{self, BillText, EntryError, EntryForm, NewEntry, RemovalNotice};
 use crate::transfer_prompt::{self, PartnerText, SideText, SuggestionText};
 use crate::variant::{error_object, list, map, text};
 
@@ -853,39 +853,7 @@ impl qobject::AccountRegister {
                 .map_err(|error| parts_error_text(book, &error))
         });
         match found {
-            Some(Ok(form)) => map([
-                ("id", text(&form.id)),
-                ("account", text(&form.account)),
-                ("currency", text(&form.currency)),
-                ("moneyIn", QVariant::from(&form.money_in)),
-                ("total", text(&form.total)),
-                ("totalFixed", QVariant::from(&form.total_fixed)),
-                ("otherParty", text(&form.other_party)),
-                ("date", text(&form.date)),
-                (
-                    "parts",
-                    list(form.parts.iter().map(|part| {
-                        map([
-                            ("id", text(&part.id)),
-                            ("category", text(&part.category)),
-                            ("amount", text(&part.amount)),
-                            ("currency", text(&part.currency)),
-                            ("foreignAmount", text(&part.foreign_amount)),
-                            ("tags", tags_object(&part.tags)),
-                        ])
-                    })),
-                ),
-                (
-                    "fixed",
-                    list(form.fixed.iter().map(|part| {
-                        map([
-                            ("name", text(&part.name)),
-                            ("amount", text(&part.amount)),
-                            ("incoming", QVariant::from(&part.incoming)),
-                        ])
-                    })),
-                ),
-            ]),
+            Some(Ok(form)) => parts_form_object(&form),
             Some(Err(error)) => error_object(&error),
             None => error_object(&ErrorText::plain("input.no-such-entry")),
         }
@@ -928,7 +896,8 @@ impl qobject::AccountRegister {
         let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
         let form = PartsFormData::read(form);
         let parts = form.parts();
-        let entered = form.input(&parts);
+        let tags = form.tag_inputs();
+        let entered = form.input(&parts, tags.as_deref());
         let found = session::with_book(|book| {
             parts_entry::preview(book, &account_id, &transaction_id, &entered, &app_locale())
                 .map_err(|error| parts_error_text(book, &error))
@@ -969,7 +938,8 @@ impl qobject::AccountRegister {
         let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
         let form = PartsFormData::read(form);
         let parts = form.parts();
-        let entered = form.input(&parts);
+        let tags = form.tag_inputs();
+        let entered = form.input(&parts, tags.as_deref());
         let result = session::with_book_mut(|book| {
             parts_entry::save(book, &account_id, &transaction_id, &entered, &app_locale())
                 .map_err(|error| parts_error_text(book, &error))
@@ -1395,6 +1365,8 @@ struct PartsFormData {
     total: String,
     other_party: String,
     date: String,
+    note: Option<String>,
+    tags: Option<Vec<(String, String)>>,
     parts: Vec<PartData>,
 }
 
@@ -1404,6 +1376,7 @@ struct PartData {
     category: String,
     amount: String,
     foreign_amount: String,
+    note: Option<String>,
     tags: Option<Vec<(String, String)>>,
 }
 
@@ -1421,6 +1394,13 @@ impl PartsFormData {
             total: field(&map, "total"),
             other_party: field(&map, "otherParty"),
             date: field(&map, "date"),
+            note: map
+                .get(&QString::from("note"))
+                .is_some()
+                .then(|| field(&map, "note")),
+            tags: map
+                .get(&QString::from("tags"))
+                .map(|value| read_tags(&value)),
             parts: parts
                 .iter()
                 .map(|part| {
@@ -1432,6 +1412,10 @@ impl PartsFormData {
                         category: field(&part, "category"),
                         amount: field(&part, "amount"),
                         foreign_amount: field(&part, "foreignAmount"),
+                        note: part
+                            .get(&QString::from("note"))
+                            .is_some()
+                            .then(|| field(&part, "note")),
                         tags: part
                             .get(&QString::from("tags"))
                             .map(|value| read_tags(&value)),
@@ -1439,6 +1423,14 @@ impl PartsFormData {
                 })
                 .collect(),
         }
+    }
+
+    fn tag_inputs(&self) -> Option<Vec<TagInput<'_>>> {
+        self.tags.as_ref().map(|tags| {
+            tags.iter()
+                .map(|(id, name)| TagInput { id, name })
+                .collect()
+        })
     }
 
     fn parts(&self) -> Vec<PartInput<'_>> {
@@ -1449,6 +1441,7 @@ impl PartsFormData {
                 category: &part.category,
                 amount: &part.amount,
                 foreign_amount: &part.foreign_amount,
+                note: part.note.as_deref(),
                 tags: part.tags.as_ref().map(|tags| {
                     tags.iter()
                         .map(|(id, name)| TagInput { id, name })
@@ -1458,15 +1451,81 @@ impl PartsFormData {
             .collect()
     }
 
-    fn input<'a>(&'a self, parts: &'a [PartInput<'a>]) -> PartsInput<'a> {
+    fn input<'a>(
+        &'a self,
+        parts: &'a [PartInput<'a>],
+        tags: Option<&'a [TagInput<'a>]>,
+    ) -> PartsInput<'a> {
         PartsInput {
             money_in: self.money_in,
             total: &self.total,
             other_party: &self.other_party,
             date: &self.date,
+            note: self.note.as_deref(),
+            tags,
             parts,
         }
     }
+}
+
+/// Bills linked to a transaction, as both `TransactionPage.qml` and
+/// `PartsPage.qml` read them (D-739, D-1015).
+fn bills_object(bills: &[BillText]) -> QVariant {
+    list(bills.iter().map(|bill| {
+        map([
+            ("link", text(&bill.link)),
+            ("name", text(&bill.name)),
+            ("url", text(&bill.url)),
+            ("missing", QVariant::from(&bill.missing)),
+            ("folderUrl", text(&bill.folder_url)),
+            // Where it is as the user knows it, not the sandbox's
+            // path (B-267).
+            ("shownLink", text(&shown_link(&bill.link))),
+        ])
+    }))
+}
+
+/// A transaction as the Parts page reads it (`partsDetails`).
+fn parts_form_object(form: &PartsForm) -> QVariant {
+    map([
+        ("id", text(&form.id)),
+        ("account", text(&form.account)),
+        ("currency", text(&form.currency)),
+        ("moneyIn", QVariant::from(&form.money_in)),
+        ("total", text(&form.total)),
+        ("totalFixed", QVariant::from(&form.total_fixed)),
+        ("otherParty", text(&form.other_party)),
+        ("deliveredName", text(&form.delivered_name)),
+        ("purpose", text(&form.purpose)),
+        ("date", text(&form.date)),
+        ("note", text(&form.note)),
+        ("tags", tags_object(&form.tags)),
+        ("bills", bills_object(&form.bills)),
+        (
+            "parts",
+            list(form.parts.iter().map(|part| {
+                map([
+                    ("id", text(&part.id)),
+                    ("category", text(&part.category)),
+                    ("amount", text(&part.amount)),
+                    ("currency", text(&part.currency)),
+                    ("foreignAmount", text(&part.foreign_amount)),
+                    ("note", text(&part.note)),
+                    ("tags", tags_object(&part.tags)),
+                ])
+            })),
+        ),
+        (
+            "fixed",
+            list(form.fixed.iter().map(|part| {
+                map([
+                    ("name", text(&part.name)),
+                    ("amount", text(&part.amount)),
+                    ("incoming", QVariant::from(&part.incoming)),
+                ])
+            })),
+        ),
+    ])
 }
 
 /// A transaction as the page reads it (`details`).
@@ -1486,21 +1545,7 @@ fn form_object(form: &EntryForm) -> QVariant {
         ("partTags", tags_object(&form.part_tags)),
         ("imported", QVariant::from(&form.imported)),
         ("deliveredName", text(&form.delivered_name)),
-        (
-            "bills",
-            list(form.bills.iter().map(|bill| {
-                map([
-                    ("link", text(&bill.link)),
-                    ("name", text(&bill.name)),
-                    ("url", text(&bill.url)),
-                    ("missing", QVariant::from(&bill.missing)),
-                    ("folderUrl", text(&bill.folder_url)),
-                    // Where it is as the user knows it, not the sandbox's
-                    // path (B-267).
-                    ("shownLink", text(&shown_link(&bill.link))),
-                ])
-            })),
-        ),
+        ("bills", bills_object(&form.bills)),
     ])
 }
 
@@ -1597,9 +1642,11 @@ mod tests {
 
     use super::{
         column_choices_object, form_object, looks_monthly_object, move_object, notice_object,
-        offer_object, partner_object, read_tags, suggestion_object, tag_choices_object,
+        offer_object, partner_object, parts_form_object, read_tags, suggestion_object,
+        tag_choices_object,
     };
     use crate::monthly_moves::{LooksMonthly, MoveText, OfferText};
+    use crate::parts_entry::{PartForm, PartsForm};
     use crate::register::Shown;
     use crate::register_columns::{Column, Columns};
     use crate::tags::{TagChoice, TagText};
@@ -1815,6 +1862,53 @@ mod tests {
         assert_eq!(text_of(&notice, "undo"), "days");
         assert_eq!(number_of(&notice, "undoDays"), 30);
         assert_eq!(keys(&notice), ["holdsOriginal", "undo", "undoDays"]);
+
+        // PartsPage.qml reads back deliveredName, purpose, note, tags, bills,
+        // and each part's note (D-1015).
+        let parts_form = parts_form_object(&PartsForm {
+            id: "id".into(),
+            account: "account".into(),
+            currency: "EUR".into(),
+            money_in: false,
+            total: "53,20".into(),
+            total_fixed: true,
+            other_party: "Corner Grocery".into(),
+            delivered_name: "CORNER GROCERY".into(),
+            purpose: "Card payment 42".into(),
+            date: "2026-10-08".into(),
+            note: "Weekly shopping".into(),
+            tags: vec![TagText {
+                id: "tag-1".into(),
+                name: "Holiday".into(),
+                rule: None,
+            }],
+            bills: vec![BillText {
+                link: "/home/sam/Bills/RE 0042#1.pdf".into(),
+                name: "Invoice RE-0042".into(),
+                url: "file:///home/sam/Bills/RE%200042%231.pdf".into(),
+                missing: false,
+                folder_url: "file:///home/sam/Bills".into(),
+            }],
+            parts: vec![PartForm {
+                id: "s1".into(),
+                category: "c1".into(),
+                amount: "40,00".into(),
+                currency: String::new(),
+                foreign_amount: String::new(),
+                note: "Produce".into(),
+                tags: vec![],
+            }],
+            fixed: vec![],
+        });
+        assert_eq!(text_of(&parts_form, "deliveredName"), "CORNER GROCERY");
+        assert_eq!(text_of(&parts_form, "purpose"), "Card payment 42");
+        assert_eq!(text_of(&parts_form, "note"), "Weekly shopping");
+        let part_list =
+            elements(&crate::variant::read_back::object_of(&parts_form, "parts")).expect("parts");
+        assert_eq!(text_of(&part_list[0], "note"), "Produce");
+        let parts_bills =
+            elements(&crate::variant::read_back::object_of(&parts_form, "bills")).expect("bills");
+        assert_eq!(text_of(&parts_bills[0], "name"), "Invoice RE-0042");
     }
 
     fn side(id: &str, category: &str, sorted_by: &'static str) -> SideText {

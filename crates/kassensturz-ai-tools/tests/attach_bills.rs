@@ -488,3 +488,77 @@ fn the_complete_export_carries_the_link() {
         "the file holds the link"
     );
 }
+
+#[test]
+fn attach_bills_hints_file_bills_only_when_file_is_in_active_inbox() {
+    use kassensturz_ai_tools::{BILL_IN_INBOX_HINT, prepare_named_with_folders};
+    use kassensturz_core::ErrorParam;
+
+    let f = fixture();
+    let inbox = f.folders.root.join("Inbox");
+    let archive = f.folders.root.join("Archive");
+    fs::create_dir_all(&inbox).unwrap();
+    fs::create_dir_all(&archive).unwrap();
+    fs::write(inbox.join("INBOX-0042.pdf"), b"%PDF-1.4\n").unwrap();
+
+    let call = attach(f.debit, "INBOX-0042.pdf");
+    let both_folders = kassensturz_ai_tools::Folders {
+        bills: Some(f.folders.bills()),
+        inbox: Some(inbox.clone()),
+        archive: Some(archive.clone()),
+    };
+
+    // Active inbox + FileBills allowed: returns bill-not-found with use_instead = file_bills.
+    let err = prepare_named_with_folders(
+        &f.book,
+        PROPOSE_CHANGES.name,
+        &call,
+        unlocked(),
+        TODAY,
+        &both_folders,
+    )
+    .expect_err("inbox file is not in bill_folder");
+    assert_eq!(err.report().code, "ai-tools.in-item");
+    let report = err.kind().report();
+    assert_eq!(report.code, "ai-tools.bill-not-found");
+    assert_eq!(err.use_instead(), Some("file_bills"));
+    assert_eq!(
+        report.param("use_instead"),
+        Some(&ErrorParam::Keyword("file_bills"))
+    );
+    assert_eq!(err.hint(), Some(BILL_IN_INBOX_HINT));
+
+    // When FileBills is off, never probe inbox or emit a hint.
+    let no_filing = unlocked().with(Permission::FileBills, false);
+    let err = prepare_named_with_folders(
+        &f.book,
+        PROPOSE_CHANGES.name,
+        &call,
+        no_filing,
+        TODAY,
+        &both_folders,
+    )
+    .expect_err("not found");
+    assert_eq!(err.kind().report().code, "ai-tools.bill-not-found");
+    assert_eq!(err.use_instead(), None);
+    assert_eq!(err.hint(), None);
+
+    // When archive is missing (filing inactive), never emit a hint.
+    let no_archive = kassensturz_ai_tools::Folders {
+        bills: Some(f.folders.bills()),
+        inbox: Some(inbox),
+        archive: None,
+    };
+    let err = prepare_named_with_folders(
+        &f.book,
+        PROPOSE_CHANGES.name,
+        &call,
+        unlocked(),
+        TODAY,
+        &no_archive,
+    )
+    .expect_err("not found");
+    assert_eq!(err.kind().report().code, "ai-tools.bill-not-found");
+    assert_eq!(err.use_instead(), None);
+    assert_eq!(err.hint(), None);
+}

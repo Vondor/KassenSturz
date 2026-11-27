@@ -376,7 +376,7 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     let book = hostile_book();
     let (provider, _) = Script::provider(
         on(),
-        vec![says_counting("A", 14_000), says_counting("B", 8_000)],
+        vec![says_counting("A", 15_000), says_counting("B", 8_000)],
     );
     let mut chat = session();
     // A request of about 6 KB of question plus the prompt and the functions
@@ -389,9 +389,9 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     // US7.5, the planned payments and forecast of #920, and the daily
     // balance and the lengths of the trends of #1036, and the plans
     // propose_changes prepares of B-357, the same-name hints of
-    // list_categories and the category rows of monthly_totals of B-428, and
-    // the receipt-inbox MCP guidance of #1408) for 14,000 tokens is
-    // what an uncut request comes to.
+    // list_categories and the category rows of monthly_totals of B-428, the
+    // receipt-inbox MCP guidance of #1408, and the bill-matching hints of
+    // B-471) for 15,000 tokens is what an uncut request comes to.
     let long = "word ".repeat(1_250);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)

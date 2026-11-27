@@ -100,13 +100,13 @@ pub use changes::{
     adds_allowed, bill_folder_answer, bill_folder_answer_allowed, bill_path, check_only_answer,
     description_titles, edits_allowed, every_word, inbox_answer, inbox_answer_allowed,
     prepare_named, prepare_named_with_bills, prepare_named_with_folders, propose, propose_on,
-    propose_spec, propose_view, propose_view_spec, propose_view_text, take_check_only,
-    view_choices,
+    propose_spec, propose_view, propose_view_spec, propose_view_text, splits_allowed,
+    take_check_only, view_choices,
 };
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
 #[cfg(feature = "ai")]
-pub use error::{AI_PERMISSIONS, READY_MADE_TILE_HINT, Setting, ToolError};
+pub use error::{AI_PERMISSIONS, BILL_IN_INBOX_HINT, READY_MADE_TILE_HINT, Setting, ToolError};
 #[cfg(feature = "ai")]
 pub use figures::{
     FigureLabel, Figures, LabelKind, Labelled, Unverified, check_numbers, label_numbers,

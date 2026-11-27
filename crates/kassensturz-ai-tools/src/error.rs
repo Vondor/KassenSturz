@@ -36,6 +36,12 @@ pub(crate) mod shape {
 pub const CATEGORY_NOT_RULE_HINT: &str = "This ID is a category. Rule IDs come from \
 list_rules; call list_rules and copy the ID of the Rule.";
 
+/// What [`ToolError::hint`] tells the model when it passed an inbox bill to
+/// `attach_bills` while filing from the inbox is active (B-471). Fixed text,
+/// never the call's.
+pub const BILL_IN_INBOX_HINT: &str = "This file is in the receipt inbox, not the bill folder. \
+Call propose_changes with file_bills (including bill_total) instead of attach_bills.";
+
 /// What a refused length of a trend or a daily balance tells the model
 /// (US7, #1036, D-794): which data take it. Fixed text, never the call's.
 pub const LENGTH_HINT: &str = "trend_length is only for data moving_average and macd; \
@@ -203,6 +209,10 @@ pub enum ToolError {
     BillType,
     /// A bill to attach is not a file in the bill folder.
     BillNotFound,
+    /// A bill passed to `attach_bills` is not in the bill folder, but exists
+    /// as a plain bill file in the active receipt inbox (B-471): reported as
+    /// `ai-tools.bill-not-found` with `use_instead: "file_bills"` and a hint.
+    BillInInbox,
     /// A bill file could not be read or decoded (corrupt, encrypted or unsupported).
     BillUnreadable,
     /// No receipt inbox is chosen on this computer, so no bill can be
@@ -550,15 +560,18 @@ impl ToolError {
                 Some(LENGTH_HINT)
             }
             Self::CategoryNotRule => Some(CATEGORY_NOT_RULE_HINT),
+            Self::BillInInbox => Some(BILL_IN_INBOX_HINT),
             _ => None,
         }
     }
 
-    /// The argument to use instead, when a `propose_view` argument can't be
-    /// used with the chosen way of drawing (M6-B204).
+    /// The argument or list to use instead, when a `propose_view` argument
+    /// can't be used with the chosen way of drawing (M6-B204), or when an
+    /// inbox bill was passed to `attach_bills` instead of `file_bills` (B-471).
     pub fn use_instead(&self) -> Option<&'static str> {
         match self.kind() {
             Self::NotForChart { use_instead, .. } => *use_instead,
+            Self::BillInInbox => Some("file_bills"),
             _ => None,
         }
     }
@@ -710,6 +723,8 @@ impl Report for ToolError {
             Self::BillOutsideFolder => ErrorReport::new("ai-tools.bill-outside-folder"),
             Self::BillType => ErrorReport::new("ai-tools.bill-type"),
             Self::BillNotFound => ErrorReport::new("ai-tools.bill-not-found"),
+            Self::BillInInbox => ErrorReport::new("ai-tools.bill-not-found")
+                .with("use_instead", ErrorParam::Keyword("file_bills")),
             Self::BillUnreadable => ErrorReport::new("ai-tools.bill-unreadable"),
             Self::NoInbox => ErrorReport::new("ai-tools.no-inbox"),
             Self::NoArchive => ErrorReport::new("ai-tools.no-archive"),
@@ -879,6 +894,7 @@ mod tests {
             ToolError::BillOutsideFolder,
             ToolError::BillType,
             ToolError::BillNotFound,
+            ToolError::BillInInbox,
             ToolError::BillUnreadable,
             ToolError::NoInbox,
             ToolError::NoArchive,

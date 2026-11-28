@@ -45,6 +45,82 @@ QtObject {
     // `ChangeView::SortWithRules` writes it.
     property bool sortAgain: false
 
+    // The set "correction": exercises inline Change on editTransaction and
+    // splitTransaction cards (US11.2, D-1016).
+    property bool correctionNewCatLeftOut: false
+    property bool correctionEditEdited: false
+    property bool correctionSplitEdited: false
+    property bool correctionSplitNoteUnlocked: true
+    property var correctionEditForm: ({ transaction_id: "tx-1", note: "Order 104 · Pens" })
+    property var correctionSplitForm: ({
+        transaction_id: "tx-2",
+        parts: [
+            { new_category: "gadgets", amount: "-12.50", name: "Mouse" },
+            { category_id: "cat-food", amount: "-7.49", name: "Snack" }
+        ]
+    })
+
+    function correctionChanges() {
+        const partLabel = part => {
+            if (part.category_id === "cat-food") return "Food";
+            if (part.category_id === "cat-office") return "Office supplies";
+            if (part.new_category === "gadgets") return "Gadgets";
+            return "";
+        };
+        const fmt = amount => amount.replace(".", ",") + " €";
+        const editLines = [];
+        if (correctionEditForm.payee !== undefined) {
+            editLines.push({ field: "payee", before: "Stationery Shop", after: correctionEditForm.payee });
+        }
+        if (correctionEditForm.note !== undefined) {
+            editLines.push({ field: "note", before: "Order 104", after: correctionEditForm.note });
+        }
+        return [{
+            kind: "newCategory",
+            slot: "new_categories/0",
+            edited: false,
+            leftOut: correctionNewCatLeftOut,
+            fields: correctionNewCatLeftOut ? [] : ["name", "parent_id"],
+            form: correctionNewCatLeftOut ? "" : JSON.stringify({ key: "gadgets", name: "Gadgets" }),
+            name: "Gadgets",
+            path: "Gadgets",
+            income: false,
+            currency: "EUR"
+        }, {
+            kind: "editTransaction",
+            slot: "edit_transactions/0",
+            edited: correctionEditEdited,
+            leftOut: false,
+            fields: ["note"],
+            form: JSON.stringify(correctionEditForm),
+            date: "04.11.2026",
+            payee: "Stationery Shop",
+            note: "Order 104",
+            account: "Everyday Checking",
+            amount: "-9,50 €",
+            lines: editLines
+        }, {
+            kind: "splitTransaction",
+            slot: "split_transactions/0",
+            edited: correctionSplitEdited,
+            leftOut: false,
+            fields: ["parts"],
+            form: JSON.stringify(correctionSplitForm),
+            date: "05.11.2026",
+            payee: "General Store",
+            account: "Everyday Checking",
+            total: "-19,99 €",
+            currency: "EUR",
+            noteUnlocked: correctionSplitNoteUnlocked,
+            before: [{ category: "", amount: "-19,99 €", name: "" }],
+            parts: correctionSplitForm.parts.map(p => ({
+                category: partLabel(p),
+                amount: fmt(p.amount),
+                name: p.name ?? ""
+            }))
+        }];
+    }
+
     function sortChanges() {
         return [{
             kind: "sortWithRules",
@@ -78,6 +154,9 @@ QtObject {
     function changes(setId) {
         if (setId === "sort") {
             return sortChanges();
+        }
+        if (setId === "correction") {
+            return correctionChanges();
         }
         return [{
             kind: "newView",
@@ -165,6 +244,17 @@ QtObject {
     }
 
     function changeChoices(setId) {
+        if (setId === "correction") {
+            const list = [
+                {id: "cat-food", key: "", path: "Food", income: false, currency: "EUR"},
+                {id: "cat-office", key: "", path: "Office supplies", income: false, currency: "EUR"},
+                {id: "cat-usd", key: "", path: "Travel USD", income: false, currency: "USD"}
+            ];
+            if (!correctionNewCatLeftOut) {
+                list.push({id: "", key: "gadgets", path: "Gadgets", income: false, currency: "EUR"});
+            }
+            return list;
+        }
         return [{id: "1b0c", key: "", path: "Food", income: false, currency: "EUR"}];
     }
 
@@ -175,6 +265,33 @@ QtObject {
             sortAgain = changed.sort_again === true;
             return changes(setId);
         }
+        if (setId === "correction") {
+            if (slot === "edit_transactions/0") {
+                if (typeof changed.note === "string" && changed.note.indexOf("\n") >= 0) {
+                    return {code: "ai-changes.edit-text"};
+                }
+                const next = Object.assign({}, correctionEditForm);
+                if (changed.note === null) {
+                    delete next.note;
+                } else if (changed.note !== undefined) {
+                    next.note = changed.note;
+                }
+                if (changed.payee === null) {
+                    delete next.payee;
+                } else if (changed.payee !== undefined) {
+                    next.payee = changed.payee;
+                }
+                correctionEditForm = next;
+                correctionEditEdited = true;
+                return changes(setId);
+            }
+            if (slot === "split_transactions/0") {
+                correctionSplitForm = { transaction_id: "tx-2", parts: changed.parts };
+                correctionSplitEdited = true;
+                return changes(setId);
+            }
+            return {code: "ai-changes.not-editable"};
+        }
         if (changed.title === "") {
             return {code: "ai-changes.edit-text"};
         }
@@ -184,11 +301,44 @@ QtObject {
     }
 
     function leaveOutChange(setId, slot) {
+        if (setId === "correction" && slot === "new_categories/0") {
+            const stillUsed = (correctionSplitForm.parts ?? []).some(p => p.new_category === "gadgets");
+            if (stillUsed) {
+                return {code: "ai-changes.edit-in-use"};
+            }
+            correctionNewCatLeftOut = true;
+            return changes(setId);
+        }
         leftOut = true;
         return changes(setId);
     }
 
     function backToAi(setId, slot) {
+        if (setId === "correction") {
+            if (slot === "edit_transactions/0") {
+                correctionEditForm = { transaction_id: "tx-1", note: "Order 104 · Pens" };
+                correctionEditEdited = false;
+                return changes(setId);
+            }
+            if (slot === "split_transactions/0") {
+                if (correctionNewCatLeftOut) {
+                    return {code: "ai-changes.edit-in-use"};
+                }
+                correctionSplitForm = {
+                    transaction_id: "tx-2",
+                    parts: [
+                        { new_category: "gadgets", amount: "-12.50", name: "Mouse" },
+                        { category_id: "cat-food", amount: "-7.49", name: "Snack" }
+                    ]
+                };
+                correctionSplitEdited = false;
+                return changes(setId);
+            }
+            if (slot === "new_categories/0") {
+                correctionNewCatLeftOut = false;
+                return changes(setId);
+            }
+        }
         view = aiView;
         edited = false;
         leftOut = false;

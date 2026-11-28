@@ -28,7 +28,7 @@ use kassensturz_ai_tools::{
     AmountBasis, BILL_TYPES, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, FileBill,
     ProposedChange, Slot, SortWithRules, SplitPart, ToolError, TotalCheck, every_word,
 };
-use kassensturz_core::ai_switch::Permissions;
+use kassensturz_core::ai_switch::{Field, Permissions};
 use kassensturz_core::receipt_inbox::{ArchivePlace, PlaceError, free_file_name};
 use kassensturz_core::{
     AccountKind, BudgetEvery, Date, ErrorParam, ErrorReport, MatchMode, Money, Report, Rule,
@@ -662,12 +662,14 @@ pub enum ChangeView {
         /// has and what the user owes (D-625).
         kind_changes: bool,
     },
-    /// A transaction with some fields changed (D-257).
+    /// A transaction with some fields changed (D-257, D-1016).
     EditTransaction {
         /// Its day now, in the user's format.
         date: String,
         /// Who was paid or paid now, empty for none.
         payee: String,
+        /// Its note now, empty for none.
+        note: String,
         /// The account the money moves in or out of now.
         account: String,
         /// What it does to the account now, exact, in the user's format.
@@ -866,8 +868,8 @@ pub enum ChangeView {
         uses: usize,
     },
     /// A transaction broken into parts, or joined back into one (US5.1,
-    /// D-737), with the transaction as the register shows it. Its account's
-    /// amount stays, and the parts add up to it.
+    /// D-737, D-1016), with the transaction as the register shows it. Its
+    /// account's amount stays, and the parts add up to it.
     SplitTransaction {
         /// Its day, in the user's format.
         date: String,
@@ -878,6 +880,12 @@ pub enum ChangeView {
         /// What it did to that account, which stays, exact, in the user's
         /// format.
         total: String,
+        /// Its currency code, so the inline edit form offers categories of the
+        /// same currency.
+        currency: String,
+        /// Whether `Field::Note` is unlocked so the inline edit form offers
+        /// per-part names.
+        note_unlocked: bool,
         /// The parts it has now besides the account's.
         before: Vec<PartView>,
         /// The parts it gets.
@@ -1013,15 +1021,17 @@ pub struct EditLine {
 }
 
 /// The changes of `set` as the review screen lists them, the ones the user
-/// left out last, with amounts and dates written for the user (D-065).
-/// Reads `book` only.
+/// left out last, with amounts and dates written for the user (D-065) and
+/// inline-editable fields filtered by `allowed`'s current field locks
+/// (D-1016). Reads `book` only.
 pub fn rows_of(
     book: &Book,
     set: &ChangeSet,
+    allowed: Permissions,
     locale: &impl Locale,
 ) -> Result<Vec<ChangeRow>, StoreError> {
     let kept = set.slots().iter().zip(set.changes()).map(|(slot, change)| {
-        let fields = slot.editable().to_vec();
+        let fields = slot.editable_under(allowed);
         Ok(ChangeRow {
             slot: slot.to_string(),
             edited: set.edited(*slot),
@@ -1031,7 +1041,7 @@ pub fn rows_of(
                 _ => String::new(),
             },
             fields,
-            view: view_of(book, change, locale)?,
+            view: view_of(book, change, allowed, locale)?,
         })
     });
     let left_out = set.left_out().map(|(slot, change)| {
@@ -1041,7 +1051,7 @@ pub fn rows_of(
             left_out: true,
             fields: Vec::new(),
             form: String::new(),
-            view: view_of(book, change, locale)?,
+            view: view_of(book, change, allowed, locale)?,
         })
     });
     kept.chain(left_out).collect()
@@ -1116,7 +1126,7 @@ fn budget_every(every: BudgetEvery) -> &'static str {
 /// tests that look only at the views.
 #[cfg(test)]
 pub fn views_of(book: &Book, set: &ChangeSet, locale: &impl Locale) -> Vec<ChangeView> {
-    rows_of(book, set, locale)
+    rows_of(book, set, Permissions::all(), locale)
         .expect("the book can be read")
         .into_iter()
         .map(|row| row.view)
@@ -1128,6 +1138,7 @@ pub fn views_of(book: &Book, set: &ChangeSet, locale: &impl Locale) -> Vec<Chang
 fn view_of(
     book: &Book,
     change: &ProposedChange,
+    allowed: Permissions,
     locale: &impl Locale,
 ) -> Result<ChangeView, StoreError> {
     Ok(match change {
@@ -1227,6 +1238,7 @@ fn view_of(
         ProposedChange::EditTransaction(edit) => ChangeView::EditTransaction {
             date: locale.short_date(edit.date),
             payee: edit.payee.clone().unwrap_or_default(),
+            note: edit.note().unwrap_or_default().to_owned(),
             account: edit.account.clone(),
             amount: AmountWriter::new(book, edit.amount.currency(), locale)?
                 .text(edit.amount)
@@ -1463,6 +1475,8 @@ fn view_of(
             total: AmountWriter::new(book, split.total.currency(), locale)?
                 .text(split.total)
                 .exact,
+            currency: split.total.currency().as_str().to_owned(),
+            note_unlocked: !allowed.locked(Field::Note),
             before: part_views(book, &split.before, locale)?,
             parts: part_views(book, &split.parts, locale)?,
         },
@@ -2373,7 +2387,13 @@ mod tests {
 
         // The page names each change by its slot and starts an edit from
         // the model's own call.
-        let rows = rows_of(&book, sets.get(id).unwrap(), &TestLocale).unwrap();
+        let rows = rows_of(
+            &book,
+            sets.get(id).unwrap(),
+            Permissions::all(),
+            &TestLocale,
+        )
+        .unwrap();
         assert_eq!(rows[0].slot, "new_categories/0");
         assert_eq!(rows[0].fields, ["name", "parent_id"]);
         let form: serde_json::Value = serde_json::from_str(&rows[0].form).unwrap();
@@ -2424,7 +2444,13 @@ mod tests {
         )
         .unwrap();
         assert!(sets.replace(id, without));
-        let rows = rows_of(&book, sets.get(id).unwrap(), &TestLocale).unwrap();
+        let rows = rows_of(
+            &book,
+            sets.get(id).unwrap(),
+            Permissions::all(),
+            &TestLocale,
+        )
+        .unwrap();
         assert!(rows[0].edited);
         let last = rows.last().unwrap();
         assert!(last.left_out && last.slot == "categorize/0" && last.form.is_empty());

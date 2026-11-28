@@ -716,6 +716,185 @@ fn split_new_category_validation_and_schema_stripping() {
 }
 
 #[test]
+fn inline_edit_split_swaps_off_new_category_allows_leave_out_and_keeps_exact_amounts() {
+    let mut f = fixture();
+    let before_tx = f.book.transaction(f.debit).unwrap();
+    let before_accounts = f.book.all_accounts().unwrap();
+
+    // AI proposes a new category "gadgets" and a split referencing it.
+    let call = json!({
+        "new_categories": [{
+            "key": "gadgets",
+            "name": "Gadgets",
+        }],
+        "split_transactions": [{
+            "transaction_id": f.debit.to_string(),
+            "parts": [
+                {"new_category": "gadgets", "amount": "-12.50", "name": "Mouse"},
+                {"category_id": f.food.to_string(), "amount": "-7.49", "name": "Snack"},
+            ],
+        }],
+    });
+    let set = propose(&f.book, &call, unlocked())
+        .expect("prepared")
+        .changes;
+    let new_cat_slot = Slot::parse("new_categories/0").unwrap();
+    let split_slot = Slot::parse("split_transactions/0").unwrap();
+
+    // Before swapping part 0, leaving out "gadgets" is refused with InUse.
+    assert!(matches!(
+        set.leave_out(&f.book, new_cat_slot, unlocked()),
+        Err(EditError::InUse)
+    ));
+
+    // Tampered part amounts that do not add up to the exact bank total (-19.99)
+    // are refused in Rust.
+    assert!(matches!(
+        set.edit(
+            &f.book,
+            split_slot,
+            &json!({
+                "parts": [
+                    {"category_id": f.office.to_string(), "amount": "-12.51", "name": "Mouse"},
+                    {"category_id": f.food.to_string(), "amount": "-7.49", "name": "Snack"},
+                ]
+            }),
+            unlocked(),
+        ),
+        Err(EditError::Refused(ToolError::PartsDontAddUp { .. }))
+    ));
+
+    // Invalid part name (line break) maps to EditError::Text.
+    assert!(matches!(
+        set.edit(
+            &f.book,
+            split_slot,
+            &json!({
+                "parts": [
+                    {"category_id": f.office.to_string(), "amount": "-12.50", "name": "Line1\nLine2"},
+                    {"category_id": f.food.to_string(), "amount": "-7.49", "name": "Snack"},
+                ]
+            }),
+            unlocked(),
+        ),
+        Err(EditError::Text)
+    ));
+
+    // When Field::Note is locked, editing part names is refused with NotAllowed,
+    // while editing categories without names still works.
+    let note_locked = unlocked().with_lock(Field::Note, true);
+    assert!(matches!(
+        set.edit(
+            &f.book,
+            split_slot,
+            &json!({
+                "parts": [
+                    {"category_id": f.office.to_string(), "amount": "-12.50", "name": "Blocked"},
+                    {"category_id": f.food.to_string(), "amount": "-7.49"},
+                ]
+            }),
+            note_locked,
+        ),
+        Err(EditError::NotAllowed)
+    ));
+    assert!(
+        set.edit(
+            &f.book,
+            split_slot,
+            &json!({
+                "parts": [
+                    {"category_id": f.office.to_string(), "amount": "-12.50"},
+                    {"category_id": f.food.to_string(), "amount": "-7.49"},
+                ]
+            }),
+            note_locked,
+        )
+        .is_ok()
+    );
+
+    // When Field::Category is locked, split editing is refused with NotAllowed.
+    let category_locked = unlocked().with_lock(Field::Category, true);
+    assert!(split_slot.editable_under(category_locked).is_empty());
+    assert!(matches!(
+        set.edit(
+            &f.book,
+            split_slot,
+            &json!({
+                "parts": [
+                    {"category_id": f.office.to_string(), "amount": "-12.50", "name": "Mouse"},
+                    {"category_id": f.food.to_string(), "amount": "-7.49", "name": "Snack"},
+                ]
+            }),
+            category_locked,
+        ),
+        Err(EditError::NotAllowed)
+    ));
+
+    // Real-world flow: user swaps part 0 from "gadgets" to existing Office supplies
+    // and changes part 1 to Not sorted yet (no category_id / new_category), editing
+    // part names as well.
+    let edited = set
+        .edit(
+            &f.book,
+            split_slot,
+            &json!({
+                "parts": [
+                    {"category_id": f.office.to_string(), "amount": "-12.50", "name": "USB Mouse"},
+                    {"amount": "-7.49", "name": "Buns"},
+                ]
+            }),
+            unlocked(),
+        )
+        .expect("split edited");
+    assert!(edited.edited(split_slot));
+
+    // Now the unwanted "gadgets" new_category can be left out cleanly!
+    let without_gadgets = edited
+        .leave_out(&f.book, new_cat_slot, unlocked())
+        .expect("gadgets left out without InUse");
+    assert_eq!(without_gadgets.changes().len(), 1);
+    assert_eq!(without_gadgets.left_out().count(), 1);
+
+    // While "gadgets" is left out, back_to_ai on the split fails with InUse
+    // until "gadgets" is brought back first; then back_to_ai restores AI's split.
+    assert!(matches!(
+        without_gadgets.back_to_ai(&f.book, split_slot, unlocked()),
+        Err(EditError::InUse)
+    ));
+    let restored = without_gadgets
+        .back_to_ai(&f.book, new_cat_slot, unlocked())
+        .expect("gadgets back")
+        .back_to_ai(&f.book, split_slot, unlocked())
+        .expect("split back to AI's version");
+    assert!(!restored.edited(split_slot));
+    assert_eq!(restored.summary(), set.summary());
+
+    // Confirming the edited set without "gadgets" applies only the split with exact
+    // minor-unit amounts, creates no new category, and Undo restores everything.
+    without_gadgets
+        .apply(&mut f.book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(
+        f.book.all_accounts().unwrap().len(),
+        before_accounts.len(),
+        "left-out new_category was not created"
+    );
+    let after = f.book.transaction(f.debit).unwrap();
+    assert_eq!(after.splits().len(), 3);
+    assert_eq!(own_part(&after, f.checking).amount, money(-1_999));
+    assert!(after.splits().iter().any(|s| {
+        s.account == Some(f.office)
+            && s.amount == money(1_250)
+            && s.note.as_deref() == Some("USB Mouse")
+    }));
+    assert!(after.splits().iter().any(|s| {
+        s.account.is_none() && s.amount == money(749) && s.note.as_deref() == Some("Buns")
+    }));
+    f.book.undo().unwrap().expect("undone");
+    assert_eq!(f.book.transaction(f.debit).unwrap(), before_tx);
+}
+
+#[test]
 fn kmymoney_category_status_and_unsplit_tags_do_not_block_splitting() {
     let mut f = fixture();
     let tax = TagId::generate();

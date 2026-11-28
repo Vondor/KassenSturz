@@ -3314,6 +3314,170 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
     assert_eq!(state(&book), before, "no entry in the history either");
 }
 
+#[test]
+fn edit_transaction_review_card_edits_respect_locks_validation_and_back_to_ai() {
+    let mut sample = sample();
+    let all_unlocked = Field::ALL
+        .into_iter()
+        .fold(Permissions::all(), |p, field| p.with_lock(field, false));
+    let id = sample.unsorted;
+    let proposal = super::prepare(
+        &sample.book,
+        &json!({
+            "edit_transactions": [{
+                "transaction_id": id.to_string(),
+                "payee": "Fresh Bakery",
+                "note": "Morning bread",
+            }]
+        }),
+        all_unlocked,
+    )
+    .expect("prepared");
+    let set = proposal.changes;
+
+    // Field-lock filtering on Slot::editable_under:
+    assert_eq!(
+        slot("edit_transactions/0").editable_under(all_unlocked),
+        ["payee", "note"]
+    );
+    let payee_locked = all_unlocked.with_lock(Field::Payee, true);
+    assert_eq!(
+        slot("edit_transactions/0").editable_under(payee_locked),
+        ["note"]
+    );
+    let both_locked = payee_locked.with_lock(Field::Note, true);
+    assert!(
+        slot("edit_transactions/0")
+            .editable_under(both_locked)
+            .is_empty()
+    );
+
+    // Inline editing both payee and note works, marks the slot edited, and
+    // validates through the same rules (line breaks, hidden chars, length).
+    let edited = set
+        .edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"payee": "  Corner Bakery  ", "note": "Ref 42 · Sourdough"}),
+            all_unlocked,
+        )
+        .expect("edited");
+    assert!(edited.edited(slot("edit_transactions/0")));
+    let ProposedChange::EditTransaction(change) = &edited.changes()[0] else {
+        panic!("editTransaction");
+    };
+    assert_eq!(change.note(), None);
+    assert!(
+        change.edits.iter().any(|e| e.field == Field::Payee
+            && e.after == FieldValue::Text(Some("Corner Bakery".into())))
+    );
+    assert!(change.edits.iter().any(|e| e.field == Field::Note
+        && e.after == FieldValue::Text(Some("Ref 42 · Sourdough".into()))));
+
+    // Invalid texts map to ai-changes.edit-text; non-editable fields map to
+    // ai-changes.not-editable; locked fields map to ai-changes.not-allowed.
+    assert_eq!(
+        edit_code(edited.edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"note": "line1\nline2"}),
+            all_unlocked,
+        )),
+        "ai-changes.edit-text"
+    );
+    assert_eq!(
+        edit_code(edited.edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"payee": "a\u{202e}b"}),
+            all_unlocked,
+        )),
+        "ai-changes.edit-text"
+    );
+    assert_eq!(
+        edit_code(edited.edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"note": "x".repeat(513)}),
+            all_unlocked,
+        )),
+        "ai-changes.edit-text"
+    );
+    assert_eq!(
+        edit_code(edited.edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"date": "2026-10-01"}),
+            all_unlocked,
+        )),
+        "ai-changes.not-editable"
+    );
+    assert_eq!(
+        edit_code(set.edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"payee": "Blocked"}),
+            payee_locked,
+        )),
+        "ai-changes.not-allowed"
+    );
+    assert_eq!(
+        edit_code(set.edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"payee": null}),
+            payee_locked,
+        )),
+        "ai-changes.not-allowed"
+    );
+
+    // Removing one field with null keeps the other edit intact.
+    let note_only = edited
+        .edit(
+            &sample.book,
+            slot("edit_transactions/0"),
+            &json!({"payee": null, "note": "Ref 42 · Sourdough"}),
+            all_unlocked,
+        )
+        .expect("note-only edit");
+    let ProposedChange::EditTransaction(note_change) = &note_only.changes()[0] else {
+        panic!("editTransaction");
+    };
+    assert_eq!(note_change.edits.len(), 1);
+    assert_eq!(note_change.edits[0].field, Field::Note);
+
+    // Back to the AI's version restores the original proposal cleanly.
+    let restored = note_only
+        .back_to_ai(&sample.book, slot("edit_transactions/0"), all_unlocked)
+        .expect("restored");
+    assert!(!restored.edited(slot("edit_transactions/0")));
+    assert_eq!(restored.summary(), set.summary());
+
+    // Applying the edited version updates the book and one Undo takes it back.
+    edited
+        .apply(&mut sample.book, Confirmed::by_the_user())
+        .expect("applied");
+    let after = sample.book.transaction(id).expect("still there");
+    assert_eq!(after.payee(), Some("Corner Bakery"));
+    assert_eq!(after.note(), Some("Ref 42 · Sourdough"));
+    sample.book.undo().expect("undone");
+    let undone = sample.book.transaction(id).expect("still there");
+    assert_eq!(undone.note(), None);
+}
+
+#[test]
+fn edit_transactions_note_schema_guides_preserving_existing_note() {
+    let schema: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("valid schema");
+    let desc =
+        schema["properties"]["edit_transactions"]["items"]["properties"]["note"]["description"]
+            .as_str()
+            .expect("note description");
+    assert!(
+        desc.contains("Preserve") && desc.contains("append"),
+        "expected preserve/append guidance in edit_transactions.note: {desc}"
+    );
+}
+
 mod custom_charts;
 mod id_names;
 mod joins;

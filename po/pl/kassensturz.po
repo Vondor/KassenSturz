@@ -26823,3 +26823,33 @@ msgstr ""
 msgctxt "@title:group"
 msgid "Chat buttons"
 msgstr "Przyciski czatu"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "What this part was for (optional)"
+msgstr "Na co była ta część (opcjonalnie)"
+
+#, kde-format
+msgctxt "@label:textbox %1 is the number of the part"
+msgid "Note for part %1"
+msgstr "Notatka dla części %1"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Add a tag for this part"
+msgstr "Dodaj tag dla tej części"
+
+#, kde-format
+msgctxt "@label the payment purpose as the bank or file delivered it"
+msgid "Purpose:"
+msgstr "Tytuł:"
+
+#, kde-format
+msgctxt "@info %1 is a payment purpose as the bank delivered it"
+msgid "Purpose as delivered by your bank or file: %1"
+msgstr "Tytuł dostarczony przez Twój bank lub plik: %1"
+
+#, kde-format
+msgctxt "@label:textbox tags on the whole transaction, as opposed to one part"
+msgid "Tags for the whole transaction:"
+msgstr "Tagi dla całej transakcji:"

@@ -26,7 +26,10 @@ use crate::format::Locale;
 use crate::parse::{AmountInputError, AmountReader};
 use crate::register::AmountWriter;
 use crate::tags::{self, TagInput, TagText};
-use crate::transaction_entry::{EntryError, find_account, find_transaction, payee, typed_amount};
+use crate::transaction_entry::{
+    BillText, EntryError, bill_texts, find_account, find_transaction, payee, read_note,
+    typed_amount,
+};
 
 /// Why something the user entered wasn't accepted. The UI shows a message
 /// for each code (D-034); a message about one Part names its number.
@@ -71,6 +74,11 @@ pub enum PartsError {
     /// A Part's amount in the category's currency points the other way than
     /// its amount in the transaction's.
     ForeignSignMismatch { part: usize },
+    /// A note on the whole transaction (`part` is `None`) or on a Part
+    /// (`part` counted from 1) longer than `MAX_NOTE_CHARS` (or than the note
+    /// it replaces), or carrying a disallowed control character (D-703,
+    /// D-1015).
+    Note { part: Option<usize>, max: usize },
     /// The book refused it, e.g. the account is closed.
     Store(StoreError),
     /// The transaction doesn't add up; only an amount too large or a
@@ -92,10 +100,8 @@ impl From<EntryError> for PartsError {
             EntryError::Store(error) => Self::Store(error),
             EntryError::Transaction(error) => Self::Transaction(error),
             EntryError::Amount(AmountInputError::TooLarge) => Self::TooLarge,
-            // The Parts page has no note field, so `Note` can't come from it.
-            EntryError::Amount(_) | EntryError::NoSuchEntry | EntryError::Note { .. } => {
-                Self::NoSuchEntry
-            }
+            EntryError::Amount(_) | EntryError::NoSuchEntry => Self::NoSuchEntry,
+            EntryError::Note { max } => Self::Note { part: None, max },
             EntryError::NotPositive => Self::NotPositive,
             EntryError::Date => Self::Date,
             EntryError::NotEditableHere => Self::NotEditableHere,
@@ -113,6 +119,12 @@ pub struct PartsInput<'a> {
     pub other_party: &'a str,
     /// The date, as typed.
     pub date: &'a str,
+    /// What the user wrote about the transaction as a whole (D-703, D-1015).
+    /// `Some` sets the note (empty removes it); `None` leaves it untouched.
+    pub note: Option<&'a str>,
+    /// The tags on the whole transaction (D-713, D-1015). `Some` sets them
+    /// (empty removes them); `None` leaves them untouched.
+    pub tags: Option<&'a [TagInput<'a>]>,
     /// The Parts booked to categories, in the order shown.
     pub parts: &'a [PartInput<'a>],
 }
@@ -132,6 +144,9 @@ pub struct PartInput<'a> {
     /// For a category in another currency: the amount in that currency, as
     /// typed. Empty to work it out from the book's exchange rates.
     pub foreign_amount: &'a str,
+    /// What this part was for (its `split.note`, D-1015). `Some` sets it
+    /// (empty removes it); `None` leaves an existing Part's note untouched.
+    pub note: Option<&'a str>,
     /// The part's own tags as the page gives them back (US4.8, D-713), or
     /// `None` to leave them as they are; a new Part then has none.
     pub tags: Option<Vec<TagInput<'a>>>,
@@ -155,8 +170,22 @@ pub struct PartsForm {
     pub total_fixed: bool,
     /// Who the money came from or went to; may be empty.
     pub other_party: String,
+    /// The other party's name as the bank or file delivered it, when the
+    /// page shows another one; empty otherwise (D-375).
+    pub delivered_name: String,
+    /// The payment purpose (`remittance_information`) as the bank or file
+    /// delivered it; empty when none (D-1015).
+    pub purpose: String,
     /// The booking date, in the user's format.
     pub date: String,
+    /// What the user wrote about the transaction as a whole; may be empty
+    /// (D-703, D-1015).
+    pub note: String,
+    /// The tags on the whole transaction, in the user's order (D-713, D-1015).
+    pub tags: Vec<TagText>,
+    /// The bills and other documents linked to the transaction, in their
+    /// order (D-132, D-739, D-1015). Shown with AI off too.
+    pub bills: Vec<BillText>,
     /// The Parts booked to categories, in the order they were entered. The
     /// last one is shown without an amount: the page works it out.
     pub parts: Vec<PartForm>,
@@ -180,6 +209,8 @@ pub struct PartForm {
     /// Its amount in that currency, the way the user types it; empty when
     /// the category is in the transaction's currency.
     pub foreign_amount: String,
+    /// What this part was for (`split.note`); may be empty (D-1015).
+    pub note: String,
     /// Its own tags, in their order; the whole transaction's tags are not
     /// among them (D-713).
     pub tags: Vec<TagText>,
@@ -332,6 +363,7 @@ pub fn details(
                         .map(|other| other_currency(other.currency, account.currency))
                         .unwrap_or_default(),
                     foreign_amount,
+                    note: split.note.clone().unwrap_or_default(),
                     tags: tags::texts(&names, &split.tags),
                 });
             }
@@ -342,6 +374,26 @@ pub fn details(
     if let Some(last) = parts.last_mut() {
         last.amount.clear();
     }
+    let other_party = stored
+        .payee_of(own)
+        .map(kassensturz_store::shown_text)
+        .unwrap_or_default();
+    let delivered_name = own
+        .imported
+        .as_ref()
+        .and_then(|delivered| delivered.other_party_name.as_deref())
+        .map(kassensturz_store::shown_text)
+        .filter(|name| *name != other_party)
+        .unwrap_or_default();
+    let purpose = own
+        .imported
+        .as_ref()
+        .and_then(|delivered| delivered.remittance_information.as_deref())
+        .map(kassensturz_store::shown_text)
+        .map(|text| text.trim().to_owned())
+        .unwrap_or_default();
+    let mut whole_tags = tags::texts(&names, stored.tags());
+    tags::mark_rules(book, stored.id(), &mut whole_tags)?;
     Ok(PartsForm {
         id: stored.id().to_string(),
         account: account.id.to_string(),
@@ -349,8 +401,13 @@ pub fn details(
         money_in,
         total: typed_amount(book, unsigned(into_account)?, locale)?,
         total_fixed: own.imported.is_some(),
-        other_party: stored.payee_of(own).unwrap_or_default().to_owned(),
+        other_party,
+        delivered_name,
+        purpose,
         date: locale.short_date(stored.date_of(own)),
+        note: stored.note().unwrap_or_default().to_owned(),
+        tags: whole_tags,
+        bills: bill_texts(&stored),
         parts,
         fixed,
     })
@@ -436,8 +493,21 @@ pub fn save(
             total: draft.total,
         });
     }
-    // A tag typed new on a Part is made in the same user action as the
-    // save, so one Undo takes back both (D-086).
+    let note = read_note(entered.note, draft.stored.note())?;
+    let mut part_notes = Vec::with_capacity(draft.parts.len());
+    for (index, part) in draft.parts.iter().enumerate() {
+        let checked =
+            read_note(part.note, part.split.note.as_deref()).map_err(|error| match error {
+                EntryError::Note { max } => PartsError::Note {
+                    part: Some(index + 1),
+                    max,
+                },
+                other => other.into(),
+            })?;
+        part_notes.push(checked);
+    }
+    // A tag typed new on the transaction or a Part is made in the same user
+    // action as the save, so one Undo takes back both (D-086).
     book.as_one_action(Action::EditTransaction, |book| {
         let mut splits = Vec::with_capacity(2 + draft.fixed.len() + draft.parts.len());
         splits.push(Split {
@@ -445,7 +515,13 @@ pub fn save(
             ..draft.own.clone()
         });
         splits.extend(draft.fixed.iter().cloned());
-        for (index, (part, amount)) in draft.parts.iter().zip(&resolved.parts).enumerate() {
+        for (index, ((part, amount), part_note)) in draft
+            .parts
+            .iter()
+            .zip(&resolved.parts)
+            .zip(part_notes)
+            .enumerate()
+        {
             let foreign = match draft.foreign_currency(index) {
                 Some(_) => {
                     let found = draft.foreign_of(book, index, *amount, locale)?;
@@ -460,10 +536,15 @@ pub fn save(
                 Some(wanted) => tags::resolve(book, wanted)?,
                 None => part.split.tags.clone(),
             };
+            let split_note = match part_note {
+                Some(updated) => updated,
+                None => part.split.note.clone(),
+            };
             splits.push(Split {
                 account: part.category.as_ref().map(|category| category.id),
                 amount: *amount,
                 foreign,
+                note: split_note,
                 tags,
                 ..part.split.clone()
             });
@@ -476,6 +557,17 @@ pub fn save(
         )
         .map_err(PartsError::Transaction)?
         .with_details_of(&draft.stored);
+        let transaction = match note {
+            Some(note) => transaction.with_note(note),
+            None => transaction,
+        };
+        let transaction = match entered.tags {
+            Some(wanted) => {
+                let tags = tags::resolve(book, wanted)?;
+                transaction.with_tags(tags)
+            }
+            None => transaction,
+        };
         book.update_transaction(&transaction)?;
         Ok::<(), PartsError>(())
     })?;
@@ -541,6 +633,16 @@ pub fn error_text(book: &Book, error: &PartsError, locale: &impl Locale) -> Erro
         PartsError::ForeignSignMismatch { part } => {
             with_part(plain("input.foreign-sign-mismatch"), *part)
         }
+        PartsError::Note { part, max } => {
+            let text = ErrorText {
+                code: "input.note-invalid",
+                params: vec![("max", max.to_string())],
+            };
+            match part {
+                Some(part) => with_part(text, *part),
+                None => text,
+            }
+        }
         PartsError::Store(error) => report_text(book, &error.report(), locale),
         PartsError::Transaction(error) => report_text(book, &error.report(), locale),
     }
@@ -598,6 +700,7 @@ struct DraftPart<'a> {
     split: Split,
     category: Option<Account>,
     foreign_amount: &'a str,
+    note: Option<&'a str>,
     tags: Option<&'a [TagInput<'a>]>,
 }
 
@@ -693,6 +796,7 @@ impl<'a> Draft<'a> {
                 split,
                 category,
                 foreign_amount: part.foreign_amount,
+                note: part.note,
                 tags: part.tags.as_deref(),
             });
         }
@@ -1020,6 +1124,7 @@ mod tests {
             category,
             amount,
             foreign_amount: "",
+            note: None,
             tags: None,
         }
     }
@@ -1030,6 +1135,8 @@ mod tests {
             total,
             other_party: "Corner Grocery",
             date: "2026-10-05",
+            note: None,
+            tags: None,
             parts,
         }
     }
@@ -1823,6 +1930,8 @@ mod tests {
             total: "2.400",
             other_party: "Example Employer Ltd.",
             date: "2026-10-03",
+            note: None,
+            tags: None,
             parts,
         };
         let parts = [part("", &salary, "2.000"), part("", &other_income, "")];
@@ -1971,5 +2080,185 @@ mod tests {
         assert_eq!(implied(-9250, -10000), Some("1,0811".into()));
         assert_eq!(implied(10000, 10000), Some("1,0000".into()));
         assert_eq!(implied(0, 10000), None);
+    }
+
+    #[test]
+    fn loads_and_saves_whole_note_tags_part_notes_delivered_details_and_bills() {
+        let (mut book, checking) = book_with_checking();
+        let checking_id = find_account(&book, &checking).expect("account").id;
+        let groceries = category_id(&book, "Food › Groceries");
+        let clothes = category_id(&book, "Clothes");
+        let eur = |minor| Money::from_minor_units(minor, EUR);
+
+        // An imported transaction with a long memo (> MAX_NOTE_CHARS), a
+        // delivered name differing from the edited payee, a bank purpose,
+        // a linked bill, and a category split note.
+        let long_note = "a".repeat(crate::transaction_entry::MAX_NOTE_CHARS + 50);
+        let original_part_note = "Existing part memo";
+        let tx = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 10, 8),
+            Some("Corner Grocery".into()),
+            vec![
+                Split {
+                    imported: Some(ImportedDetails {
+                        bank_id: Some("B-42".into()),
+                        booking_date: None,
+                        value_date: None,
+                        other_party_name: Some("CORNER GROCERY GMBH".into()),
+                        other_party_iban: None,
+                        remittance_information: Some("  Card payment 2026-10-08  ".into()),
+                    }),
+                    ..Split::new(checking_id, eur(-5320))
+                },
+                Split {
+                    note: Some(original_part_note.into()),
+                    ..Split::new(
+                        find_category(&book, &groceries)
+                            .expect("cat")
+                            .expect("some")
+                            .id,
+                        eur(5320),
+                    )
+                },
+            ],
+        )
+        .expect("transaction")
+        .with_note(Some(long_note.clone()))
+        .with_attachments(vec![kassensturz_core::Attachment {
+            link: "https://example.invalid/receipt-42".into(),
+            title: Some("Receipt 42".into()),
+        }]);
+        book.add_transaction(&tx).expect("added");
+        let id = tx.id().to_string();
+
+        // details() exposes delivered_name, purpose, whole note, bills, and part note.
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.delivered_name, "CORNER GROCERY GMBH");
+        assert_eq!(form.purpose, "Card payment 2026-10-08");
+        assert_eq!(form.note, long_note);
+        assert_eq!(form.bills.len(), 1);
+        assert_eq!(form.bills[0].name, "Receipt 42");
+        assert_eq!(form.bills[0].url, "https://example.invalid/receipt-42");
+        assert_eq!(form.parts.len(), 1);
+        assert_eq!(form.parts[0].note, original_part_note);
+        let first_id = form.parts[0].id.clone();
+
+        // Saving with note: None and part.note: None preserves the long
+        // untouched whole note and the untouched part note verbatim.
+        let parts = [
+            part(&first_id, &groceries, ""),
+            PartInput {
+                note: Some("  Winter scarf  "),
+                ..part("", &clothes, "13,20")
+            },
+        ];
+        save(
+            &mut book,
+            &checking,
+            &id,
+            &PartsInput {
+                total: "53,20",
+                date: "2026-10-08",
+                note: None,
+                tags: Some(&[TagInput {
+                    id: "",
+                    name: "Household",
+                }]),
+                ..paid("53,20", &parts)
+            },
+            &TestLocale,
+        )
+        .expect("saved");
+
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.note, long_note, "untouched long note is preserved");
+        assert_eq!(
+            form.tags
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Household"]
+        );
+        assert_eq!(form.parts[0].note, original_part_note);
+        assert_eq!(form.parts[1].note, "Winter scarf");
+        assert_eq!(form.bills.len(), 1, "bills stay linked after saving parts");
+
+        // Editing the whole note and clearing a part note works, and invalid
+        // notes (whole or per-part) are refused with `input.note-invalid`.
+        let second_id = form.parts[1].id.clone();
+        let bad_part = [
+            part(&first_id, &groceries, ""),
+            PartInput {
+                note: Some(&"x".repeat(crate::transaction_entry::MAX_NOTE_CHARS + 1)),
+                ..part(&second_id, &clothes, "13,20")
+            },
+        ];
+        let refused = refused!(
+            book,
+            save(
+                &mut book,
+                &checking,
+                &id,
+                &PartsInput {
+                    date: "2026-10-08",
+                    ..paid("53,20", &bad_part)
+                },
+                &TestLocale,
+            ),
+        );
+        assert_eq!(refused.code, "input.note-invalid");
+        assert!(refused.params.contains(&("part", "2".into())));
+
+        let bad_whole = [
+            part(&first_id, &groceries, ""),
+            part(&second_id, &clothes, "13,20"),
+        ];
+        let refused_whole = refused!(
+            book,
+            save(
+                &mut book,
+                &checking,
+                &id,
+                &PartsInput {
+                    date: "2026-10-08",
+                    note: Some("bad\u{0007}char"),
+                    ..paid("53,20", &bad_whole)
+                },
+                &TestLocale,
+            ),
+        );
+        assert_eq!(refused_whole.code, "input.note-invalid");
+        assert!(!refused_whole.params.iter().any(|(k, _)| *k == "part"));
+
+        let updated = [
+            PartInput {
+                note: Some("Weekly produce"),
+                ..part(&first_id, &groceries, "")
+            },
+            PartInput {
+                note: Some("   "),
+                ..part(&second_id, &clothes, "13,20")
+            },
+        ];
+        save(
+            &mut book,
+            &checking,
+            &id,
+            &PartsInput {
+                date: "2026-10-08",
+                note: Some("  Edited note\r\nline 2  "),
+                tags: Some(&[]),
+                ..paid("53,20", &updated)
+            },
+            &TestLocale,
+        )
+        .expect("saved");
+
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.note, "Edited note\nline 2");
+        assert!(form.tags.is_empty());
+        assert_eq!(form.parts[0].note, "Weekly produce");
+        assert_eq!(form.parts[1].note, "");
     }
 }

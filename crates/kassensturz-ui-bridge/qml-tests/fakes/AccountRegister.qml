@@ -21,10 +21,22 @@ QtObject {
     property var notesWhenPartnersRead: []
     property string today: "2026-09-01"
     // The Parts page: whether the preview refuses the form, how often it
-    // was asked and the last form it got.
+    // was asked, the last form it got, and every form saved.
     property bool unreadable: false
     property int previews: 0
     property var lastForm: null
+    property var savedParts: []
+    property string partsNote: "Initial whole note"
+    property var partsBills: [
+        {
+            link: "/home/sam/Bills/receipt-42.pdf",
+            name: "Receipt 42",
+            url: "file:///home/sam/Bills/receipt-42.pdf",
+            missing: false,
+            folderUrl: "file:///home/sam/Bills",
+            shownLink: "/home/sam/Bills/receipt-42.pdf",
+        },
+    ]
 
     // CategorySmoke.qml (M6-B234): the stored transaction's category, the
     // categories for money in and for money out, and the signal the real
@@ -99,12 +111,17 @@ QtObject {
             moneyIn: false,
             total: "10,00",
             otherParty: "Example shop",
+            deliveredName: "EXAMPLE SHOP GMBH",
+            purpose: "Card payment 42",
             date: "2026-11-02",
+            note: partsNote,
+            tags: [{ id: "garden", name: "Garden party" }],
+            bills: partsBills,
             totalFixed: false,
             fixed: [],
             parts: [
-                { id: "s1", category: "c1", amount: "4,00", foreignAmount: "" },
-                { id: "s2", category: "c2", amount: "6,00", foreignAmount: "" },
+                { id: "s1", category: "c1", amount: "4,00", foreignAmount: "", note: "Fruit", tags: [] },
+                { id: "s2", category: "c2", amount: "6,00", foreignAmount: "", note: "", tags: [{ id: "tax", name: "Tax" }] },
             ],
         };
     }
@@ -134,7 +151,14 @@ QtObject {
             parts: parts,
         };
     }
-    function saveParts(accountId, transactionId, form) { return ({}); }
+    function saveParts(accountId, transactionId, form) {
+        savedParts = savedParts.concat([form]);
+        return ({});
+    }
+    function removeBill(accountId, transactionId, link) {
+        partsBills = partsBills.filter(bill => bill.link !== link);
+        return ({});
+    }
 
     function removalNotice(accountId, transactionId) { return ({}); }
     function removeTransaction(accountId, transactionId) { return ({}); }

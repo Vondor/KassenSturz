@@ -23,6 +23,10 @@ ColumnLayout {
     required property string category
     required property string amount
     required property string foreignAmount
+    // Optional description/note of this Part (`split.note`, D-1015).
+    required property string note
+    property string loadedNote: ""
+    property int noteLimit: 512
     // What the Rust side worked out for this Part (`partsPreview`).
     required property var preview
     // An amount written the way the user types it.
@@ -30,7 +34,7 @@ ColumnLayout {
     // Whether the page's money went in rather than out, for the labels.
     required property bool moneyIn
     // The part's own tags and the book's tags to choose from (US4.8,
-    // D-713); the whole transaction's tags are set on its own page.
+    // D-713); the whole transaction's tags are set above on the Parts page.
     required property var tags
     property var tagChoices: []
 
@@ -40,6 +44,7 @@ ColumnLayout {
     signal newCategoryMade(string categoryId)
     signal amountEdited(string text)
     signal foreignAmountEdited(string text)
+    signal noteEdited(string text)
     signal tagsEdited(var tags)
     signal removeClicked()
     signal accepted()
@@ -186,10 +191,25 @@ ColumnLayout {
         Layout.fillWidth: true
     }
 
+    Controls.TextField {
+        id: noteField
+        Layout.fillWidth: true
+        text: row.note
+        maximumLength: Math.max(row.noteLimit, row.loadedNote.length)
+        placeholderText: row.i18nContext.i18nc("@info:placeholder", "What this part was for (optional)")
+        Accessible.name: row.i18nContext.i18nc("@label:textbox %1 is the number of the part", "Note for part %1", row.number)
+        onTextEdited: row.noteEdited(text)
+        onAccepted: {
+            ActionLog.taken("PartRow_noteAccepted")
+            row.accepted()
+        }
+    }
+
     TagField {
         Layout.fillWidth: true
         tags: row.tags
         choices: row.tagChoices
+        placeholder: row.i18nContext.i18nc("@info:placeholder", "Add a tag for this part")
         accessibleName: row.i18nContext.i18nc("@label:textbox %1 is the number of the part", "Tags of part %1", row.number)
         onEdited: row.tagsEdited(tags)
     }

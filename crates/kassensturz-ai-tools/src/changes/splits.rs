@@ -27,6 +27,12 @@
 //! promoted onto the whole transaction (deduplicated with any existing
 //! transaction tags, within `MAX_TAGS_ON_TRANSACTION`), so every new part
 //! keeps them under D-713 and Undo restores the exact original transaction.
+//! Likewise, if an unsplit transaction has no whole-transaction note
+//! (`stored.note()` is `None`) while its sole replaced category split carries
+//! a non-empty `split.note` (such as an imported KMyMoney category memo), that
+//! memo is preserved onto the whole transaction's `note` (D-1015), without
+//! ever overwriting an existing `stored.note()`, and Undo restores the exact
+//! original transaction.
 //! Any other transaction with part details is the user's to split on the
 //! Parts page. A tag on the whole transaction stays and counts for every
 //! new part (D-713).
@@ -139,7 +145,7 @@ impl Known {
             Err(StoreError::UnknownTransaction(_)) => return Err(ToolError::UnknownTransaction),
             other => other?,
         };
-        let (own, carried_tags) = self.own_part(&stored)?;
+        let (own, carried_tags, carried_note) = self.own_part(&stored)?;
         let own_split = &stored.splits()[own];
         let currency = stored.currency();
         let digits = book.currency_minor_digits(currency)?;
@@ -241,6 +247,9 @@ impl Known {
             tags.extend(carried_tags);
             edited = edited.with_tags(tags);
         }
+        if let Some(note) = carried_note {
+            edited = edited.with_note(Some(note));
+        }
         let account = own_split
             .account
             .and_then(|id| self.accounts.get(&id))
@@ -259,16 +268,22 @@ impl Known {
         })
     }
 
-    /// The place of the one part in an open account of the user, and any tags
+    /// The place of the one part in an open account of the user, any tags
     /// carried by a sole non-account part to promote onto the whole
     /// transaction so splitting an unsplit entry loses no tag (B-472, D-1011,
-    /// D-713). Otherwise why not, as `ai-tools.not-editable`.
-    fn own_part(&self, transaction: &Transaction) -> Result<(usize, Vec<TagId>), ToolError> {
+    /// D-713), and any non-empty note carried by a sole non-account part when
+    /// the whole transaction has no note yet (D-1015). Otherwise why not, as
+    /// `ai-tools.not-editable`.
+    fn own_part(
+        &self,
+        transaction: &Transaction,
+    ) -> Result<(usize, Vec<TagId>, Option<String>), ToolError> {
         let not_editable = |reason| ToolError::NotEditable { reason };
         let account_of = |split: &Split| split.account.and_then(|id| self.accounts.get(&id));
         let mut own = None;
         let mut other_count = 0usize;
         let mut carried_tags: Vec<TagId> = Vec::new();
+        let mut carried_note: Option<String> = None;
         for (at, split) in transaction.splits().iter().enumerate() {
             match account_of(split) {
                 Some(account) if account.kind.is_account() => {
@@ -305,6 +320,15 @@ impl Known {
                     if !split.tags.is_empty() {
                         carried_tags.extend_from_slice(&split.tags);
                     }
+                    if other_count == 1
+                        && transaction.note().is_none()
+                        && let Some(note) = split.note.as_deref()
+                        && !note.trim().is_empty()
+                    {
+                        carried_note = Some(note.to_owned());
+                    } else if other_count > 1 {
+                        carried_note = None;
+                    }
                 }
             }
         }
@@ -325,7 +349,7 @@ impl Known {
                 return Err(not_editable("part-details"));
             }
         }
-        Ok((own, carried_tags))
+        Ok((own, carried_tags, carried_note))
     }
 
     /// The category a part books to, by `category_id` (an open category of the

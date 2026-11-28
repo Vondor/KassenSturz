@@ -28936,3 +28936,33 @@ msgstr ""
 msgctxt "@title:group"
 msgid "Chat buttons"
 msgstr "Chat-Schaltflächen"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "What this part was for (optional)"
+msgstr "Wofür dieser Teilbetrag war (optional)"
+
+#, kde-format
+msgctxt "@label:textbox %1 is the number of the part"
+msgid "Note for part %1"
+msgstr "Notiz zu Teilbetrag %1"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Add a tag for this part"
+msgstr "Schlagwort für diesen Teilbetrag hinzufügen"
+
+#, kde-format
+msgctxt "@label the payment purpose as the bank or file delivered it"
+msgid "Purpose:"
+msgstr "Verwendungszweck:"
+
+#, kde-format
+msgctxt "@info %1 is a payment purpose as the bank delivered it"
+msgid "Purpose as delivered by your bank or file: %1"
+msgstr "Verwendungszweck wie von Ihrer Bank oder der Datei geliefert: %1"
+
+#, kde-format
+msgctxt "@label:textbox tags on the whole transaction, as opposed to one part"
+msgid "Tags for the whole transaction:"
+msgstr "Schlagwörter für die ganze Buchung:"

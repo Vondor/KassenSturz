@@ -1206,18 +1206,20 @@ msgstr ""
 "geändert. Lesen Sie sie durch: Sie werden gemeinsam vorgenommen, sobald Sie "
 "bestätigen, und Sie können sie mit „Rückgängig“ zurücknehmen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:338
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:559
 #, kde-format
 msgctxt "@info"
 msgid ""
-"You can change a new category, a new Rule, the category a transaction gets "
-"and a new chart before you confirm, or leave any change out. What you change "
-"stays between you and KassenSturz: it isn't sent to the AI."
+"You can change a new category, a new Rule, a transaction's category, note, "
+"who paid or was paid, or split parts, and a new chart before you confirm, or "
+"leave any change out. What you change stays between you and KassenSturz: it "
+"isn't sent to the AI."
 msgstr ""
 "Vor dem Bestätigen können Sie eine neue Kategorie, eine neue Regel, die "
-"Kategorie eines Umsatzes und ein neues Diagramm ändern oder jede Änderung "
-"weglassen. Was Sie ändern, bleibt zwischen Ihnen und KassenSturz: Es wird "
-"nicht an die KI gesendet."
+"Kategorie, Notiz, wer gezahlt hat oder bezahlt wurde oder Teilbeträge eines "
+"Umsatzes sowie ein neues Diagramm ändern oder jede Änderung weglassen. Was "
+"Sie ändern, bleibt zwischen Ihnen und KassenSturz: Es wird nicht an die KI "
+"gesendet."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:345
 #, kde-format
@@ -2693,18 +2695,18 @@ msgstr ""
 "Diese Änderung lässt sich so nicht ändern, Ihre Änderung wurde also nicht "
 "übernommen. Lassen Sie die Änderung weg oder nehmen Sie die Fassung der KI."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:112
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:143
 #, kde-format
 msgctxt "@info"
 msgid ""
-"A name, title or text to look for can't be empty, can be at most 100 "
-"characters long (a chart's title 200) and can't hold line breaks or hidden "
+"This text can't be used: names, titles and search texts can't be empty, and "
+"texts can't exceed their length limit or hold line breaks or hidden "
 "characters. Your change wasn't kept; type it again."
 msgstr ""
-"Ein Name, Titel oder gesuchter Text darf nicht leer sein, höchstens 100 "
-"Zeichen lang sein (der Titel eines Diagramms 200) und keine Zeilenumbrüche "
-"oder versteckten Zeichen enthalten. Ihre Änderung wurde nicht übernommen; "
-"geben Sie ihn noch einmal ein."
+"Dieser Text kann nicht verwendet werden: Namen, Titel und Suchtexte dürfen "
+"nicht leer sein, und Texte dürfen ihre Längenbegrenzung nicht überschreiten "
+"und keine Zeilenumbrüche oder versteckten Zeichen enthalten. Ihre Änderung "
+"wurde nicht übernommen; geben Sie ihn noch einmal ein."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:114
 #, kde-format
@@ -28966,3 +28968,38 @@ msgstr "Verwendungszweck wie von Ihrer Bank oder der Datei geliefert: %1"
 msgctxt "@label:textbox tags on the whole transaction, as opposed to one part"
 msgid "Tags for the whole transaction:"
 msgstr "Schlagwörter für die ganze Buchung:"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Who paid or was paid:"
+msgstr "Wer gezahlt hat oder bezahlt wurde:"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Leave empty to remove"
+msgstr "Leer lassen zum Entfernen"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Who paid or was paid"
+msgstr "Wer gezahlt hat oder bezahlt wurde"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "One line; leave empty to remove"
+msgstr "Eine Zeile; leer lassen zum Entfernen"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "The note"
+msgstr "Die Notiz"
+
+#, kde-format
+msgctxt "@label:listbox"
+msgid "The part's category"
+msgstr "Die Kategorie dieses Teilbetrags"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "What this part was for"
+msgstr "Wofür dieser Teilbetrag war"

@@ -1162,14 +1162,19 @@ msgid ""
 "with Undo."
 msgstr "Te zmiany przygotowało AI. W Twojej księdze jeszcze nic się nie zmieniło. Przeczytaj je: zostaną wprowadzone razem, gdy potwierdzisz, i możesz je wycofać przyciskiem „Cofnij”."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:338
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:559
 #, kde-format
 msgctxt "@info"
 msgid ""
-"You can change a new category, a new Rule, the category a transaction gets "
-"and a new chart before you confirm, or leave any change out. What you change "
-"stays between you and KassenSturz: it isn't sent to the AI."
-msgstr "Przed potwierdzeniem możesz zmienić nową kategorię, nową regułę, kategorię transakcji i nowy wykres albo pominąć dowolną zmianę. To, co zmienisz, zostaje między Tobą a KassenSturz: nie jest wysyłane do AI."
+"You can change a new category, a new Rule, a transaction's category, note, "
+"who paid or was paid, or split parts, and a new chart before you confirm, or "
+"leave any change out. What you change stays between you and KassenSturz: it "
+"isn't sent to the AI."
+msgstr ""
+"Przed potwierdzeniem możesz zmienić nową kategorię, nową regułę, kategorię, "
+"notatkę, osobę płacącą lub odbiorcę albo części podziału transakcji oraz "
+"nowy wykres lub pominąć dowolną zmianę. To, co zmienisz, zostaje między "
+"Tobą a KassenSturz: nie jest wysyłane do AI."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:345
 #, kde-format
@@ -2448,14 +2453,18 @@ msgid ""
 "change out, or take the AI's version."
 msgstr "Tej zmiany nie można zmienić w ten sposób, więc Twoja zmiana nie została zachowana. Pomiń tę zmianę albo przyjmij wersję AI."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:112
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:143
 #, kde-format
 msgctxt "@info"
 msgid ""
-"A name, title or text to look for can't be empty, can be at most 100 "
-"characters long (a chart's title 200) and can't hold line breaks or hidden "
+"This text can't be used: names, titles and search texts can't be empty, and "
+"texts can't exceed their length limit or hold line breaks or hidden "
 "characters. Your change wasn't kept; type it again."
-msgstr "Nazwa, tytuł lub szukany tekst nie mogą być puste, mogą mieć najwyżej 100 znaków (tytuł wykresu 200) i nie mogą zawierać podziałów wierszy ani ukrytych znaków. Twoja zmiana nie została zachowana; wpisz ją ponownie."
+msgstr ""
+"Nie można użyć tego tekstu: nazwy, tytuły i szukane teksty nie mogą być "
+"puste, a teksty nie mogą przekraczać limitu długości ani zawierać podziałów "
+"wierszy lub ukrytych znaków. Twoja zmiana nie została zachowana; wpisz tekst "
+"ponownie."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:114
 #, kde-format
@@ -26853,3 +26862,38 @@ msgstr "Tytuł dostarczony przez Twój bank lub plik: %1"
 msgctxt "@label:textbox tags on the whole transaction, as opposed to one part"
 msgid "Tags for the whole transaction:"
 msgstr "Tagi dla całej transakcji:"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Who paid or was paid:"
+msgstr "Kto zapłacił lub komu zapłacono:"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Leave empty to remove"
+msgstr "Zostaw puste, aby usunąć"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Who paid or was paid"
+msgstr "Kto zapłacił lub komu zapłacono"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "One line; leave empty to remove"
+msgstr "Jedna linia; zostaw puste, aby usunąć"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "The note"
+msgstr "Notatka"
+
+#, kde-format
+msgctxt "@label:listbox"
+msgid "The part's category"
+msgstr "Kategoria tej części"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "What this part was for"
+msgstr "Na co była ta część"

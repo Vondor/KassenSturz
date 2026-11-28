@@ -85,6 +85,11 @@ impl EditTransaction {
     pub fn fields(&self) -> impl Iterator<Item = Field> + '_ {
         self.edits.iter().map(|edit| edit.field)
     }
+
+    /// The transaction's note before the change, if any.
+    pub fn note(&self) -> Option<&str> {
+        self.reviewed.note()
+    }
 }
 
 impl Known {

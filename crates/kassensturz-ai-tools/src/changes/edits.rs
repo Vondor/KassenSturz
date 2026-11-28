@@ -15,7 +15,7 @@
 
 use std::collections::BTreeMap;
 
-use kassensturz_core::ai_switch::Permissions;
+use kassensturz_core::ai_switch::{Field, Permissions};
 use kassensturz_core::{Date, ErrorReport, Report};
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
@@ -71,15 +71,17 @@ fn key_of(item: &Value) -> Option<&str> {
     item.get("key").and_then(Value::as_str).map(str::trim)
 }
 
-/// The fields the user may change in an item of each list (D-293). Every
-/// change can be left out; only these can be edited.
-const EDITABLE: [(&str, &[&str]); 5] = [
+/// The fields the user may change in an item of each list (D-293, D-1016).
+/// Every change can be left out; only these can be edited.
+const EDITABLE: [(&str, &[&str]); 7] = [
     ("new_categories", &["name", "parent_id"]),
     (
         "new_rules",
         &["name", "match", "conditions", "category_id", "new_category"],
     ),
     ("categorize", &["category_id", "new_category"]),
+    ("edit_transactions", &["payee", "note"]),
+    ("split_transactions", &["parts"]),
     ("new_views", &["title", "chart", "period"]),
     // The review's own switch, as in the Rules page's dialog (D-631, D-682).
     ("sort_with_rules", &["sort_again"]),
@@ -112,6 +114,26 @@ impl Slot {
             .iter()
             .find(|(list, _)| *list == self.list)
             .map_or(&[], |(_, fields)| fields)
+    }
+
+    /// The fields of this change the user may edit under the current field
+    /// locks of `allowed` (D-1016): a field locked against the AI is never
+    /// offered for inline editing in the review card.
+    pub fn editable_under(self, allowed: Permissions) -> Vec<&'static str> {
+        match self.list {
+            "edit_transactions" => self
+                .editable()
+                .iter()
+                .copied()
+                .filter(|field| match *field {
+                    "payee" => !allowed.locked(Field::Payee),
+                    "note" => !allowed.locked(Field::Note),
+                    _ => false,
+                })
+                .collect(),
+            "split_transactions" if allowed.locked(Field::Category) => Vec::new(),
+            _ => self.editable().to_vec(),
+        }
     }
 }
 
@@ -297,6 +319,10 @@ impl From<ToolError> for EditError {
             ToolError::BadArgument {
                 argument: "name" | "title" | "text",
             } => Self::Text,
+            ToolError::BadArgumentWhy {
+                argument: "name" | "note" | "payee",
+                ..
+            } => Self::Text,
             ToolError::BadCondition { reason: "text", .. } => Self::Text,
             ToolError::NameTaken => Self::NameTaken,
             // The user picks a new category from the set, so a key that
@@ -304,7 +330,7 @@ impl From<ToolError> for EditError {
             ToolError::BadArgument {
                 argument: "new_category" | "new_parent" | "new_parent_rule" | "add_new_tags",
             } => Self::InUse,
-            ToolError::NotAllowed { .. } => Self::NotAllowed,
+            ToolError::NotAllowed { .. } | ToolError::FieldLocked { .. } => Self::NotAllowed,
             other => Self::Refused(other),
         }
     }
@@ -404,6 +430,12 @@ impl ChangeSet {
         };
         if fields.is_empty() || fields.keys().any(|key| !editable.contains(&key.as_str())) {
             return Err(EditError::NotEditable);
+        }
+        // Respect field locks even when a caller tries to clear a locked field
+        // with null (D-1016).
+        let unlocked = slot.editable_under(allowed);
+        if fields.keys().any(|key| !unlocked.contains(&key.as_str())) {
+            return Err(EditError::NotAllowed);
         }
         let mut item = current.clone();
         // A category is either one of the book's or a new one of the set.

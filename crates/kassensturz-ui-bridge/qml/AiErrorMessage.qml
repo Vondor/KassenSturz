@@ -140,7 +140,7 @@ ColumnLayout {
         case "ai-changes.not-editable":
             return i18nContext.i18nc("@info", "This change can't be changed that way, so your change wasn't kept. Leave the change out, or take the AI's version.");
         case "ai-changes.edit-text":
-            return i18nContext.i18nc("@info", "A name, title or text to look for can't be empty, can be at most 100 characters long (a chart's title 200) and can't hold line breaks or hidden characters. Your change wasn't kept; type it again.");
+            return i18nContext.i18nc("@info", "This text can't be used: names, titles and search texts can't be empty, and texts can't exceed their length limit or hold line breaks or hidden characters. Your change wasn't kept; type it again.");
         case "ai-changes.edit-name-taken":
             return i18nContext.i18nc("@info", "That name is already used there. Your change wasn't kept; pick another name.");
         case "ai-changes.edit-in-use":

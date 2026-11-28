@@ -808,6 +808,7 @@ pub(crate) mod engine {
             ChangeView::EditTransaction {
                 date,
                 payee,
+                note,
                 account,
                 amount,
                 lines,
@@ -815,6 +816,7 @@ pub(crate) mod engine {
                 ("kind", text("editTransaction")),
                 ("date", text(date)),
                 ("payee", text(payee)),
+                ("note", text(note)),
                 ("account", text(account)),
                 ("amount", text(amount)),
                 (
@@ -1021,6 +1023,8 @@ pub(crate) mod engine {
                 payee,
                 account,
                 total,
+                currency,
+                note_unlocked,
                 before,
                 parts,
             } => {
@@ -1039,6 +1043,8 @@ pub(crate) mod engine {
                     ("payee", text(payee)),
                     ("account", text(account)),
                     ("total", text(total)),
+                    ("currency", text(currency)),
+                    ("noteUnlocked", QVariant::from(note_unlocked)),
                     ("before", parts_of(before)),
                     ("parts", parts_of(parts)),
                 ]
@@ -1331,7 +1337,8 @@ pub(crate) mod engine {
         let Some(set) = id_of(id).and_then(|id| chat.state.sets.get(id)) else {
             return error(&ErrorText::plain("ai-changes.out-of-date"));
         };
-        match session::with_book(|book| rows_of(book, set, &app_locale())) {
+        let allowed = kassensturz_core::ai_switch::permissions();
+        match session::with_book(|book| rows_of(book, set, allowed, &app_locale())) {
             Some(Ok(rows)) => changes_object(&rows),
             Some(Err(cause)) => error(&book_unreadable(cause)),
             None => error(&ErrorText::plain("ai-changes.out-of-date")),
@@ -1462,14 +1469,9 @@ pub(crate) mod engine {
             return out_of_date();
         };
         let checked = session::with_book(|book| {
-            let set = corrected(
-                book,
-                set,
-                slot,
-                &correction,
-                kassensturz_core::ai_switch::permissions(),
-            )?;
-            let rows = rows_of(book, &set, &app_locale())
+            let allowed = kassensturz_core::ai_switch::permissions();
+            let set = corrected(book, set, slot, &correction, allowed)?;
+            let rows = rows_of(book, &set, allowed, &app_locale())
                 .map_err(|cause| EditError::Refused(ToolError::Store(cause)))?;
             Ok::<_, EditError>((set, rows))
         });
@@ -2360,6 +2362,7 @@ mod tests {
             ChangeView::EditTransaction {
                 date: "2026-10-03".into(),
                 payee: "Corner Grocery".into(),
+                note: String::new(),
                 account: "Everyday Checking".into(),
                 amount: "-53,20 €".into(),
                 lines: vec![
@@ -2606,7 +2609,9 @@ mod tests {
         assert!(!flag_of(&items[9], "kindChanges"));
         assert_eq!(
             own_keys(&items[10]),
-            ["account", "amount", "date", "kind", "lines", "payee"]
+            [
+                "account", "amount", "date", "kind", "lines", "note", "payee"
+            ]
         );
         assert_eq!(text_of(&items[10], "kind"), "editTransaction");
         let lines = list_of(&items[10], "lines");
@@ -2881,7 +2886,7 @@ mod tests {
             Permissions::all(),
         )
         .unwrap();
-        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &proposal.changes, Permissions::all(), &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 1);
@@ -2997,7 +3002,7 @@ mod tests {
             Permissions::all(),
         )
         .unwrap();
-        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &proposal.changes, Permissions::all(), &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 1);
@@ -3117,7 +3122,7 @@ mod tests {
             allowed,
         )
         .unwrap();
-        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &proposal.changes, Permissions::all(), &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 2);
@@ -3245,7 +3250,7 @@ mod tests {
             Permissions::all(),
         )
         .unwrap();
-        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &proposal.changes, Permissions::all(), &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 1);
@@ -3333,7 +3338,7 @@ mod tests {
             Permissions::all(),
         )
         .unwrap();
-        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &proposal.changes, Permissions::all(), &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 2);
@@ -3419,7 +3424,7 @@ mod tests {
             unlocked,
         )
         .unwrap();
-        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &proposal.changes, unlocked, &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 1);
@@ -3427,13 +3432,23 @@ mod tests {
         assert_eq!(
             own_keys(change),
             [
-                "account", "before", "date", "kind", "parts", "payee", "total"
+                "account",
+                "before",
+                "currency",
+                "date",
+                "kind",
+                "noteUnlocked",
+                "parts",
+                "payee",
+                "total"
             ]
         );
         assert_eq!(text_of(change, "kind"), "splitTransaction");
         assert_eq!(text_of(change, "slot"), "split_transactions/0");
         assert_eq!(text_of(change, "account"), "Checking");
         assert_eq!(text_of(change, "payee"), "Papierladen Nord");
+        assert_eq!(text_of(change, "currency"), "EUR");
+        assert!(flag_of(change, "noteUnlocked"));
         assert!(!text_of(change, "total").is_empty());
         assert!(!text_of(change, "date").is_empty());
         let before = list_of(change, "before");
@@ -3447,7 +3462,11 @@ mod tests {
         assert!(!text_of(&parts[0], "amount").is_empty());
         assert_eq!(text_of(&parts[1], "category"), "");
         assert_eq!(text_of(&parts[1], "name"), "");
-        assert!(list_of(change, "fields").is_empty());
+        let fields: Vec<String> = list_of(change, "fields")
+            .iter()
+            .map(|value| value.value::<QString>().unwrap().to_string())
+            .collect();
+        assert_eq!(fields, ["parts"]);
 
         // B-472 / D-1011: a split part pointing at a new_category in the same
         // call renders the new category's full path on the check card.
@@ -3470,7 +3489,7 @@ mod tests {
             unlocked,
         )
         .unwrap();
-        let rows = rows_of(&book, &with_new.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &with_new.changes, unlocked, &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 2);
@@ -3542,7 +3561,7 @@ mod tests {
             Some(&folder.join("")),
         )
         .unwrap();
-        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let rows = rows_of(&book, &proposal.changes, Permissions::all(), &TestLocale).unwrap();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 1);
@@ -3637,7 +3656,7 @@ mod tests {
             .changes
             .leave_out_differing_bills(&book, Permissions::all())
             .unwrap();
-        let rows = rows_of(&book, &set, &TestLocale).unwrap();
+        let rows = rows_of(&book, &set, Permissions::all(), &TestLocale).unwrap();
         let items = elements(&changes_object(&rows)).expect("an array");
         assert_eq!(items.len(), 2);
         let (kept, left) = (&items[0], &items[1]);
@@ -3671,7 +3690,7 @@ mod tests {
         // No archive chosen: no place to show.
         assert_eq!(text_of(kept, "goesTo"), "");
         crate::receipt_moves::choose_archive_for_test(Some(folder.join("Archive")));
-        let rows = rows_of(&book, &set, &TestLocale).unwrap();
+        let rows = rows_of(&book, &set, Permissions::all(), &TestLocale).unwrap();
         crate::receipt_moves::choose_archive_for_test(None);
         let items = elements(&changes_object(&rows)).expect("an array");
         assert_eq!(
@@ -3728,5 +3747,164 @@ mod tests {
             copies[0].value::<QString>().unwrap().to_string(),
             inbox.join("RE-0042.pdf").to_string_lossy()
         );
+    }
+
+    #[test]
+    fn edit_and_split_review_cards_expose_locked_fields_and_roundtrip_edits() {
+        // US11.2, D-1016: inline Change on editTransaction (respecting Payee/Note
+        // locks) and splitTransaction (swapping off a proposed new_category so
+        // leave_out succeeds cleanly, plus noteUnlocked gating).
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::{Field, Permissions};
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use crate::ai_chat::{Correction, corrected, rows_of};
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let make = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = make("Checking", AccountKind::Asset);
+        let office = make("Office supplies", AccountKind::Expense);
+        for account in [&checking, &office] {
+            book.add_account(account).unwrap();
+        }
+        let tx_edit = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 11, 4),
+            Some("Stationery Shop".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-950, eur)),
+                Split::new(office.id, Money::from_minor_units(950, eur)),
+            ],
+        )
+        .unwrap()
+        .with_note(Some("Order 104".into()));
+        let tx_split = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 11, 5),
+            Some("General Store".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-1999, eur)),
+                Split::uncategorized(Money::from_minor_units(1999, eur)),
+            ],
+        )
+        .unwrap();
+        book.add_transaction(&tx_edit).unwrap();
+        book.add_transaction(&tx_split).unwrap();
+
+        let all_unlocked = Field::ALL
+            .into_iter()
+            .fold(Permissions::all(), |p, field| p.with_lock(field, false));
+        let proposal = propose(
+            &book,
+            &serde_json::json!({
+                "new_categories": [{"key": "gadgets", "name": "Gadgets"}],
+                "edit_transactions": [{
+                    "transaction_id": tx_edit.id().to_string(),
+                    "note": "Order 104 · Pens",
+                }],
+                "split_transactions": [{
+                    "transaction_id": tx_split.id().to_string(),
+                    "parts": [
+                        {"new_category": "gadgets", "amount": "-12.50", "name": "Mouse"},
+                        {"amount": "-7.49", "name": "Notebook"},
+                    ],
+                }],
+            }),
+            all_unlocked,
+        )
+        .unwrap();
+
+        // 1. With default Permissions::all() (Payee locked, Note unlocked),
+        // editTransaction offers only ["note"], and splitTransaction has noteUnlocked=true.
+        let default_rows =
+            rows_of(&book, &proposal.changes, Permissions::all(), &TestLocale).unwrap();
+        let default_items = elements(&changes_object(&default_rows)).unwrap();
+        assert_eq!(default_items.len(), 3);
+        let edit_card = &default_items[1];
+        assert_eq!(text_of(edit_card, "kind"), "editTransaction");
+        assert_eq!(text_of(edit_card, "note"), "Order 104");
+        let edit_fields: Vec<String> = list_of(edit_card, "fields")
+            .iter()
+            .map(|v| v.value::<QString>().unwrap().to_string())
+            .collect();
+        assert_eq!(edit_fields, ["note"]);
+
+        // With both Payee and Note unlocked, both are offered.
+        let unlocked_rows = rows_of(&book, &proposal.changes, all_unlocked, &TestLocale).unwrap();
+        let unlocked_items = elements(&changes_object(&unlocked_rows)).unwrap();
+        let unlocked_edit_fields: Vec<String> = list_of(&unlocked_items[1], "fields")
+            .iter()
+            .map(|v| v.value::<QString>().unwrap().to_string())
+            .collect();
+        assert_eq!(unlocked_edit_fields, ["payee", "note"]);
+
+        // With Note locked, editTransaction offers no fields (when Payee is also locked)
+        // and splitTransaction sets noteUnlocked=false while still allowing category edits.
+        let note_locked = Permissions::all().with_lock(Field::Note, true);
+        let locked_rows = rows_of(&book, &proposal.changes, note_locked, &TestLocale).unwrap();
+        let locked_items = elements(&changes_object(&locked_rows)).unwrap();
+        assert!(list_of(&locked_items[1], "fields").is_empty());
+        assert_eq!(text_of(&locked_items[1], "form"), "");
+        assert!(!flag_of(&locked_items[2], "noteUnlocked"));
+        let locked_split_fields: Vec<String> = list_of(&locked_items[2], "fields")
+            .iter()
+            .map(|v| v.value::<QString>().unwrap().to_string())
+            .collect();
+        assert_eq!(locked_split_fields, ["parts"]);
+
+        // 2. Swap split part 0 off "gadgets" to existing Office supplies, then
+        // leave out new_categories/0 cleanly without EditError::InUse.
+        let swapped = corrected(
+            &book,
+            &proposal.changes,
+            "split_transactions/0",
+            &Correction::Edit(
+                serde_json::json!({
+                    "parts": [
+                        {"category_id": office.id.to_string(), "amount": "-12.50", "name": "USB Mouse"},
+                        {"amount": "-7.49", "name": "Notebook"},
+                    ]
+                })
+                .to_string(),
+            ),
+            all_unlocked,
+        )
+        .expect("split edited");
+        let without_new = corrected(
+            &book,
+            &swapped,
+            "new_categories/0",
+            &Correction::LeaveOut,
+            all_unlocked,
+        )
+        .expect("new category left out cleanly after swapping split part");
+        let after_rows = rows_of(&book, &without_new, all_unlocked, &TestLocale).unwrap();
+        let after_items = elements(&changes_object(&after_rows)).unwrap();
+        let split_card = after_items
+            .iter()
+            .find(|item| text_of(item, "kind") == "splitTransaction")
+            .expect("split card");
+        assert!(flag_of(split_card, "edited"));
+        let split_parts = list_of(split_card, "parts");
+        assert_eq!(text_of(&split_parts[0], "category"), "Office supplies");
+        assert_eq!(text_of(&split_parts[0], "name"), "USB Mouse");
     }
 }

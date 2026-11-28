@@ -556,7 +556,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Information
             visible: page.shows
-            text: page.i18nContext.i18nc("@info", "You can change a new category, a new Rule, the category a transaction gets and a new chart before you confirm, or leave any change out. What you change stays between you and KassenSturz: it isn't sent to the AI.")
+            text: page.i18nContext.i18nc("@info", "You can change a new category, a new Rule, a transaction's category, note, who paid or was paid, or split parts, and a new chart before you confirm, or leave any change out. What you change stays between you and KassenSturz: it isn't sent to the AI.")
         }
 
         // The one plain danger line of a big or erasing set (B-248): what
